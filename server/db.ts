@@ -7,11 +7,22 @@ import { seedDatabaseIfEmpty } from './seed.js';
 // changes depth (server/db.ts in dev via tsx vs dist-server/server/db.js in production), but
 // the process is always launched from the project root either way, so cwd stays stable.
 const dataDir = path.join(process.cwd(), 'data');
-if (!fs.existsSync(dataDir)) {
+
+// The admin-subdomain deployment runs in proxy mode (ADMIN_PROXY_TARGET, see server/index.ts)
+// and never touches a database — every route file still does a static `import { db } from
+// '../db.js'` though, which runs this module's top-level code regardless of which mode
+// index.ts ends up branching into at runtime. An in-memory database here (rather than
+// skipping creation entirely) keeps `db`'s type real with zero disk footprint — no data/
+// directory or .db file gets created on that deployment, and in the unlikely event anything
+// ever did call a method on it, it'd hit a harmless empty DB rather than crashing.
+const dbPath = process.env.ADMIN_PROXY_TARGET
+  ? ':memory:'
+  : path.join(dataDir, 'duolingo_express.db');
+
+if (!process.env.ADMIN_PROXY_TARGET && !fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = path.join(dataDir, 'duolingo_express.db');
 // enableForeignKeyConstraints: without it, the ON DELETE CASCADE declared on
 // shipment_pieces.parent_tracking and tracking_events.shipment_tracking is purely
 // decorative — SQLite does not enforce foreign keys (or cascade deletes) unless this is

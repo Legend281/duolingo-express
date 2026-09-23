@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import session from 'express-session';
 import helmet from 'helmet';
 import path from 'path';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import { initDatabase } from './db.js';
 import { shipmentsRouter } from './routes/shipments.js';
 import { quotesRouter } from './routes/quotes.js';
@@ -19,6 +20,12 @@ dotenv.config(); // reload trigger for tsx watch after .env changes
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Set only on the admin-subdomain deployment. That deployment has no database of its own —
+// every /api request is silently forwarded to the real app's API instead, so there is always
+// exactly one SQLite file and one source of truth, never two copies of the data quietly
+// diverging between the public site and the admin console. See the branch below.
+const ADMIN_PROXY_TARGET = process.env.ADMIN_PROXY_TARGET;
+
 // Hostinger (like virtually all shared/PaaS hosting) terminates HTTPS at a reverse proxy in
 // front of this process, which itself only ever sees plain HTTP. Without this, Express has no
 // way to know the original request was secure, so the session cookie's `secure: true` flag
@@ -27,8 +34,10 @@ const PORT = process.env.PORT || 5000;
 // proxy hop is what lets Express read the standard X-Forwarded-Proto header instead.
 app.set('trust proxy', 1);
 
-// Initialize Persistent SQLite Database
-initDatabase();
+if (!ADMIN_PROXY_TARGET) {
+  // Initialize Persistent SQLite Database
+  initDatabase();
+}
 
 // Middleware
 // contentSecurityPolicy and crossOriginEmbedderPolicy are off deliberately, not an
@@ -54,65 +63,83 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-// Raised from Express's 100kb default so a base64-encoded signature/stamp image upload
-// (see Settings > Barcode & Documents) doesn't silently fail with a 413.
-app.use(express.json({ limit: '5mb' }));
+if (ADMIN_PROXY_TARGET) {
+  // Admin-subdomain deployment: forward every /api request to the real app untouched, cookies
+  // included. Mounted before any body-parser so the raw request stream reaches the upstream
+  // intact — express.json() below would otherwise consume it, breaking the proxy for any
+  // POST/PUT/PATCH body. No cookieDomainRewrite needed: the session cookie is set with no
+  // explicit Domain attribute (see below), so it passes through unchanged and the browser
+  // naturally scopes it to whichever host actually answered — this subdomain.
+  //
+  // pathRewrite re-adds "/api" because Express's app.use('/api', ...) already strips that
+  // prefix from req.url before the proxy ever sees it (confirmed live — without this, /api/
+  // health arrived upstream as bare /health and 404'd).
+  app.use('/api', createProxyMiddleware({
+    target: ADMIN_PROXY_TARGET,
+    changeOrigin: true,
+    pathRewrite: (path) => `/api${path}`,
+  }));
+} else {
+  // Raised from Express's 100kb default so a base64-encoded signature/stamp image upload
+  // (see Settings > Barcode & Documents) doesn't silently fail with a 413.
+  app.use(express.json({ limit: '5mb' }));
 
-if (!process.env.SESSION_SECRET) {
-  console.error('[server] SESSION_SECRET is not set in .env — admin sessions will not persist reliably across restarts.');
-}
-
-app.use(session({
-  name: 'dxp.sid',
-  secret: process.env.SESSION_SECRET || 'dev-only-insecure-fallback-secret',
-  resave: false,
-  saveUninitialized: false,
-  // Tells express-session to trust the proxy-derived secure-ness (via trust proxy above)
-  // rather than the raw, always-insecure connection this process itself sees — required
-  // alongside app.set('trust proxy') for a secure cookie to actually be set behind one.
-  proxy: true,
-  cookie: {
-    httpOnly: true,
-    sameSite: 'lax',
-    // Only sent over HTTPS once this is actually deployed behind one — forcing it on in
-    // this local http dev setup would silently stop the cookie from ever being sent at all.
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 12 * 60 * 60 * 1000 // 12 hours
+  if (!process.env.SESSION_SECRET) {
+    console.error('[server] SESSION_SECRET is not set in .env — admin sessions will not persist reliably across restarts.');
   }
-}));
 
-// Health Check
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'Duolingo Express Core Logistics API',
-    version: '1.0.0',
-    timestamp: new Date().toISOString()
+  app.use(session({
+    name: 'dxp.sid',
+    secret: process.env.SESSION_SECRET || 'dev-only-insecure-fallback-secret',
+    resave: false,
+    saveUninitialized: false,
+    // Tells express-session to trust the proxy-derived secure-ness (via trust proxy above)
+    // rather than the raw, always-insecure connection this process itself sees — required
+    // alongside app.set('trust proxy') for a secure cookie to actually be set behind one.
+    proxy: true,
+    cookie: {
+      httpOnly: true,
+      sameSite: 'lax',
+      // Only sent over HTTPS once this is actually deployed behind one — forcing it on in
+      // this local http dev setup would silently stop the cookie from ever being sent at all.
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 12 * 60 * 60 * 1000 // 12 hours
+    }
+  }));
+
+  // Health Check
+  app.get('/api/health', (req, res) => {
+    res.json({
+      status: 'ok',
+      service: 'Duolingo Express Core Logistics API',
+      version: '1.0.0',
+      timestamp: new Date().toISOString()
+    });
   });
-});
 
-// API Routes
-// login/logout/session-check are necessarily unauthenticated (that's the point of them);
-// shipments and quotes are mixed public+admin routers, so each gates its own admin-only
-// routes internally — see the requireAdminAuth calls inside those two files. Documents,
-// settings and stats have no public use at all (confirmed by a full grep of the frontend
-// before this change), so it's simpler and harder to accidentally get wrong to gate them
-// wholesale here at the mount point instead of touching every route inside those files.
-app.use('/api/auth', authRouter);
-app.use('/api/shipments', shipmentsRouter);
-app.use('/api/quotes', quotesRouter);
-// documents is ALSO mixed public+admin (the public booking flow in ShipPage.tsx
-// auto-generates a BOL right after booking) — gated per-route inside documents.ts instead
-// of wholesale here, same reasoning as shipments/quotes.
-app.use('/api/documents', documentsRouter);
-app.use('/api/settings', requireAdminAuth, settingsRouter);
-app.use('/api/track', trackRouter);
-app.use('/api/stats', requireAdminAuth, statsRouter);
+  // API Routes
+  // login/logout/session-check are necessarily unauthenticated (that's the point of them);
+  // shipments and quotes are mixed public+admin routers, so each gates its own admin-only
+  // routes internally — see the requireAdminAuth calls inside those two files. Documents,
+  // settings and stats have no public use at all (confirmed by a full grep of the frontend
+  // before this change), so it's simpler and harder to accidentally get wrong to gate them
+  // wholesale here at the mount point instead of touching every route inside those files.
+  app.use('/api/auth', authRouter);
+  app.use('/api/shipments', shipmentsRouter);
+  app.use('/api/quotes', quotesRouter);
+  // documents is ALSO mixed public+admin (the public booking flow in ShipPage.tsx
+  // auto-generates a BOL right after booking) — gated per-route inside documents.ts instead
+  // of wholesale here, same reasoning as shipments/quotes.
+  app.use('/api/documents', documentsRouter);
+  app.use('/api/settings', requireAdminAuth, settingsRouter);
+  app.use('/api/track', trackRouter);
+  app.use('/api/stats', requireAdminAuth, statsRouter);
 
-// 404 for anything under /api that didn't match a route above.
-app.use('/api', (req: Request, res: Response) => {
-  res.status(404).json({ success: false, error: 'Not found.' });
-});
+  // 404 for anything under /api that didn't match a route above.
+  app.use('/api', (req: Request, res: Response) => {
+    res.status(404).json({ success: false, error: 'Not found.' });
+  });
+}
 
 // Serve the built React frontend (dist/, produced by `vite build`) so this one process is
 // the whole deployed app — API above, static site here. The app uses HashRouter (#/admin,
@@ -143,7 +170,11 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.listen(PORT, () => {
   console.log(`====================================================`);
   console.log(`🚀 Duolingo Express API Server running on port ${PORT}`);
-  console.log(`📦 Database: duolingo_express.db (Persistent SQLite)`);
-  console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
+  if (ADMIN_PROXY_TARGET) {
+    console.log(`🔀 Admin-proxy mode — /api forwards to ${ADMIN_PROXY_TARGET}`);
+  } else {
+    console.log(`📦 Database: duolingo_express.db (Persistent SQLite)`);
+    console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
+  }
   console.log(`====================================================`);
 });
