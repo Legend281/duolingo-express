@@ -26,12 +26,14 @@ import './styles/global.css';
 
 const KNOWN_PAGES = ['home', 'track', 'services', 'quote', 'ship', 'about', 'help', 'contact', 'legal', 'locations', 'admin'];
 
-// Admin now lives on its own subdomain (admin.<domain>) instead of a hash route on the main
-// site, for cleaner separation from the public site. localhost is exempted so local dev can
-// keep using the plain #/admin hash without a real subdomain being set up.
+// Admin now lives on its own subdomain instead of a hash route on the main site, for cleaner
+// separation from the public site. Deliberately not "admin." — that's one of the most
+// commonly probed/guessed subdomain names, which works against the obscurity this move is
+// for. localhost is exempted so local dev can keep using the plain #/admin hash without a
+// real subdomain being set up.
 function isAdminHost(): boolean {
   if (typeof window === 'undefined') return false;
-  return window.location.hostname.startsWith('admin.');
+  return window.location.hostname.startsWith('dr.');
 }
 
 function isLocalDevHost(): boolean {
