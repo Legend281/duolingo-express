@@ -1,0 +1,142 @@
+.dxp-passport-card {
+  background: var(--dxp-white);
+  border: 1px solid var(--dxp-slate-200);
+  border-radius: var(--dxp-radius-lg);
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--dxp-shadow-card);
+}
+
+.dxp-passport-header {
+  margin-bottom: 1.25rem;
+}
+
+.dxp-passport-title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--dxp-navy-900);
+  margin-bottom: 0.125rem;
+}
+
+.dxp-passport-sub {
+  font-size: 0.8125rem;
+  color: var(--dxp-slate-500);
+}
+
+.dxp-passport-stages {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  position: relative;
+}
+
+.dxp-passport-stage-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+}
+
+.stage-icon-wrap {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 0.625rem;
+}
+
+.stage-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: var(--dxp-transition);
+}
+
+.stage-icon.completed {
+  background-color: var(--dxp-slate-100);
+  color: var(--dxp-slate-700);
+  border: 1.5px solid var(--dxp-slate-300);
+}
+
+.stage-icon.current {
+  background-color: var(--dxp-blue-600);
+  color: var(--dxp-white);
+  box-shadow: 0 0 0 4px var(--dxp-blue-100);
+}
+
+.stage-icon.upcoming {
+  background-color: var(--dxp-slate-50);
+  color: var(--dxp-slate-400);
+  border: 1.5px dashed var(--dxp-slate-300);
+}
+
+.stage-connector {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background-color: var(--dxp-slate-200);
+  z-index: 1;
+  transform: translateY(-50%);
+}
+
+.stage-connector.completed {
+  background-color: var(--dxp-slate-400);
+}
+
+.stage-connector.current {
+  background: linear-gradient(to right, var(--dxp-blue-600), var(--dxp-slate-200));
+}
+
+.stage-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.stage-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--dxp-slate-800);
+}
+
+.dxp-passport-stage-col.current .stage-label {
+  color: var(--dxp-blue-600);
+}
+
+.dxp-passport-stage-col.upcoming .stage-label {
+  color: var(--dxp-slate-500);
+}
+
+.stage-sublabel {
+  font-size: 0.75rem;
+  color: var(--dxp-slate-500);
+}
+
+@media (max-width: 640px) {
+  .dxp-passport-stages {
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .dxp-passport-stage-col {
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+    width: 100%;
+    gap: 1rem;
+  }
+  .stage-icon-wrap {
+    width: auto;
+    margin-bottom: 0;
+  }
+  .stage-connector {
+    display: none;
+  }
+}

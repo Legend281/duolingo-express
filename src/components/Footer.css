@@ -1,0 +1,508 @@
+/* ============================================================
+   EXECUTIVE CORPORATE FOOTER (MATCHING OFFICIAL DESIGN)
+   Deep Midnight Navy · Orange Swoosh · Custom Dark Logo · 5-Col
+   ============================================================ */
+
+.dxp-pro-footer-wrapper {
+  margin-top: auto;
+  width: 100%;
+}
+
+/* ============================================================
+   1. TRUST FEATURE STRIP
+   ============================================================ */
+.dxp-footer-trust-strip {
+  background-color: var(--dxp-white);
+  border-top: 1.5px solid var(--dxp-slate-200);
+  border-bottom: 1.5px solid var(--dxp-slate-200);
+  padding: 2.25rem 0;
+}
+
+.dxp-trust-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+}
+
+.dxp-trust-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.dxp-trust-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: var(--dxp-radius-lg);
+  background-color: var(--dxp-orange-50);
+  color: var(--dxp-orange-600);
+  border: 1px solid var(--dxp-orange-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dxp-trust-info h4 {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: var(--dxp-navy-900);
+  margin-bottom: 0.25rem;
+}
+
+.dxp-trust-info p {
+  font-size: 0.8125rem;
+  color: var(--dxp-slate-600);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* ============================================================
+   2. MAIN EXECUTIVE FOOTER
+   ============================================================ */
+.dxp-pro-footer-main {
+  position: relative;
+  background: #08101d;
+  color: #94a3b8;
+  padding: 5rem 0 2.25rem;
+  overflow: hidden;
+}
+
+/* Subtle World Map Watermark Background */
+.footer-world-map-bg {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 60%;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 16px 16px;
+  mask-image: radial-gradient(ellipse at 85% 30%, black 40%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse at 85% 30%, black 40%, transparent 80%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Glowing Orange Swoosh Wave in Bottom-Right */
+.footer-orange-swoosh {
+  position: absolute;
+  right: -50px;
+  bottom: -40px;
+  width: 320px;
+  height: 140px;
+  background: radial-gradient(ellipse at center, rgba(234, 88, 12, 0.45) 0%, rgba(249, 115, 22, 0.2) 45%, transparent 75%);
+  border-top-left-radius: 200px 100px;
+  border-top: 3px solid rgba(234, 88, 12, 0.85);
+  box-shadow: 0 -10px 40px rgba(234, 88, 12, 0.25);
+  pointer-events: none;
+  z-index: 1;
+  transform: rotate(-4deg);
+}
+
+.footer-content-relative {
+  position: relative;
+  z-index: 2;
+}
+
+/* 5-Column Grid */
+.dxp-pro-footer-grid {
+  display: grid;
+  grid-template-columns: 2.2fr 1.1fr 1.3fr 1.2fr 2fr;
+  gap: 2.75rem;
+  margin-bottom: 4rem;
+}
+
+/* Column 1: Brand */
+.dxp-pro-brand-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.dxp-pro-footer-logo {
+  display: inline-block;
+  cursor: pointer;
+  margin-bottom: 1.25rem;
+  user-select: none;
+  width: fit-content;
+}
+
+.dxp-pro-footer-logo-img {
+  height: 56px;
+  width: auto;
+  max-width: 270px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+.dxp-pro-brand-desc {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  line-height: 1.65;
+  margin-bottom: 1.5rem;
+  max-width: 340px;
+}
+
+.dxp-pro-socials {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 1.75rem;
+}
+
+.pro-social-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ea580c;
+  transition: all 0.2s ease;
+}
+
+.pro-social-btn:hover {
+  background: #ea580c;
+  color: #ffffff;
+  border-color: #ea580c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+}
+
+.dxp-pro-faster-tagline {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: #cbd5e1;
+}
+
+.tagline-bar {
+  width: 32px;
+  height: 3px;
+  background: #ea580c;
+  border-radius: 2px;
+}
+
+/* Link Columns (Quick Links, Our Services, Support) */
+.dxp-pro-links-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.dxp-pro-col-title {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 1.5rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.title-orange-dash {
+  display: block;
+  width: 24px;
+  height: 2.5px;
+  background: #ea580c;
+  border-radius: 2px;
+}
+
+.dxp-pro-links-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dxp-pro-links-list button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #94a3b8;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.link-chevron {
+  color: #ea580c;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.dxp-pro-links-list button:hover {
+  color: #ffffff;
+  transform: translateX(4px);
+}
+
+.dxp-pro-links-list button:hover .link-chevron {
+  transform: translateX(2px);
+}
+
+/* Column 5: Stay Updated */
+.dxp-pro-newsletter-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.dxp-pro-newsletter-desc {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  line-height: 1.55;
+  margin-bottom: 1.25rem;
+}
+
+.dxp-pro-subscribe-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+}
+
+.pro-input-wrap {
+  position: relative;
+  flex: 1;
+}
+
+.pro-mail-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  pointer-events: none;
+}
+
+.pro-newsletter-input {
+  width: 100%;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  padding: 0 1rem 0 2.5rem;
+  font-size: 0.875rem;
+  color: #ffffff;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.pro-newsletter-input:focus {
+  border-color: #ea580c;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.pro-newsletter-input::placeholder {
+  color: #64748b;
+}
+
+.pro-subscribe-btn {
+  height: 44px;
+  padding: 0 1.25rem;
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25);
+}
+
+.pro-subscribe-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.pro-subscribe-msg {
+  font-size: 0.75rem;
+  color: #34d399;
+  margin-bottom: 1rem;
+}
+
+/* Worldwide Callout Pill */
+.dxp-pro-global-pill {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.global-pill-icon {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.global-pill-text strong {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: #ffffff;
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.global-pill-text p {
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Admin Link */
+.pro-admin-wrap {
+  margin-top: 1.75rem;
+}
+
+.pro-admin-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #64748b;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pro-admin-link:hover {
+  color: #fb923c;
+  border-color: #ea580c;
+  background: rgba(234, 88, 12, 0.08);
+}
+
+/* ============================================================
+   3. BOTTOM BAR
+   ============================================================ */
+.dxp-pro-footer-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.pro-copy-text {
+  color: #94a3b8;
+}
+
+.pro-bottom-right-links {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pro-sep-bar {
+  color: #475569;
+  margin-right: 0.25rem;
+}
+
+.pro-bottom-right-links button {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s ease;
+}
+
+.pro-bottom-right-links button:hover {
+  color: #ffffff;
+}
+
+.pro-dot {
+  color: #ea580c;
+}
+
+.pro-slogan {
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+/* ============================================================
+   RESPONSIVE DESIGN & MOBILE BREAKPOINTS
+   ============================================================ */
+@media (max-width: 1200px) {
+  .dxp-pro-footer-grid {
+    grid-template-columns: 2fr 1fr 1.2fr 1fr 1.8fr;
+    gap: 2rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .dxp-trust-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dxp-pro-footer-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2.5rem;
+  }
+  .dxp-pro-brand-col {
+    grid-column: span 2;
+  }
+  .dxp-pro-newsletter-col {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .dxp-trust-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .dxp-pro-footer-main {
+    padding: 3.5rem 0 2rem;
+  }
+  .dxp-pro-footer-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  .dxp-pro-brand-col,
+  .dxp-pro-newsletter-col {
+    grid-column: span 1;
+  }
+  .dxp-pro-subscribe-form {
+    flex-direction: column;
+  }
+  .pro-subscribe-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .dxp-pro-footer-bottom {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.75rem;
+  }
+  .pro-bottom-right-links {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .footer-orange-swoosh {
+    display: none;
+  }
+}

@@ -1,0 +1,485 @@
+/* ============================================================
+   FACILITY NETWORK MAP STYLES (EXECUTIVE CORPORATE DESIGN)
+   Zero In-Transit Simulation · Fixed Hubs · Interactive Corridors
+   ============================================================ */
+
+.facility-network-map-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+/* 1. Facility Selector Chips Bar */
+.facility-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.25rem;
+}
+
+.btn-national-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: var(--dxp-navy-900);
+  color: var(--dxp-white);
+  border: none;
+  border-radius: 9999px;
+  padding: 0.45rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--dxp-transition);
+  flex-shrink: 0;
+}
+
+.btn-national-view:hover {
+  background: var(--dxp-navy-800);
+}
+
+.facility-chips-list {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+}
+
+.facility-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: var(--dxp-white);
+  border: 1.5px solid var(--dxp-slate-200);
+  border-radius: 9999px;
+  padding: 0.4rem 0.875rem;
+  font-size: 0.8125rem;
+  color: var(--dxp-slate-600);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--dxp-transition);
+  flex-shrink: 0;
+}
+
+.facility-chip .chip-code {
+  font-weight: 800;
+  color: var(--dxp-orange-600);
+  background: var(--dxp-orange-50);
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+}
+
+.facility-chip .chip-name {
+  font-weight: 600;
+}
+
+.facility-chip:hover {
+  border-color: var(--dxp-orange-300);
+  color: var(--dxp-navy-900);
+}
+
+.facility-chip.active {
+  background: #fff7ed;
+  border-color: var(--dxp-orange-500);
+  color: var(--dxp-navy-900);
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.12);
+}
+
+.facility-chip.active .chip-code {
+  background: var(--dxp-orange-500);
+  color: var(--dxp-white);
+}
+
+/* 2. Interactive Map Stage */
+.facility-map-stage {
+  position: relative;
+  width: 100%;
+  height: 480px;
+  border-radius: var(--dxp-radius-2xl);
+  overflow: hidden;
+  border: 1.5px solid var(--dxp-slate-200);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+}
+
+.facility-leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Custom Marker Pins */
+.custom-facility-div-icon {
+  background: transparent;
+  border: none;
+}
+
+.facility-map-marker-pin {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.marker-pulse-ring {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(234, 88, 12, 0.25);
+  animation: pulse-ring 2.5s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+.marker-pin-inner {
+  position: relative;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #0f172a;
+  border: 2px solid #ea580c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.marker-pin-code {
+  font-size: 0.625rem;
+  font-weight: 800;
+  color: var(--dxp-white);
+  letter-spacing: -0.02em;
+}
+
+.facility-map-marker-pin:hover .marker-pin-inner,
+.facility-map-marker-pin.active .marker-pin-inner {
+  transform: scale(1.15);
+  background: #ea580c;
+  border-color: var(--dxp-white);
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* Map Floating HUD Controls */
+.facility-map-controls {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.facility-map-controls button {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--dxp-radius-md);
+  background: var(--dxp-white);
+  border: 1px solid var(--dxp-slate-200);
+  color: var(--dxp-slate-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transition: var(--dxp-transition);
+}
+
+.facility-map-controls button:hover {
+  background: var(--dxp-orange-50);
+  color: var(--dxp-orange-600);
+  border-color: var(--dxp-orange-300);
+}
+
+/* Legend Badge */
+.facility-map-legend {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--dxp-radius-lg);
+  padding: 0.625rem 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.6875rem;
+  color: #e2e8f0;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.legend-marker-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ea580c;
+  border: 1.5px solid #ffffff;
+}
+
+.legend-line-dash {
+  width: 18px;
+  height: 2px;
+  border-top: 2px dashed #ea580c;
+}
+
+/* Leaflet Popup Styling */
+.leaflet-popup-content-wrapper {
+  background: var(--dxp-white);
+  border-radius: var(--dxp-radius-xl);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+  border: 1.5px solid var(--dxp-slate-200);
+  padding: 0;
+  overflow: hidden;
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  padding: 1.125rem 1.25rem;
+  min-width: 240px;
+}
+
+.facility-map-popup .popup-badge {
+  font-size: 0.625rem;
+  font-weight: 800;
+  color: var(--dxp-orange-600);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.facility-map-popup h4 {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: var(--dxp-navy-900);
+  margin: 0 0 0.25rem;
+  line-height: 1.3;
+}
+
+.facility-map-popup .popup-type {
+  font-size: 0.75rem;
+  color: var(--dxp-slate-500);
+  margin: 0 0 0.5rem;
+  line-height: 1.3;
+}
+
+.facility-map-popup .popup-address {
+  font-size: 0.75rem;
+  color: var(--dxp-slate-600);
+  margin: 0 0 0.625rem;
+}
+
+.facility-map-popup .popup-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: #ecfdf5;
+  color: #059669;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.facility-map-popup .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #059669;
+}
+
+.facility-map-popup .popup-phone {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--dxp-navy-900);
+}
+
+/* 3. Selected Facility Spotlight Card */
+.facility-spotlight-card {
+  background: var(--dxp-white);
+  border: 1.5px solid var(--dxp-slate-200);
+  border-radius: var(--dxp-radius-2xl);
+  padding: 2rem 2.25rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+}
+
+.spotlight-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1.5px solid var(--dxp-slate-100);
+  margin-bottom: 1.5rem;
+}
+
+.spotlight-code-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--dxp-orange-600);
+  margin-bottom: 0.375rem;
+}
+
+.spotlight-status {
+  background: #ecfdf5;
+  color: #059669;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+}
+
+.spotlight-header h3 {
+  font-family: var(--dxp-font-display);
+  font-size: 1.625rem;
+  font-weight: 800;
+  color: var(--dxp-navy-900);
+  margin-bottom: 0.25rem;
+}
+
+.spotlight-type {
+  font-size: 0.875rem;
+  color: var(--dxp-slate-500);
+  margin: 0;
+}
+
+.spotlight-phone-box {
+  background: #f8fafc;
+  border: 1.5px solid var(--dxp-slate-200);
+  border-radius: var(--dxp-radius-xl);
+  padding: 0.875rem 1.25rem;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.spotlight-phone-box small {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--dxp-slate-500);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 0.125rem;
+}
+
+.spotlight-phone-box strong {
+  font-size: 1rem;
+  color: var(--dxp-navy-900);
+}
+
+.spotlight-details-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 1.5rem;
+}
+
+.spotlight-info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.spotlight-info-item small {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--dxp-slate-500);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 0.125rem;
+}
+
+.spotlight-info-item strong {
+  font-size: 0.9375rem;
+  color: var(--dxp-navy-900);
+}
+
+.spotlight-info-item.span-full {
+  grid-column: span 2;
+  border-top: 1px solid var(--dxp-slate-100);
+  padding-top: 1.25rem;
+}
+
+.spotlight-services-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.375rem;
+}
+
+.service-tag {
+  background: #f1f5f9;
+  border: 1px solid var(--dxp-slate-200);
+  color: var(--dxp-slate-700);
+  padding: 0.3rem 0.65rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* ============================================================
+   RESPONSIVE DESIGN & MOBILE BREAKPOINTS
+   ============================================================ */
+@media (max-width: 900px) {
+  .facility-map-stage {
+    height: 400px;
+  }
+  .spotlight-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .spotlight-phone-box {
+    text-align: left;
+    width: 100%;
+  }
+  .spotlight-details-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .spotlight-info-item.span-full {
+    grid-column: span 1;
+  }
+  .facility-map-legend {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .facility-map-stage {
+    height: 340px;
+    border-radius: var(--dxp-radius-xl);
+  }
+  .facility-spotlight-card {
+    padding: 1.5rem 1.125rem;
+    border-radius: var(--dxp-radius-xl);
+  }
+  .spotlight-header h3 {
+    font-size: 1.25rem;
+  }
+}

@@ -1,0 +1,282 @@
+/* ============================================================
+   LOCATIONS & FACILITY NETWORK STYLES (EXECUTIVE CORPORATE DESIGN)
+   Zero Freight/Train/Ship · 24/7 Dispatch Desk · Mobile-First
+   ============================================================ */
+
+.dxp-page-locations {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding-bottom: 6rem;
+  background-color: #f8fafc;
+  color: var(--dxp-navy-900);
+}
+
+/* ============================================================
+   1. CINEMATIC HERO SECTION
+   ============================================================ */
+.dxp-locations-hero {
+  position: relative;
+  background-image: url('https://images.unsplash.com/photo-1542296332-2e4473faf563?w=1920&auto=format&fit=crop&q=85');
+  background-size: cover;
+  background-position: center 35%;
+  color: var(--dxp-white);
+  padding: 5.5rem 0 6rem;
+  overflow: hidden;
+}
+
+.locations-hero-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(7, 17, 30, 0.88) 0%,
+    rgba(11, 25, 44, 0.58) 50%,
+    rgba(15, 34, 56, 0.22) 100%
+  );
+  z-index: 1;
+}
+
+.locations-hero-inner {
+  position: relative;
+  z-index: 2;
+  max-width: 820px;
+}
+
+.locations-hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(234, 88, 12, 0.15);
+  color: #fb923c;
+  border: 1px solid rgba(234, 88, 12, 0.35);
+  padding: 0.375rem 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 1.25rem;
+}
+
+.locations-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ea580c;
+  animation: pulse-dot 2s infinite ease-in-out;
+}
+
+.locations-hero-title {
+  font-family: var(--dxp-font-display);
+  font-size: 3.25rem;
+  font-weight: 800;
+  color: var(--dxp-white);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin-bottom: 1rem;
+}
+
+.locations-highlight-orange {
+  color: #ea580c;
+  font-weight: 800;
+}
+
+.locations-hero-lead {
+  font-size: 1.0625rem;
+  color: #cbd5e1;
+  line-height: 1.65;
+  max-width: 680px;
+}
+
+/* ============================================================
+   2. CONTENT SECTION: MAP & CARDS
+   ============================================================ */
+.dxp-locations-content {
+  margin-top: 3.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4rem;
+}
+
+.locations-map-feature {
+  background: var(--dxp-white);
+  border: 1.5px solid var(--dxp-slate-200);
+  border-radius: var(--dxp-radius-2xl);
+  padding: 2.25rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+}
+
+.map-card-header {
+  margin-bottom: 1.75rem;
+}
+
+.map-badge-pill {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  color: var(--dxp-orange-600);
+  letter-spacing: 0.06em;
+  margin-bottom: 0.375rem;
+}
+
+.map-card-header h3 {
+  font-family: var(--dxp-font-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--dxp-navy-900);
+  margin-bottom: 0.375rem;
+}
+
+.map-card-header p {
+  font-size: 0.9375rem;
+  color: var(--dxp-slate-600);
+  margin: 0;
+}
+
+.facilities-section-head {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.facilities-section-head h2 {
+  font-family: var(--dxp-font-display);
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: var(--dxp-navy-900);
+  margin-bottom: 0.5rem;
+}
+
+.facilities-section-head p {
+  font-size: 1rem;
+  color: var(--dxp-slate-600);
+  line-height: 1.6;
+}
+
+.locations-list-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.75rem;
+}
+
+.facility-card {
+  background: var(--dxp-white);
+  border: 1.5px solid var(--dxp-slate-200);
+  border-radius: var(--dxp-radius-xl);
+  padding: 2rem 1.75rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  transition: var(--dxp-transition);
+}
+
+.facility-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--dxp-orange-400);
+  box-shadow: 0 12px 25px -5px rgba(234, 88, 12, 0.1);
+}
+
+.facility-icon-pill {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--dxp-radius-lg);
+  background: var(--dxp-orange-50);
+  color: var(--dxp-orange-600);
+  border: 1px solid var(--dxp-orange-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.facility-card h3 {
+  font-size: 1.1875rem;
+  font-weight: 800;
+  color: var(--dxp-navy-900);
+  margin-bottom: 0.375rem;
+}
+
+.fac-type {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  color: var(--dxp-orange-600);
+  margin-bottom: 0.625rem;
+  display: block;
+}
+
+.fac-address {
+  font-size: 0.875rem;
+  color: var(--dxp-slate-600);
+  margin-bottom: 1.25rem;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.fac-meta-info {
+  border-top: 1px solid var(--dxp-slate-100);
+  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fac-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--dxp-slate-600);
+}
+
+/* ============================================================
+   RESPONSIVE DESIGN & MOBILE BREAKPOINTS
+   ============================================================ */
+@media (max-width: 1024px) {
+  .locations-list-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .dxp-locations-hero {
+    padding: 3.5rem 0 3rem;
+  }
+  .locations-hero-title {
+    font-size: 2.125rem;
+    line-height: 1.2;
+  }
+  .locations-hero-lead {
+    font-size: 1rem;
+  }
+  .dxp-locations-content {
+    margin-top: 2rem;
+    gap: 2.5rem;
+  }
+  .locations-map-feature {
+    padding: 1.5rem 1.125rem;
+    border-radius: var(--dxp-radius-xl);
+  }
+  .map-card-header h3 {
+    font-size: 1.375rem;
+  }
+  .facilities-section-head h2 {
+    font-size: 1.75rem;
+  }
+  .locations-list-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .facility-card {
+    padding: 1.5rem 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .locations-hero-title {
+    font-size: 1.75rem;
+  }
+  .locations-hero-pill {
+    font-size: 0.6875rem;
+    padding: 0.25rem 0.625rem;
+  }
+}
