@@ -19,6 +19,14 @@ dotenv.config(); // reload trigger for tsx watch after .env changes
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Hostinger (like virtually all shared/PaaS hosting) terminates HTTPS at a reverse proxy in
+// front of this process, which itself only ever sees plain HTTP. Without this, Express has no
+// way to know the original request was secure, so the session cookie's `secure: true` flag
+// below never actually reaches the browser correctly — every request after login still looks
+// unauthenticated (401), even though login itself appears to succeed. Trusting the first
+// proxy hop is what lets Express read the standard X-Forwarded-Proto header instead.
+app.set('trust proxy', 1);
+
 // Initialize Persistent SQLite Database
 initDatabase();
 
@@ -59,6 +67,10 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-only-insecure-fallback-secret',
   resave: false,
   saveUninitialized: false,
+  // Tells express-session to trust the proxy-derived secure-ness (via trust proxy above)
+  // rather than the raw, always-insecure connection this process itself sees — required
+  // alongside app.set('trust proxy') for a secure cookie to actually be set behind one.
+  proxy: true,
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
