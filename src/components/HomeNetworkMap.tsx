@@ -45,11 +45,14 @@ export const HomeNetworkMap: React.FC<HomeNetworkMapProps> = ({ activeHub, onSel
       attributionControl: false
     });
 
-    // Standard OpenStreetMap tiles (100% free, no API key required)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      subdomains: 'abc',
+    // Esri's ArcGIS Online basemap tiles: no API key required, and unlike raw
+    // tile.openstreetmap.org (which actively throttles/blocks this kind of client-side
+    // production traffic — see FacilityNetworkMap.tsx and USJourneyMap.tsx, already on
+    // ArcGIS for the same reason), these are meant for exactly this kind of usage.
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
+      attribution: '&copy; Esri, HERE, Garmin, FAO, NOAA, USGS',
+      errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7'
     }).addTo(map);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
