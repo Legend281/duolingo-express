@@ -18,8 +18,6 @@ import {
   Phone,
   Mail,
   Search,
-  ChevronLeft,
-  ChevronRight,
   Radio,
   Clock,
   Compass,
@@ -42,7 +40,6 @@ import {
   Lock,
   Navigation,
   Zap,
-  Maximize2,
   Scale,
   Box,
   Shield,
@@ -66,19 +63,6 @@ interface TrackResultPageProps {
   onTrackAnother: (trackingNumber: string) => void;
   onNavigate: (page: string) => void;
 }
-
-// Curated authentic vehicle transport inspection & carrier photos (Auto Carrier Logistics)
-const DEFAULT_VEHICLE_PHOTOS = [
-  '/images/tracking/toyota_tacoma_hero.jpg', // White Toyota Tacoma TRD Pro in scenic outdoor desert/mountain terrain
-  'https://images.unsplash.com/photo-1559416523-140ddc3d238c?auto=format&fit=crop&w=800&q=80', // Rear angle
-  'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80', // Front grille close-up
-  'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80', // Interior steering wheel & dash
-  'https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=800&q=80', // Interior cabin & seats
-  'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?auto=format&fit=crop&w=800&q=80', // Cargo bed inspection (+3 overlay)
-  'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80'
-];
 
 export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   shipment,
@@ -142,9 +126,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   const [supportOpen, setSupportOpen] = useState(false);
   const [copiedNumber, setCopiedNumber] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [showEarlierEvents, setShowEarlierEvents] = useState(false);
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [alertsModalOpen, setAlertsModalOpen] = useState(false);
   const [alertPhone, setAlertPhone] = useState('');
   const [alertEmail, setAlertEmail] = useState('');
@@ -431,15 +413,6 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
     ? shipment.events
     : defaultEvents;
 
-  // Gallery Photos (Ensure Tacoma/Flagship 9-photo inspection gallery is rendered)
-  const vehiclePhotos = isFlagshipTacoma
-    ? DEFAULT_VEHICLE_PHOTOS
-    : (shipment?.vehicleDetails?.photos && shipment.vehicleDetails.photos.length > 0)
-    ? shipment.vehicleDetails.photos
-    : (shipment?.photos && shipment.photos.length > 0)
-    ? shipment.photos
-    : DEFAULT_VEHICLE_PHOTOS;
-
   const handleCopyTrackingNumber = () => {
     navigator.clipboard.writeText(trackingNum);
     setCopiedNumber(true);
@@ -458,14 +431,6 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
     if (searchInput.trim()) {
       onTrackAnother(searchInput.trim());
     }
-  };
-
-  const nextPhoto = () => {
-    setActivePhotoIdx((prev) => (prev + 1) % vehiclePhotos.length);
-  };
-
-  const prevPhoto = () => {
-    setActivePhotoIdx((prev) => (prev - 1 + vehiclePhotos.length) % vehiclePhotos.length);
   };
 
   // Automated routing & planned milestone calculations
@@ -982,79 +947,14 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
             </div>
           </div>
 
-          {/* RIGHT COLUMN: VEHICLE PHOTOS & STRUCTURED CARGO DETAILS */}
+          {/* RIGHT COLUMN: STRUCTURED CARGO DETAILS */}
           <div className="content-col-details">
-            {/* Card 1: Vehicle Photos — only for actual Vehicle shipments. This used to
-                render unconditionally for every cargo type (the isVehicle check above had a
-                stray `|| true`), so a plain Parcel or Pallet shipment showed a stock Toyota
-                Tacoma photo gallery. */}
-            {isVehicle && (
-            <div className="vehicle-photos-card">
-              <div className="veh-gallery-header">
-                <h3 className="card-section-title" style={{ margin: 0 }}>Vehicle Photos</h3>
-                <div className="gallery-nav-controls">
-                  <span className="photo-counter font-mono">{activePhotoIdx + 1} of {vehiclePhotos.length}</span>
-                  <button className="gallery-arrow-btn" onClick={prevPhoto} title="Previous photo" type="button">
-                    <ChevronLeft size={16} />
-                  </button>
-                  <button className="gallery-arrow-btn" onClick={nextPhoto} title="Next photo" type="button">
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Main Photo Preview Frame */}
-              <div className="veh-main-photo-frame" onClick={() => setIsLightboxOpen(true)}>
-                <img
-                  src={vehiclePhotos[activePhotoIdx]}
-                  alt={`${cargoDescription} - Photo ${activePhotoIdx + 1}`}
-                  className="main-veh-img"
-                />
-                <button
-                  type="button"
-                  className="veh-expand-btn"
-                  title="View full-size photo"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsLightboxOpen(true);
-                  }}
-                >
-                  <Maximize2 size={15} />
-                </button>
-              </div>
-
-              {/* Thumbnail Strip (6 Thumbnails with +3 badge on the 6th) */}
-              <div className="veh-thumbnails-strip">
-                {vehiclePhotos.slice(0, 6).map((photoUrl, idx) => {
-                  const isLastThumb = idx === 5;
-                  const remainingCount = vehiclePhotos.length - 6;
-
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      className={`veh-thumb-btn ${idx === activePhotoIdx ? 'active' : ''}`}
-                      onClick={() => setActivePhotoIdx(idx)}
-                    >
-                      <img src={photoUrl} alt={`Thumbnail ${idx + 1}`} className="thumb-img" />
-                      {isLastThumb && remainingCount > 0 && (
-                        <div className="veh-thumb-more-overlay">
-                          <span>+{remainingCount}</span>
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            )}
-
-            {/* Card 1b: Cargo-Type-Specific Specifications — shown instead of Vehicle Photos
-                for the non-Vehicle types that have real, structured data of their own
-                (Pets, Pallet, Container, Freight, Document — wired up server-side in an
-                earlier phase but never actually surfaced anywhere on this page). Parcel /
-                Multi-piece / unrecognized types get no extra card here since the generic
-                "Shipment Details" card below already covers everything relevant for them. */}
+            {/* Cargo-Type-Specific Specifications — shown for the non-Vehicle types that
+                have real, structured data of their own (Pets, Pallet, Container, Freight,
+                Document). Vehicle no longer gets a photo gallery here (removed per request —
+                no images on the public track result page), and Parcel/Multi-piece/
+                unrecognized types get no extra card either, since the generic "Shipment
+                Details" card below already covers everything relevant for them. */}
             {!isVehicle && isPet && pet && (
               <div className="shipment-details-spec-card">
                 <h3 className="card-section-title">Live Animal Details</h3>
@@ -1504,39 +1404,6 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
           </div>
         </div>
       </div>
-
-      {/* =========================================================================
-          LIGHTBOX MODAL FOR VEHICLE PHOTOS
-          ========================================================================= */}
-      {isLightboxOpen && (
-        <div className="veh-lightbox-overlay animate-fade-in" onClick={() => setIsLightboxOpen(false)}>
-          <div className="veh-lightbox-content" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="veh-lightbox-close"
-              onClick={() => setIsLightboxOpen(false)}
-            >
-              ×
-            </button>
-            <img
-              src={vehiclePhotos[activePhotoIdx]}
-              alt={`${cargoDescription} full view`}
-              className="veh-lightbox-img"
-            />
-            <div className="veh-lightbox-footer">
-              <span className="font-mono">{cargoDescription} — Photo {activePhotoIdx + 1} of {vehiclePhotos.length}</span>
-              <div className="lightbox-nav-buttons">
-                <button type="button" onClick={prevPhoto} className="lightbox-arrow-btn">
-                  <ChevronLeft size={18} />
-                </button>
-                <button type="button" onClick={nextPhoto} className="lightbox-arrow-btn">
-                  <ChevronRight size={18} />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* =========================================================================
           SUBSCRIBE TO ALERTS MODAL
