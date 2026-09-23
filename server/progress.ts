@@ -134,7 +134,7 @@ export function syncTimeBasedProgress(row: ProgressRow): number {
   const nextStatus = PRE_TRANSIT_STATUSES.has(row.status) && nextProgress > 0 ? 'IN_TRANSIT' : row.status;
   const nextStatusText = nextStatus !== row.status
     ? `In Linehaul Transit (${Math.round(nextProgress)}% Complete)`
-    : row.status_text;
+    : (row.status_text ?? null);
 
   db.prepare(`
     UPDATE shipments

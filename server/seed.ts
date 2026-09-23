@@ -59,8 +59,9 @@ export function seedDatabaseIfEmpty() {
     )
   `);
 
-  // Transaction for atomic seed
-  const runSeed = db.transaction(() => {
+  // Atomic seed — node:sqlite has no db.transaction() helper, so BEGIN/COMMIT/ROLLBACK
+  // are managed explicitly around the call to runSeed() below.
+  const runSeed = () => {
     // 1. PRIMARY SHIPMENT: Randy's Tacoma (DXP-2026-7K2M9QRX)
     insertShipment.run(
       'DXP-2026-7K2M9QRX',
@@ -401,8 +402,15 @@ export function seedDatabaseIfEmpty() {
       1,
       '1.4 MB'
     );
-  });
+  };
 
-  runSeed();
+  db.exec('BEGIN');
+  try {
+    runSeed();
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
   console.log('[DB] Seeding completed successfully.');
 }

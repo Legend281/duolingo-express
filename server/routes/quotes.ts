@@ -83,7 +83,7 @@ quotesRouter.get('/', requireAdminAuth, (req: Request, res: Response) => {
 // internalNotes (admin-only notes about the customer, not the customer's own data).
 quotesRouter.get('/:id', (req: Request, res: Response) => {
   try {
-    const row = db.prepare('SELECT * FROM quote_requests WHERE id = ?').get(req.params.id);
+    const row = db.prepare('SELECT * FROM quote_requests WHERE id = ?').get(req.params.id as string);
     if (!row) {
       return res.status(404).json({ success: false, error: 'Quote request not found' });
     }
@@ -157,7 +157,7 @@ quotesRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
 // PUT & PATCH /api/quotes/:id/publish (Publish final pricing)
 const publishHandler = (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const { pricing, internalNotes } = req.body;
 
     const row = db.prepare('SELECT * FROM quote_requests WHERE id = ?').get(id);
@@ -201,7 +201,7 @@ const VALID_QUOTE_STATUSES = new Set([
 const PUBLIC_SETTABLE_QUOTE_STATUSES = new Set(['ACCEPTED', 'DECLINED']);
 quotesRouter.patch('/:id/status', (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const { status, validUntil } = req.body;
 
     if (!VALID_QUOTE_STATUSES.has(status)) {
@@ -246,7 +246,7 @@ quotesRouter.patch('/:id/status', (req: Request, res: Response) => {
 // this route silently generating its own different tracking number in parallel.
 quotesRouter.post('/:id/convert', requireAdminAuth, (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const quoteRow: any = db.prepare('SELECT * FROM quote_requests WHERE id = ?').get(id);
     if (!quoteRow) {
       return res.status(404).json({ success: false, error: `Quote request ${id} not found` });

@@ -547,7 +547,7 @@ shipmentsRouter.post('/:trackingNumber/events', requireAdminAuth, (req: Request,
 shipmentsRouter.patch('/:trackingNumber/events/:eventId', requireAdminAuth, (req: Request, res: Response) => {
   try {
     const tracking = (req.params.trackingNumber as string).trim().toUpperCase();
-    const { eventId } = req.params;
+    const { eventId } = req.params as { eventId: string };
     const e = req.body || {};
 
     const eventRow: any = db.prepare('SELECT * FROM tracking_events WHERE id = ? AND shipment_tracking = ?').get(eventId, tracking);

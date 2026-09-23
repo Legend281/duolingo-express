@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import path from 'path';
 import fs from 'fs';
 import { seedDatabaseIfEmpty } from './seed.js';
@@ -12,15 +12,15 @@ if (!fs.existsSync(dataDir)) {
 }
 
 const dbPath = path.join(dataDir, 'duolingo_express.db');
-export const db = new Database(dbPath);
+// enableForeignKeyConstraints: without it, the ON DELETE CASCADE declared on
+// shipment_pieces.parent_tracking and tracking_events.shipment_tracking is purely
+// decorative — SQLite does not enforce foreign keys (or cascade deletes) unless this is
+// explicitly turned on for the connection (it's node:sqlite's default, but set explicitly
+// here since correctness depends on it).
+export const db = new DatabaseSync(dbPath, { enableForeignKeyConstraints: true });
 
 // Enable WAL mode for high concurrency
-db.pragma('journal_mode = WAL');
-
-// Without this, the ON DELETE CASCADE declared on shipment_pieces.parent_tracking and
-// tracking_events.shipment_tracking is purely decorative — SQLite does not enforce foreign
-// keys (or cascade deletes) unless this pragma is explicitly turned on for the connection.
-db.pragma('foreign_keys = ON');
+db.exec('PRAGMA journal_mode = WAL;');
 
 export function initDatabase() {
   // 1. Shipments Table
@@ -71,57 +71,6 @@ export function initDatabase() {
       internal_pricing_note TEXT
     );
   `);
-
-  // Safe dynamic migrations for existing databases
-  try { db.exec(`ALTER TABLE shipments ADD COLUMN vehicle_json TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE shipments ADD COLUMN pet_json TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE shipments ADD COLUMN pallet_json TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE shipments ADD COLUMN container_json TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE shipments ADD COLUMN freight_json TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE shipments ADD COLUMN document_json TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE shipments ADD COLUMN references_json TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE shipments ADD COLUMN cargo_category TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE shipments ADD COLUMN photos_json TEXT;`); } catch (e) {}
-  // Precise epoch-ms clock used to advance progress over real elapsed time, independent of
-  // any client session — see server/progress.ts.
-  try { db.exec(`ALTER TABLE shipments ADD COLUMN progress_updated_at_ts INTEGER;`); } catch (e) {}
-
-  // Precise epoch-ms creation timestamps for reliable "newest first" sorting. created_at /
-  // created_date are display-formatted strings ("Today", "Sep 4, 2026", "2026-08-19" — all
-  // three appear in this same column depending on which UI created the row) and sorting
-  // those lexicographically does NOT reflect real chronological order — e.g. "Oct" sorts
-  // before "Sep" alphabetically despite being later. These columns are the real order.
-  try { db.exec(`ALTER TABLE shipments ADD COLUMN created_at_ts INTEGER;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE quote_requests ADD COLUMN created_at_ts INTEGER;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE documents ADD COLUMN created_at_ts INTEGER;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE documents ADD COLUMN sender_email TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE documents ADD COLUMN recipient_email TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE documents ADD COLUMN insurer_name TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE documents ADD COLUMN policy_number TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE documents ADD COLUMN coverage_type TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE documents ADD COLUMN deductible REAL;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE documents ADD COLUMN premium_amount REAL;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE quote_requests ADD COLUMN converted_shipment_id TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE tracking_events ADD COLUMN recorded_by TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE tracking_events ADD COLUMN correction_audit_json TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE shipments ADD COLUMN handling_requirements_json TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE shipments ADD COLUMN pickup_window TEXT;`); } catch (e) {}
-  try { db.exec(`ALTER TABLE shipments ADD COLUMN internal_pricing_note TEXT;`); } catch (e) {}
-
-  // Backfill existing rows so they don't all collapse to "unknown, sort last": preserve
-  // today's best-effort relative order (by rowid, which reflects insertion order) as a
-  // reasonable starting point. Every future insert gets a real Date.now() timestamp.
-  const backfillTable = (table: string) => {
-    const needsBackfill = db.prepare(`SELECT COUNT(*) as c FROM ${table} WHERE created_at_ts IS NULL`).get() as any;
-    if (needsBackfill.c === 0) return;
-    const rows = db.prepare(`SELECT rowid FROM ${table} WHERE created_at_ts IS NULL ORDER BY rowid ASC`).all() as any[];
-    const base = Date.now() - rows.length * 1000;
-    const stmt = db.prepare(`UPDATE ${table} SET created_at_ts = ? WHERE rowid = ?`);
-    rows.forEach((r, i) => stmt.run(base + i * 1000, r.rowid));
-  };
-  backfillTable('shipments');
-  backfillTable('quote_requests');
-  backfillTable('documents');
 
   // 2. Shipment Pieces Table
   db.exec(`
@@ -243,6 +192,66 @@ export function initDatabase() {
       value_json TEXT NOT NULL
     );
   `);
+
+  // Safe dynamic migrations for existing databases. Must run after every CREATE TABLE above
+  // (shipments through settings) — these ALTER statements target quote_requests, documents
+  // and tracking_events too, and running them any earlier throws "no such table" on a
+  // genuinely fresh database. That failure used to be silently swallowed by the empty catch
+  // below, which meant several real columns (documents.sender_email, tracking_events.
+  // recorded_by, quote_requests.converted_shipment_id, etc.) never actually got added on a
+  // fresh install even though no error ever surfaced.
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN vehicle_json TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN pet_json TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN pallet_json TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN container_json TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN freight_json TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN document_json TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN references_json TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN cargo_category TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN photos_json TEXT;`); } catch (e) {}
+  // Precise epoch-ms clock used to advance progress over real elapsed time, independent of
+  // any client session — see server/progress.ts.
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN progress_updated_at_ts INTEGER;`); } catch (e) {}
+
+  // Precise epoch-ms creation timestamps for reliable "newest first" sorting. created_at /
+  // created_date are display-formatted strings ("Today", "Sep 4, 2026", "2026-08-19" — all
+  // three appear in this same column depending on which UI created the row) and sorting
+  // those lexicographically does NOT reflect real chronological order — e.g. "Oct" sorts
+  // before "Sep" alphabetically despite being later. These columns are the real order.
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN created_at_ts INTEGER;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE quote_requests ADD COLUMN created_at_ts INTEGER;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE documents ADD COLUMN created_at_ts INTEGER;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE documents ADD COLUMN sender_email TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE documents ADD COLUMN recipient_email TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE documents ADD COLUMN insurer_name TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE documents ADD COLUMN policy_number TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE documents ADD COLUMN coverage_type TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE documents ADD COLUMN deductible REAL;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE documents ADD COLUMN premium_amount REAL;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE quote_requests ADD COLUMN converted_shipment_id TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE tracking_events ADD COLUMN recorded_by TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE tracking_events ADD COLUMN correction_audit_json TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN handling_requirements_json TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN pickup_window TEXT;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN internal_pricing_note TEXT;`); } catch (e) {}
+
+  // Backfill existing rows so they don't all collapse to "unknown, sort last": preserve
+  // today's best-effort relative order (by rowid, which reflects insertion order) as a
+  // reasonable starting point. Every future insert gets a real Date.now() timestamp. Must
+  // run after every table above is created (shipments through documents) — running it
+  // earlier throws "no such table" on a genuinely fresh database, since quote_requests and
+  // documents aren't created until steps 4 and 5.
+  const backfillTable = (table: string) => {
+    const needsBackfill = db.prepare(`SELECT COUNT(*) as c FROM ${table} WHERE created_at_ts IS NULL`).get() as any;
+    if (needsBackfill.c === 0) return;
+    const rows = db.prepare(`SELECT rowid FROM ${table} WHERE created_at_ts IS NULL ORDER BY rowid ASC`).all() as any[];
+    const base = Date.now() - rows.length * 1000;
+    const stmt = db.prepare(`UPDATE ${table} SET created_at_ts = ? WHERE rowid = ?`);
+    rows.forEach((r, i) => stmt.run(base + i * 1000, r.rowid));
+  };
+  backfillTable('shipments');
+  backfillTable('quote_requests');
+  backfillTable('documents');
 
   // Default system configuration
   const settingCheck = db.prepare('SELECT value_json FROM settings WHERE key = ?').get('general');

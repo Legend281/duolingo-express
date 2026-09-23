@@ -101,7 +101,7 @@ documentsRouter.get('/', requireAdminAuth, (req: Request, res: Response) => {
 // GET /api/documents/:id
 documentsRouter.get('/:id', requireAdminAuth, (req: Request, res: Response) => {
   try {
-    const row = db.prepare('SELECT * FROM documents WHERE id = ?').get(req.params.id);
+    const row = db.prepare('SELECT * FROM documents WHERE id = ?').get(req.params.id as string);
     if (!row) {
       return res.status(404).json({ success: false, error: 'Document not found' });
     }
@@ -202,7 +202,7 @@ documentsRouter.post('/generate', publicWriteLimiter, (req: Request, res: Respon
 // POST /api/documents/:id/regenerate (Create revised document version)
 documentsRouter.post('/:id/regenerate', requireAdminAuth, (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const { notes, ...d } = req.body;
 
     const row = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
@@ -286,7 +286,7 @@ documentsRouter.post('/:id/regenerate', requireAdminAuth, (req: Request, res: Re
 // PATCH /api/documents/:id/status (Toggle cancel / active)
 documentsRouter.patch('/:id/status', requireAdminAuth, (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const { status } = req.body;
 
     db.prepare('UPDATE documents SET status = ? WHERE id = ?').run(status, id);
@@ -300,7 +300,7 @@ documentsRouter.patch('/:id/status', requireAdminAuth, (req: Request, res: Respo
 // PATCH /api/documents/:id/payment-status (Toggle paid / pending)
 documentsRouter.patch('/:id/payment-status', requireAdminAuth, (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const { paymentStatus } = req.body;
     if (paymentStatus !== 'PAID' && paymentStatus !== 'PENDING') {
       return res.status(400).json({ success: false, error: 'paymentStatus must be PAID or PENDING' });
@@ -330,7 +330,7 @@ documentsRouter.patch('/:id/payment-status', requireAdminAuth, (req: Request, re
 // DELETE /api/documents/:id
 documentsRouter.delete('/:id', requireAdminAuth, (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     db.prepare('DELETE FROM documents WHERE id = ?').run(id);
     res.json({ success: true, message: `Document ${id} deleted` });
   } catch (err: any) {
