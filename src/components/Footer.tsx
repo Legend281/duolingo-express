@@ -11,8 +11,7 @@ import {
   Instagram,
   Youtube,
   ChevronRight,
-  Mail,
-  Lock
+  Mail
 } from 'lucide-react';
 import './Footer.css';
 
@@ -306,17 +305,6 @@ export const Footer: React.FC<FooterProps> = ({
                 </div>
               </div>
 
-              {/* Discreet Admin Link */}
-              <div className="pro-admin-wrap">
-                <button
-                  type="button"
-                  className="pro-admin-link"
-                  onClick={() => onNavigate('admin')}
-                >
-                  <Lock size={12} />
-                  <span>Admin Command Center</span>
-                </button>
-              </div>
             </div>
           </div>
 

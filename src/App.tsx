@@ -26,6 +26,19 @@ import './styles/global.css';
 
 const KNOWN_PAGES = ['home', 'track', 'services', 'quote', 'ship', 'about', 'help', 'contact', 'legal', 'locations', 'admin'];
 
+// Admin now lives on its own subdomain (admin.<domain>) instead of a hash route on the main
+// site, for cleaner separation from the public site. localhost is exempted so local dev can
+// keep using the plain #/admin hash without a real subdomain being set up.
+function isAdminHost(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname.startsWith('admin.');
+}
+
+function isLocalDevHost(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+}
+
 // Reads the current URL hash synchronously, before the first paint, so the initial render
 // already shows the right page. Without this, `currentPage` always started as 'home' and only
 // got corrected once the hash-parsing effect ran a moment later — barely noticeable on an
@@ -37,10 +50,13 @@ const KNOWN_PAGES = ['home', 'track', 'services', 'quote', 'ship', 'about', 'hel
 // existing hash-parsing effect (below) still runs afterward and resolves them for real.
 function getInitialPage(): string {
   if (typeof window === 'undefined') return 'home';
+  if (isAdminHost()) return 'admin';
   const hash = window.location.hash.replace('#', '');
   const pathname = window.location.pathname.replace(/^\//, '');
   const target = hash || (pathname ? `/${pathname}` : '');
-  if (target.startsWith('/admin') || target === 'admin') return 'admin';
+  if (target.startsWith('/admin') || target === 'admin') {
+    return isLocalDevHost() ? 'admin' : 'home';
+  }
   if (target.startsWith('/track/') || target.startsWith('/quote/')) return 'track';
   if (target.startsWith('/')) {
     const page = target.replace('/', '').split('/')[0];
@@ -113,6 +129,10 @@ function MainAppContent() {
   // Initialize from hash if available
   useEffect(() => {
     const handleHash = async () => {
+      if (isAdminHost()) {
+        setCurrentPage('admin');
+        return;
+      }
       const hash = window.location.hash.replace('#', '');
       const pathname = window.location.pathname.replace(/^\//, '');
       const target = hash || (pathname ? `/${pathname}` : '');
@@ -147,7 +167,11 @@ function MainAppContent() {
         const quoteId = target.replace('/quote/', '');
         handleTrackShipment(quoteId);
       } else if (target.startsWith('/admin') || target === 'admin') {
-        setCurrentPage('admin');
+        // No longer resolves on the public domain — admin moved to its own subdomain.
+        // Exempted on localhost so local dev can keep using the plain #/admin hash.
+        if (isLocalDevHost()) {
+          setCurrentPage('admin');
+        }
       } else if (target.startsWith('/')) {
         const page = target.replace('/', '').split('/')[0];
         if (KNOWN_PAGES.includes(page)) {
