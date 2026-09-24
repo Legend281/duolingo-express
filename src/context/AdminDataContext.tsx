@@ -27,6 +27,9 @@ interface AdminDataContextType {
   updateShipmentDirect: (updated: Shipment) => void;
   updateShipmentFull: (updated: Shipment) => Promise<void>;
   deleteShipment: (trackingNumber: string) => Promise<{ success: boolean; error?: string }>;
+  getTrashedShipments: () => Promise<Shipment[]>;
+  restoreShipment: (trackingNumber: string) => Promise<{ success: boolean; error?: string }>;
+  permanentlyDeleteShipment: (trackingNumber: string) => Promise<{ success: boolean; error?: string }>;
   updateShipmentStatus: (trackingNumber: string, newStatus: ShipmentStatus, location: string, facility: string, notes: string, progressPercent?: number, statusTextOverride?: string, lat?: number, lng?: number, eventTitleOverride?: string, skipLocalEventDuplicate?: boolean, skipServerEventCreation?: boolean, estimatedDeliveryDate?: string, estimatedDeliveryTime?: string) => Promise<{ success: boolean; error?: string }>;
   addTrackingEvent: (trackingNumber: string, event: Partial<TrackingEvent>) => void;
   correctTrackingEvent: (trackingNumber: string, eventId: string, updates: Partial<TrackingEvent>) => void;
@@ -236,6 +239,44 @@ const normalizeShipment = (s: any): Shipment => {
           ? prev
           : [removed, ...prev]);
       }
+      return { success: false, error: err?.message };
+    }
+  };
+
+  // "Delete" above moves a shipment to a server-side trash (see server/routes/shipments.ts) —
+  // these two round it out: viewing what's in the trash, and bringing one back. There is
+  // deliberately no "empty trash" / bulk-purge action here; permanentlyDeleteShipment below is
+  // the one path that actually destroys data, and it's one shipment at a time, on purpose.
+  const getTrashedShipments = async (): Promise<Shipment[]> => {
+    try {
+      const trashed = await api.getTrashedShipments();
+      return Array.isArray(trashed) ? trashed.map(normalizeShipment) : [];
+    } catch (err) {
+      console.error('[API] Failed to load trashed shipments:', err);
+      return [];
+    }
+  };
+
+  const restoreShipment = async (trackingNumber: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const restored = await api.restoreShipment(trackingNumber);
+      const normalized = normalizeShipment(restored);
+      setShipments(prev => prev.some(s => s.trackingNumber.toUpperCase() === trackingNumber.toUpperCase())
+        ? prev.map(s => s.trackingNumber.toUpperCase() === trackingNumber.toUpperCase() ? normalized : s)
+        : [normalized, ...prev]);
+      return { success: true };
+    } catch (err: any) {
+      console.error('[API] Failed to restore shipment:', err);
+      return { success: false, error: err?.message };
+    }
+  };
+
+  const permanentlyDeleteShipment = async (trackingNumber: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await api.permanentlyDeleteShipment(trackingNumber);
+      return { success: true };
+    } catch (err: any) {
+      console.error('[API] Failed to permanently delete shipment:', err);
       return { success: false, error: err?.message };
     }
   };
@@ -973,6 +1014,9 @@ const normalizeShipment = (s: any): Shipment => {
       updateShipmentDirect,
       updateShipmentFull,
       deleteShipment,
+      getTrashedShipments,
+      restoreShipment,
+      permanentlyDeleteShipment,
       updateShipmentStatus,
       addTrackingEvent,
       correctTrackingEvent,

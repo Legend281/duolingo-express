@@ -200,11 +200,14 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   const originState = liveShipment?.origin?.state || shipment?.origin?.state || 'NY';
   // No fallback — ZIP is optional at booking (CreateShipmentView), and showing a fake one for
   // a shipment that genuinely doesn't have it on file is exactly the "shows a placeholder
-  // for a field I left blank" problem this page shouldn't have.
-  const originZip = (liveShipment?.origin as any)?.zip || (shipment?.origin as any)?.zip;
+  // for a field I left blank" problem this page shouldn't have. Reads sender/recipient's
+  // postalCode first — origin.zip/destination.zip have no backing database column at all, so
+  // that value only ever survives in memory until the next refetch, when it silently reverts
+  // to nothing; postalCode on the party record is what actually round-trips through the API.
+  const originZip = (liveShipment?.sender as any)?.postalCode || (liveShipment?.origin as any)?.zip || (shipment?.sender as any)?.postalCode || (shipment?.origin as any)?.zip;
   const destCity = liveShipment?.destination?.city || shipment?.destination?.city || 'Los Angeles';
   const destState = liveShipment?.destination?.state || shipment?.destination?.state || 'CA';
-  const destZip = (liveShipment?.destination as any)?.zip || (shipment?.destination as any)?.zip;
+  const destZip = (liveShipment?.recipient as any)?.postalCode || (liveShipment?.destination as any)?.zip || (shipment?.recipient as any)?.postalCode || (shipment?.destination as any)?.zip;
   const originFacility = (liveShipment?.origin as any)?.facilityName || (shipment?.origin as any)?.facilityName || `${originCity} Gateway Terminal`;
   const destFacility = (liveShipment?.destination as any)?.facilityName || (shipment?.destination as any)?.facilityName || `${destCity} Distribution Center`;
 

@@ -245,6 +245,12 @@ export function initDatabase() {
   try { db.exec(`ALTER TABLE shipments ADD COLUMN handling_requirements_json TEXT;`); } catch (e) {}
   try { db.exec(`ALTER TABLE shipments ADD COLUMN pickup_window TEXT;`); } catch (e) {}
   try { db.exec(`ALTER TABLE shipments ADD COLUMN internal_pricing_note TEXT;`); } catch (e) {}
+  // "Delete" no longer removes a shipment's row at all (see server/routes/shipments.ts) — it
+  // sets this timestamp instead, so a deleted shipment can always be restored. A real
+  // shipment was permanently, unrecoverably lost to a hard DELETE earlier, with no backup
+  // able to cover the gap between when it was created and when it was deleted the same day;
+  // this makes that specific kind of loss structurally impossible going forward.
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN deleted_at_ts INTEGER;`); } catch (e) {}
 
   // Backfill existing rows so they don't all collapse to "unknown, sort last": preserve
   // today's best-effort relative order (by rowid, which reflects insertion order) as a

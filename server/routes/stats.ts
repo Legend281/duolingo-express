@@ -6,11 +6,13 @@ export const statsRouter = Router();
 // GET /api/stats (Live dashboard metrics)
 statsRouter.get('/', (req: Request, res: Response) => {
   try {
-    const totalShipments = (db.prepare('SELECT COUNT(*) as c FROM shipments').get() as any).c;
-    const inTransitCount = (db.prepare("SELECT COUNT(*) as c FROM shipments WHERE status IN ('IN_TRANSIT', 'PROCESSED')").get() as any).c;
-    const outForDeliveryCount = (db.prepare("SELECT COUNT(*) as c FROM shipments WHERE status = 'OUT_FOR_DELIVERY'").get() as any).c;
-    const deliveredCount = (db.prepare("SELECT COUNT(*) as c FROM shipments WHERE status = 'DELIVERED'").get() as any).c;
-    const exceptionsCount = (db.prepare("SELECT COUNT(*) as c FROM shipments WHERE status = 'EXCEPTION'").get() as any).c;
+    // deleted_at_ts IS NULL everywhere here — a soft-deleted (trashed) shipment shouldn't
+    // count toward any of these operational totals.
+    const totalShipments = (db.prepare('SELECT COUNT(*) as c FROM shipments WHERE deleted_at_ts IS NULL').get() as any).c;
+    const inTransitCount = (db.prepare("SELECT COUNT(*) as c FROM shipments WHERE deleted_at_ts IS NULL AND status IN ('IN_TRANSIT', 'PROCESSED')").get() as any).c;
+    const outForDeliveryCount = (db.prepare("SELECT COUNT(*) as c FROM shipments WHERE deleted_at_ts IS NULL AND status = 'OUT_FOR_DELIVERY'").get() as any).c;
+    const deliveredCount = (db.prepare("SELECT COUNT(*) as c FROM shipments WHERE deleted_at_ts IS NULL AND status = 'DELIVERED'").get() as any).c;
+    const exceptionsCount = (db.prepare("SELECT COUNT(*) as c FROM shipments WHERE deleted_at_ts IS NULL AND status = 'EXCEPTION'").get() as any).c;
     const pendingQuotesCount = (db.prepare("SELECT COUNT(*) as c FROM quote_requests WHERE status IN ('NEW', 'UNDER_REVIEW')").get() as any).c;
     const totalDocumentsCount = (db.prepare('SELECT COUNT(*) as c FROM documents').get() as any).c;
 

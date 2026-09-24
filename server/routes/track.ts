@@ -65,7 +65,7 @@ function maskEmail(email: string): string | undefined {
 trackRouter.get('/:trackingNumber', (req: Request, res: Response) => {
   try {
     const tracking = (req.params.trackingNumber as string).trim().toUpperCase();
-    const row = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(tracking) as any;
+    const row = db.prepare('SELECT * FROM shipments WHERE tracking_number = ? AND deleted_at_ts IS NULL').get(tracking) as any;
 
     if (!row) {
       return res.status(404).json({ success: false, error: `No active shipment found with identifier "${tracking}".` });

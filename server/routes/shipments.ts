@@ -136,13 +136,16 @@ function formatShipment(row: any) {
   };
 }
 
-// GET /api/shipments (All consignments with optional search & filter) — admin only, unmasked
+// GET /api/shipments (All consignments with optional search & filter) — admin only, unmasked.
+// Excludes soft-deleted shipments by default; pass ?trash=true to see the recoverable trash
+// list instead (see DELETE below — nothing here is ever hard-deleted by the admin UI anymore).
 shipmentsRouter.get('/', requireAdminAuth, (req: Request, res: Response) => {
   try {
-    const { search, status } = req.query;
+    const { search, status, trash } = req.query;
+    const wantsTrash = trash === 'true';
     let query = 'SELECT * FROM shipments';
     const params: any[] = [];
-    const conditions: string[] = [];
+    const conditions: string[] = [wantsTrash ? 'deleted_at_ts IS NOT NULL' : 'deleted_at_ts IS NULL'];
 
     if (status && status !== 'ALL') {
       conditions.push('status = ?');
@@ -160,11 +163,8 @@ shipmentsRouter.get('/', requireAdminAuth, (req: Request, res: Response) => {
       params.push(term, term, term, term);
     }
 
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
-    }
-
-    query += ' ORDER BY created_at_ts DESC';
+    query += ' WHERE ' + conditions.join(' AND ');
+    query += wantsTrash ? ' ORDER BY deleted_at_ts DESC' : ' ORDER BY created_at_ts DESC';
 
     const rows = db.prepare(query).all(...params);
     const shipments = rows.map(formatShipment);
@@ -178,10 +178,10 @@ shipmentsRouter.get('/', requireAdminAuth, (req: Request, res: Response) => {
 shipmentsRouter.get('/:trackingNumber', requireAdminAuth, (req: Request, res: Response) => {
   try {
     const tracking = (req.params.trackingNumber as string).trim().toUpperCase();
-    let row = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(tracking) as any;
+    let row = db.prepare('SELECT * FROM shipments WHERE tracking_number = ? AND deleted_at_ts IS NULL').get(tracking) as any;
 
     if (!row && (tracking.includes('7KZM9QRX') || tracking.includes('7K2M9QRX') || tracking === 'DXP-SAMPLE')) {
-      row = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get('DXP-2026-7K2M9QRX') as any;
+      row = db.prepare('SELECT * FROM shipments WHERE tracking_number = ? AND deleted_at_ts IS NULL').get('DXP-2026-7K2M9QRX') as any;
     }
 
     if (!row) {
@@ -362,7 +362,7 @@ shipmentsRouter.patch('/:trackingNumber/status', requireAdminAuth, (req: Request
     const newStatus = req.body.newStatus || req.body.status;
     const { location, facility, notes, progressPercent, statusText: statusTextOverride, lat, lng, eventTitle, skipEventCreation, estimatedDeliveryDate, estimatedDeliveryTime } = req.body;
 
-    const row = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(tracking);
+    const row = db.prepare('SELECT * FROM shipments WHERE tracking_number = ? AND deleted_at_ts IS NULL').get(tracking);
     if (!row) {
       return res.status(404).json({ success: false, error: `Shipment ${tracking} not found` });
     }
@@ -490,7 +490,7 @@ shipmentsRouter.post('/:trackingNumber/events', requireAdminAuth, (req: Request,
     const tracking = (req.params.trackingNumber as string).trim().toUpperCase();
     const e = req.body;
 
-    const row = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(tracking);
+    const row = db.prepare('SELECT * FROM shipments WHERE tracking_number = ? AND deleted_at_ts IS NULL').get(tracking);
     if (!row) {
       return res.status(404).json({ success: false, error: `Shipment ${tracking} not found` });
     }
@@ -617,7 +617,7 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
     const tracking = (req.params.trackingNumber as string).trim().toUpperCase();
     const s = req.body;
 
-    const row = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(tracking);
+    const row = db.prepare('SELECT * FROM shipments WHERE tracking_number = ? AND deleted_at_ts IS NULL').get(tracking);
     if (!row) {
       return res.status(404).json({ success: false, error: `Shipment ${tracking} not found` });
     }
@@ -713,18 +713,59 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
   }
 });
 
-// DELETE /api/shipments/:trackingNumber
+// DELETE /api/shipments/:trackingNumber — soft delete only. A real, only-hours-old shipment
+// was permanently, unrecoverably lost to what this route used to do (a real hard DELETE, with
+// no backup covering the gap between its creation and its deletion the same day) — this marks
+// deleted_at_ts instead and leaves every row (the shipment, its pieces, events, documents)
+// fully intact, so "Restore" below can always bring it back exactly as it was. Nothing here
+// permanently destroys data anymore; see the /permanent route for the one explicit action
+// that still does, which the trash UI gates behind its own separate confirmation.
 shipmentsRouter.delete('/:trackingNumber', requireAdminAuth, (req: Request, res: Response) => {
   try {
     const tracking = (req.params.trackingNumber as string).trim().toUpperCase();
+    const row = db.prepare('SELECT 1 FROM shipments WHERE tracking_number = ? AND deleted_at_ts IS NULL').get(tracking);
+    if (!row) {
+      return res.status(404).json({ success: false, error: `Shipment ${tracking} not found` });
+    }
+    db.prepare('UPDATE shipments SET deleted_at_ts = ? WHERE tracking_number = ?').run(Date.now(), tracking);
+    res.json({ success: true, message: `Shipment ${tracking} moved to trash — restorable from Recently Deleted.` });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/shipments/:trackingNumber/restore — undoes a soft delete.
+shipmentsRouter.post('/:trackingNumber/restore', requireAdminAuth, (req: Request, res: Response) => {
+  try {
+    const tracking = (req.params.trackingNumber as string).trim().toUpperCase();
+    const row = db.prepare('SELECT 1 FROM shipments WHERE tracking_number = ? AND deleted_at_ts IS NOT NULL').get(tracking);
+    if (!row) {
+      return res.status(404).json({ success: false, error: `${tracking} is not in the trash.` });
+    }
+    db.prepare('UPDATE shipments SET deleted_at_ts = NULL WHERE tracking_number = ?').run(tracking);
+    const restoredRow = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(tracking);
+    res.json({ success: true, data: formatShipment(restoredRow) });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/shipments/:trackingNumber/permanent — the one action that actually, irreversibly
+// destroys a shipment's data. Only ever reachable from the trash view (a shipment must already
+// be soft-deleted first), as a deliberate second step — never the direct result of the
+// ordinary "Delete" button.
+shipmentsRouter.delete('/:trackingNumber/permanent', requireAdminAuth, (req: Request, res: Response) => {
+  try {
+    const tracking = (req.params.trackingNumber as string).trim().toUpperCase();
+    const row = db.prepare('SELECT 1 FROM shipments WHERE tracking_number = ? AND deleted_at_ts IS NOT NULL').get(tracking);
+    if (!row) {
+      return res.status(404).json({ success: false, error: `${tracking} must be in the trash before it can be permanently deleted.` });
+    }
     db.prepare('DELETE FROM shipment_pieces WHERE parent_tracking = ?').run(tracking);
     db.prepare('DELETE FROM tracking_events WHERE shipment_tracking = ?').run(tracking);
-    // Documents (BOL, labels, receipts, invoices, etc.) have no FK/cascade on shipment_tracking
-    // — without this they survived a shipment delete and Document Center kept listing them
-    // against a tracking number that 404s everywhere else in the app.
     db.prepare('DELETE FROM documents WHERE shipment_tracking = ?').run(tracking);
     db.prepare('DELETE FROM shipments WHERE tracking_number = ?').run(tracking);
-    res.json({ success: true, message: `Shipment ${tracking} deleted successfully` });
+    res.json({ success: true, message: `Shipment ${tracking} permanently deleted.` });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

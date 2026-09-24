@@ -31,11 +31,23 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
   const [senderCity, setSenderCity] = useState(initialSenderCity);
   const [senderState, setSenderState] = useState(initialSenderState);
   const [senderAddress, setSenderAddress] = useState(initialSenderAddress);
+  // Company/Email/Phone/ZIP were entirely absent from this form — every save silently wiped
+  // them out, because the PUT route replaces the whole stored sender/recipient JSON blob with
+  // exactly what's submitted here (see server/routes/shipments.ts). A shipment created WITH a
+  // real phone/email lost it the first time anyone opened and saved this editor.
+  const [senderCompany, setSenderCompany] = useState(typeof shipment.sender === 'object' ? (shipment.sender?.company || '') : '');
+  const [senderEmail, setSenderEmail] = useState(typeof shipment.sender === 'object' ? (shipment.sender?.email || '') : '');
+  const [senderPhone, setSenderPhone] = useState(typeof shipment.sender === 'object' ? (shipment.sender?.phone || '') : '');
+  const [senderZip, setSenderZip] = useState(typeof shipment.sender === 'object' ? ((shipment.sender as any)?.postalCode || '') : '');
 
   const [recipientName, setRecipientName] = useState(initialRecipientName);
   const [recipientCity, setRecipientCity] = useState(initialRecipientCity);
   const [recipientState, setRecipientState] = useState(initialRecipientState);
   const [recipientAddress, setRecipientAddress] = useState(initialRecipientAddress);
+  const [recipientCompany, setRecipientCompany] = useState(typeof shipment.recipient === 'object' ? (shipment.recipient?.company || '') : '');
+  const [recipientEmail, setRecipientEmail] = useState(typeof shipment.recipient === 'object' ? (shipment.recipient?.email || '') : '');
+  const [recipientPhone, setRecipientPhone] = useState(typeof shipment.recipient === 'object' ? (shipment.recipient?.phone || '') : '');
+  const [recipientZip, setRecipientZip] = useState(typeof shipment.recipient === 'object' ? ((shipment.recipient as any)?.postalCode || '') : '');
 
   const [service, setService] = useState(shipment.service || 'Express');
   const [shipmentType, setShipmentType] = useState(shipment.shipmentType || 'Parcel');
@@ -164,14 +176,22 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
         city: senderCity.trim(),
         state: senderState.trim(),
         addressLine: senderAddress.trim(),
-        country: 'United States'
+        country: 'United States',
+        company: senderCompany.trim() || undefined,
+        email: senderEmail.trim() || undefined,
+        phone: senderPhone.trim() || undefined,
+        postalCode: senderZip.trim() || undefined
       },
       recipient: {
         name: recipientName.trim(),
         city: recipientCity.trim(),
         state: recipientState.trim(),
         addressLine: recipientAddress.trim(),
-        country: 'United States'
+        country: 'United States',
+        company: recipientCompany.trim() || undefined,
+        email: recipientEmail.trim() || undefined,
+        phone: recipientPhone.trim() || undefined,
+        postalCode: recipientZip.trim() || undefined
       },
       // Only the cargo-type-specific block matching the currently selected type is built —
       // the others are left as whatever was already on the shipment (matching how
@@ -289,13 +309,40 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
               </div>
               <div className="form-fields-grid">
                 <div className="edit-field full">
-                  <label>Sender Full Name / Company</label>
+                  <label>Sender Full Name</label>
                   <input
                     type="text"
                     value={senderName}
                     onChange={(e) => setSenderName(e.target.value)}
                     placeholder="e.g. John Anderson"
                     required
+                  />
+                </div>
+                <div className="edit-field full">
+                  <label>Company (Optional)</label>
+                  <input
+                    type="text"
+                    value={senderCompany}
+                    onChange={(e) => setSenderCompany(e.target.value)}
+                    placeholder="e.g. Acme Corp"
+                  />
+                </div>
+                <div className="edit-field">
+                  <label>Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={senderEmail}
+                    onChange={(e) => setSenderEmail(e.target.value)}
+                    placeholder="sender@company.com"
+                  />
+                </div>
+                <div className="edit-field">
+                  <label>Phone (Optional)</label>
+                  <input
+                    type="tel"
+                    value={senderPhone}
+                    onChange={(e) => setSenderPhone(e.target.value)}
+                    placeholder="(555) 000-0000"
                   />
                 </div>
                 <div className="edit-field">
@@ -325,6 +372,14 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
                     onChange={(e) => setSenderAddress(e.target.value)}
                   />
                 </div>
+                <div className="edit-field">
+                  <label>ZIP Code (Optional)</label>
+                  <input
+                    type="text"
+                    value={senderZip}
+                    onChange={(e) => setSenderZip(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
@@ -336,13 +391,40 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
               </div>
               <div className="form-fields-grid">
                 <div className="edit-field full">
-                  <label>Recipient Name / Business</label>
+                  <label>Recipient Name</label>
                   <input
                     type="text"
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
                     placeholder="e.g. Dr. Michael Johnson"
                     required
+                  />
+                </div>
+                <div className="edit-field full">
+                  <label>Company (Optional)</label>
+                  <input
+                    type="text"
+                    value={recipientCompany}
+                    onChange={(e) => setRecipientCompany(e.target.value)}
+                    placeholder="e.g. Acme Corp"
+                  />
+                </div>
+                <div className="edit-field">
+                  <label>Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={recipientEmail}
+                    onChange={(e) => setRecipientEmail(e.target.value)}
+                    placeholder="recipient@company.com"
+                  />
+                </div>
+                <div className="edit-field">
+                  <label>Phone (Optional)</label>
+                  <input
+                    type="tel"
+                    value={recipientPhone}
+                    onChange={(e) => setRecipientPhone(e.target.value)}
+                    placeholder="(555) 000-0000"
                   />
                 </div>
                 <div className="edit-field">
@@ -370,6 +452,14 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
                     type="text"
                     value={recipientAddress}
                     onChange={(e) => setRecipientAddress(e.target.value)}
+                  />
+                </div>
+                <div className="edit-field">
+                  <label>ZIP Code (Optional)</label>
+                  <input
+                    type="text"
+                    value={recipientZip}
+                    onChange={(e) => setRecipientZip(e.target.value)}
                   />
                 </div>
               </div>

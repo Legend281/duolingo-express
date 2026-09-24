@@ -92,6 +92,29 @@ export const api = {
     return handleResponse<Shipment[]>(res);
   },
 
+  // Soft-deleted shipments — "Delete" moves a shipment here rather than erasing it; this is
+  // the Recently Deleted / trash list.
+  async getTrashedShipments(): Promise<Shipment[]> {
+    const res = await fetch(`${API_BASE}/shipments?trash=true`);
+    return handleResponse<Shipment[]>(res);
+  },
+
+  async restoreShipment(trackingNumber: string): Promise<Shipment> {
+    const res = await fetch(`${API_BASE}/shipments/${encodeURIComponent(trackingNumber)}/restore`, {
+      method: 'POST'
+    });
+    return handleResponse<Shipment>(res);
+  },
+
+  // Permanent, irreversible delete — only ever called from the trash view on a shipment
+  // that's already soft-deleted, as a deliberate separate action from the ordinary delete.
+  async permanentlyDeleteShipment(trackingNumber: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/shipments/${encodeURIComponent(trackingNumber)}/permanent`, {
+      method: 'DELETE'
+    });
+    return handleResponse<{ success: boolean; message: string }>(res);
+  },
+
   // Single fresh shipment, server-synced (unmasked, admin-only — never call this from a
   // public-facing page; use trackShipment there instead).
   async getShipment(trackingNumber: string): Promise<Shipment> {

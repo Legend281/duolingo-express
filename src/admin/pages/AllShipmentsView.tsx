@@ -33,6 +33,7 @@ import { useAdminData } from '../../context/AdminDataContext';
 import { Shipment, ShipmentStatus } from '../../types/shipment';
 import { EditShipmentModal } from '../components/EditShipmentModal';
 import { DeleteShipmentModal } from '../components/DeleteShipmentModal';
+import { RecentlyDeletedModal } from '../components/RecentlyDeletedModal';
 import './AllShipmentsView.css';
 
 interface AllShipmentsViewProps {
@@ -52,6 +53,7 @@ export const AllShipmentsView: React.FC<AllShipmentsViewProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [editModalShipment, setEditModalShipment] = useState<Shipment | null>(null);
   const [deleteModalShipment, setDeleteModalShipment] = useState<Shipment | null>(null);
+  const [showTrashModal, setShowTrashModal] = useState(false);
 
   // New Shipment Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -212,14 +214,25 @@ export const AllShipmentsView: React.FC<AllShipmentsViewProps> = ({
           </div>
         </div>
 
-        <button
-          type="button"
-          className="create-shipment-cta-btn"
-          onClick={() => setShowCreateModal(true)}
-        >
-          <Plus size={16} />
-          <span>Book Consignment</span>
-        </button>
+        <div className="header-actions-cluster">
+          <button
+            type="button"
+            className="recently-deleted-btn"
+            onClick={() => setShowTrashModal(true)}
+            title="View and restore deleted shipments"
+          >
+            <Trash2 size={15} />
+            <span>Recently Deleted</span>
+          </button>
+          <button
+            type="button"
+            className="create-shipment-cta-btn"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <Plus size={16} />
+            <span>Book Consignment</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. KPI SUMMARY CARDS (4 CARDS WITH SVG SPARKLINES) */}
@@ -829,11 +842,16 @@ export const AllShipmentsView: React.FC<AllShipmentsViewProps> = ({
             setDeleteModalShipment(null);
             setToastIsError(!result.success);
             setSuccessToast(result.success
-              ? `Consignment ${trackingNumber} permanently purged from system.`
+              ? `Consignment ${trackingNumber} moved to Recently Deleted — restorable anytime.`
               : `Failed to delete ${trackingNumber}: ${result.error || 'server rejected the request'}. It has been restored.`);
             setTimeout(() => setSuccessToast(null), 6000);
           }}
         />
+      )}
+
+      {/* 8. RECENTLY DELETED (TRASH) MODAL */}
+      {showTrashModal && (
+        <RecentlyDeletedModal onClose={() => setShowTrashModal(false)} />
       )}
     </div>
   );
