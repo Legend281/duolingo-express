@@ -46,6 +46,16 @@ function maskPhone(phone: string): string {
   return phone.replace(/\d{3}-\d{4}$/, '•••-••••').replace(/\d{3}\)/, '•••)');
 }
 
+// Helper to mask email (e.g. "daniel@wcoffroad.com" -> "da***@wcoffroad.com") — keeps the
+// domain and a couple of leading characters so it's still recognizably an email address
+// without exposing the full local part to anyone who has the tracking number.
+function maskEmail(email: string): string {
+  if (!email || !email.includes('@')) return '•••@•••.com';
+  const [local, domain] = email.split('@');
+  const visible = local.slice(0, Math.min(2, local.length));
+  return `${visible}${'*'.repeat(Math.max(local.length - visible.length, 3))}@${domain}`;
+}
+
 // GET /api/track/:trackingNumber (Public tracking with PII protection)
 trackRouter.get('/:trackingNumber', (req: Request, res: Response) => {
   try {
@@ -105,14 +115,16 @@ trackRouter.get('/:trackingNumber', (req: Request, res: Response) => {
         company: sender.company || undefined,
         city: row.origin_city,
         state: row.origin_state,
-        phone: maskPhone(sender.phone)
+        phone: maskPhone(sender.phone),
+        email: sender.email ? maskEmail(sender.email) : undefined
       };
       recipient = {
         name: maskName(recipient.name),
         company: recipient.company || undefined,
         city: row.destination_city,
         state: row.destination_state,
-        phone: maskPhone(recipient.phone)
+        phone: maskPhone(recipient.phone),
+        email: recipient.email ? maskEmail(recipient.email) : undefined
       };
     }
 

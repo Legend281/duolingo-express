@@ -296,11 +296,13 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   const senderCompany = shipment?.sender?.company || 'Apex Auto Design & Fabrication';
   const senderAddress = shipment?.sender?.addressLine || '123 Main Street, Suite 400';
   const senderPhone = shipment?.sender?.phone || '+1 (212) 555-0198';
+  const senderEmail = shipment?.sender?.email;
 
   const recipientName = shipment?.recipient?.name || 'Daniel';
   const recipientCompany = shipment?.recipient?.company || 'Pacific Genomics Institute';
   const recipientAddress = shipment?.recipient?.addressLine || '654 Sunset Boulevard';
   const recipientPhone = shipment?.recipient?.phone || '+1 (310) 555-0144';
+  const recipientEmail = shipment?.recipient?.email;
 
   const originGeo = resolveLocation([originCity, originState].filter(Boolean).join(', ')) || resolveLocation(originCity) || resolveLocation(originState) || { lat: 40.7128, lng: -74.0050 };
   const currentGeo = resolveLocation([currentCity, currentState].filter(Boolean).join(', ')) || resolveLocation(currentCity) || resolveLocation(currentState) || { lat: 41.8781, lng: -87.6298 };
@@ -1318,6 +1320,12 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
                     <Phone size={13} />
                     <span>{senderPhone}</span>
                   </a>
+                  {senderEmail && (
+                    <a href={`mailto:${senderEmail}`} className="party-email-link font-mono">
+                      <Mail size={13} />
+                      <span>{senderEmail}</span>
+                    </a>
+                  )}
                 </div>
 
                 {/* Recipient */}
@@ -1334,6 +1342,12 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
                     <Phone size={13} />
                     <span>{recipientPhone}</span>
                   </a>
+                  {recipientEmail && (
+                    <a href={`mailto:${recipientEmail}`} className="party-email-link font-mono">
+                      <Mail size={13} />
+                      <span>{recipientEmail}</span>
+                    </a>
+                  )}
                 </div>
               </div>
             </div>

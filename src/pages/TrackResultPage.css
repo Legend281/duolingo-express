@@ -1277,6 +1277,28 @@
   text-decoration: underline;
 }
 
+.party-email-link {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0056d2;
+  text-decoration: none;
+  margin-top: 0.3rem;
+  transition: color 0.15s ease;
+  overflow-wrap: anywhere;
+}
+
+.party-email-link svg {
+  flex-shrink: 0;
+}
+
+.party-email-link:hover {
+  color: #003e99;
+  text-decoration: underline;
+}
+
 /* 4. SPECIAL HANDLING CARD */
 .special-handling-card {
   background: #ffffff;
