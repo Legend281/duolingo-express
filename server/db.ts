@@ -297,6 +297,15 @@ export function initDatabase() {
     }
   }
 
-  // Seed default data if database is empty
-  seedDatabaseIfEmpty();
+  // Demo/sample data (the "Randy's Tacoma" flagship shipment, sample quotes, a sample
+  // document) is opt-in only, via SEED_DEMO_DATA=true — never automatic. This app is in real
+  // production use now, not just a demo: an admin deleting every shipment (intentionally, or
+  // via a bug like the one that motivated this) must land on a genuinely empty dashboard, not
+  // have fake data silently reappear in place of whatever real records used to be there. That
+  // silent reappearance is exactly what made a real, deleted shipment look like "the demo data
+  // came back" instead of "data was lost" — this removes the ambiguity by never reseeding on
+  // its own, under any circumstance, once the site is live.
+  if (process.env.SEED_DEMO_DATA === 'true') {
+    seedDatabaseIfEmpty();
+  }
 }
