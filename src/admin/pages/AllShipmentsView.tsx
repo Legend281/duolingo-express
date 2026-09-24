@@ -825,13 +825,13 @@ export const AllShipmentsView: React.FC<AllShipmentsViewProps> = ({
           shipment={deleteModalShipment}
           onClose={() => setDeleteModalShipment(null)}
           onConfirmDelete={async (trackingNumber) => {
-            const ok = await deleteShipment(trackingNumber);
+            const result = await deleteShipment(trackingNumber);
             setDeleteModalShipment(null);
-            setToastIsError(!ok);
-            setSuccessToast(ok
+            setToastIsError(!result.success);
+            setSuccessToast(result.success
               ? `Consignment ${trackingNumber} permanently purged from system.`
-              : `Failed to delete ${trackingNumber} — server rejected the request. It has been restored.`);
-            setTimeout(() => setSuccessToast(null), 4000);
+              : `Failed to delete ${trackingNumber}: ${result.error || 'server rejected the request'}. It has been restored.`);
+            setTimeout(() => setSuccessToast(null), 6000);
           }}
         />
       )}

@@ -26,8 +26,8 @@ interface AdminDataContextType {
   // Actions
   updateShipmentDirect: (updated: Shipment) => void;
   updateShipmentFull: (updated: Shipment) => Promise<void>;
-  deleteShipment: (trackingNumber: string) => Promise<boolean>;
-  updateShipmentStatus: (trackingNumber: string, newStatus: ShipmentStatus, location: string, facility: string, notes: string, progressPercent?: number, statusTextOverride?: string, lat?: number, lng?: number, eventTitleOverride?: string, skipLocalEventDuplicate?: boolean, skipServerEventCreation?: boolean, estimatedDeliveryDate?: string, estimatedDeliveryTime?: string) => Promise<boolean>;
+  deleteShipment: (trackingNumber: string) => Promise<{ success: boolean; error?: string }>;
+  updateShipmentStatus: (trackingNumber: string, newStatus: ShipmentStatus, location: string, facility: string, notes: string, progressPercent?: number, statusTextOverride?: string, lat?: number, lng?: number, eventTitleOverride?: string, skipLocalEventDuplicate?: boolean, skipServerEventCreation?: boolean, estimatedDeliveryDate?: string, estimatedDeliveryTime?: string) => Promise<{ success: boolean; error?: string }>;
   addTrackingEvent: (trackingNumber: string, event: Partial<TrackingEvent>) => void;
   correctTrackingEvent: (trackingNumber: string, eventId: string, updates: Partial<TrackingEvent>) => void;
   publishQuote: (quoteId: string, pricing: QuoteRequestPricing, internalNotes?: string) => void;
@@ -218,7 +218,7 @@ const normalizeShipment = (s: any): Shipment => {
     }
   };
 
-  const deleteShipment = async (trackingNumber: string): Promise<boolean> => {
+  const deleteShipment = async (trackingNumber: string): Promise<{ success: boolean; error?: string }> => {
     // Keep the removed shipment so a failed server delete can be restored — the caller
     // previously removed it from view unconditionally and reported success regardless of
     // whether the DELETE actually reached the server, so a failure (session expiry, a
@@ -228,19 +228,19 @@ const normalizeShipment = (s: any): Shipment => {
 
     try {
       await api.deleteShipment(trackingNumber);
-      return true;
-    } catch (err) {
+      return { success: true };
+    } catch (err: any) {
       console.error('[API] Failed to delete shipment:', err);
       if (removed) {
         setShipments(prev => prev.some(s => s.trackingNumber.toUpperCase() === trackingNumber.toUpperCase())
           ? prev
           : [removed, ...prev]);
       }
-      return false;
+      return { success: false, error: err?.message };
     }
   };
 
-  const updateShipmentStatus = (trackingNumber: string, newStatus: ShipmentStatus, location: string, facility: string, notes: string, progressPercent?: number, statusTextOverride?: string, lat?: number, lng?: number, eventTitleOverride?: string, skipLocalEventDuplicate?: boolean, skipServerEventCreation?: boolean, estimatedDeliveryDate?: string, estimatedDeliveryTime?: string): Promise<boolean> => {
+  const updateShipmentStatus = (trackingNumber: string, newStatus: ShipmentStatus, location: string, facility: string, notes: string, progressPercent?: number, statusTextOverride?: string, lat?: number, lng?: number, eventTitleOverride?: string, skipLocalEventDuplicate?: boolean, skipServerEventCreation?: boolean, estimatedDeliveryDate?: string, estimatedDeliveryTime?: string): Promise<{ success: boolean; error?: string }> => {
     // Keep the pre-update snapshot so a failed server write can be rolled back instead of
     // leaving the optimistic local change (new status, new event, pushed-back ETA) looking
     // permanent when it was never actually persisted.
@@ -320,13 +320,13 @@ const normalizeShipment = (s: any): Shipment => {
 
     // 2. Persist to Backend API
     return api.updateShipmentStatus(trackingNumber, newStatus, location, facility, notes, progressPercent, statusTextOverride, lat, lng, eventTitleOverride, skipServerEventCreation, estimatedDeliveryDate, estimatedDeliveryTime)
-      .then(() => true)
-      .catch(err => {
+      .then(() => ({ success: true }))
+      .catch((err: any) => {
         console.error('[API] Failed to update shipment status:', err);
         if (previous) {
           setShipments(prev => prev.map(s => s.trackingNumber.toUpperCase() === trackingNumber.toUpperCase() ? previous : s));
         }
-        return false;
+        return { success: false, error: err?.message };
       });
   };
 

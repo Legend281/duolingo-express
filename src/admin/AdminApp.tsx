@@ -99,12 +99,12 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onNavigatePublic, onViewPubl
       undefined,
       updated.estimatedDelivery,
       updated.estimatedDeliveryDetail
-    ).then((ok) => {
-      setToastIsError(!ok);
-      setToastMessage(ok
+    ).then((result) => {
+      setToastIsError(!result.success);
+      setToastMessage(result.success
         ? `Shipment ${updated.trackingNumber} updated: ${updated.statusText}`
-        : `Failed to save the update for ${updated.trackingNumber} — server rejected the request. Reverted.`);
-      setTimeout(() => setToastMessage(null), 4000);
+        : `Failed to save the update for ${updated.trackingNumber}: ${result.error || 'server rejected the request'}. Reverted.`);
+      setTimeout(() => setToastMessage(null), 6000);
     });
   };
 

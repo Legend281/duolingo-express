@@ -20,12 +20,25 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 // presenting the cookie deliberately — not a CSRF victim, and not what this check is for.
 const configuredOrigin = process.env.ALLOWED_ORIGIN;
 const DEV_ORIGINS = new Set(['http://localhost:3000', 'http://localhost:5000', 'http://127.0.0.1:3000']);
-const ALLOWED_ORIGINS = configuredOrigin ? new Set([configuredOrigin, ...DEV_ORIGINS]) : DEV_ORIGINS;
+const EXTRA_ALLOWED_ORIGINS = configuredOrigin ? new Set([configuredOrigin, ...DEV_ORIGINS]) : DEV_ORIGINS;
 
+// This server always serves its own frontend from the exact same host it receives API
+// requests on — a single deployment, or the admin-subdomain proxy mode, which also always
+// answers on its own host regardless of what it forwards to upstream. That means a genuine
+// same-origin browser request's Origin header will always exactly equal THIS request's own
+// scheme+host. Comparing against that derived value (respecting X-Forwarded-Proto/Host via
+// `trust proxy`, set in index.ts) works correctly with zero configuration — unlike relying on
+// a separately-set ALLOWED_ORIGIN env var, which nothing in setup ever prompted for and which
+// silently defaulted to dev-only origins. On the real deployed domain, every state-changing
+// admin request's Origin header failed to match that dev-only list and was rejected here with
+// a 403 — every delete, status change, and settings save looked like it was being ignored,
+// when it was actually being blocked before it ever reached the route handler.
 function originIsAllowed(req: Request): boolean {
   const originHeader = req.headers.origin;
   if (!originHeader) return true; // no Origin sent — see comment above
-  return ALLOWED_ORIGINS.has(originHeader);
+  if (EXTRA_ALLOWED_ORIGINS.has(originHeader)) return true;
+  const selfOrigin = `${req.protocol}://${req.get('host')}`;
+  return originHeader === selfOrigin;
 }
 
 /**
