@@ -35,7 +35,10 @@ export const PublicQuoteResultPage: React.FC<PublicQuoteResultPageProps> = ({
   onTrackShipment,
   onNavigate,
 }) => {
-  const { updateQuoteStatus } = useAdminData();
+  const { updateQuoteStatus, settings } = useAdminData();
+  const supportPhone = settings.supportPhone || '1-800-555-0199';
+  const dispatchEmail = settings.dispatchEmail || 'dispatch@duolingoexpress.com';
+  const companyName = settings.companyName || 'Duolingo Express Logistics LLC';
   const [copiedId, setCopiedId] = useState(false);
   const [accepted, setAccepted] = useState(quote.status === 'ACCEPTED' || quote.status === 'CONVERTED');
 
@@ -229,7 +232,7 @@ export const PublicQuoteResultPage: React.FC<PublicQuoteResultPageProps> = ({
                   </p>
                   <div className="hotline-banner">
                     <Phone size={16} className="text-blue" />
-                    <span>Need urgent priority quotation? Call <strong>(855) 388-EXPRESS</strong> with reference <strong className="font-mono text-blue">{quote.id}</strong>.</span>
+                    <span>Need urgent priority quotation? Call <strong>{supportPhone}</strong> with reference <strong className="font-mono text-blue">{quote.id}</strong>.</span>
                   </div>
                 </div>
               )}
@@ -361,7 +364,7 @@ export const PublicQuoteResultPage: React.FC<PublicQuoteResultPageProps> = ({
                     <small>24/7 Operations Line</small>
                   </div>
                 </div>
-                <strong className="desk-phone">1-800-555-0199</strong>
+                <strong className="desk-phone">{supportPhone}</strong>
                 <p className="desk-sub">Reference quote #{quote.id} when connecting with our tariff team.</p>
               </div>
             </div>
@@ -378,9 +381,9 @@ export const PublicQuoteResultPage: React.FC<PublicQuoteResultPageProps> = ({
           <div className="print-header-left">
             <img src="/logo.png" alt="Duolingo Express" className="print-doc-logo" />
             <div className="print-company-info">
-              <strong>Duolingo Express Logistics LLC</strong>
-              <span>100 Logistics Blvd, Suite 400 · New York, NY 10001</span>
-              <span>Operations Desk: (855) 388-EXPRESS · tariffs@duolingoexpress.com</span>
+              <strong>{companyName}</strong>
+              <span>{settings.headquartersAddress || 'JFK International Cargo Terminal, Jamaica, NY 11430'}</span>
+              <span>Operations Desk: {supportPhone} · {dispatchEmail}</span>
             </div>
           </div>
 

@@ -30,7 +30,9 @@ interface QuotePageProps {
 }
 
 export const QuotePage: React.FC<QuotePageProps> = ({ onNavigate, initialService }) => {
-  const { createQuoteRequest } = useAdminData();
+  const { createQuoteRequest, settings } = useAdminData();
+  const supportPhone = settings.supportPhone || '1-800-555-0199';
+  const dotNumber = settings.dotNumber || 'USDOT #3894210 · MC-892401';
 
   // Contact Info (Starts clean and blank)
   const [customerName, setCustomerName] = useState('');
@@ -211,7 +213,7 @@ export const QuotePage: React.FC<QuotePageProps> = ({ onNavigate, initialService
         <div className="dxp-container-wide quote-hero-inner">
           <div className="quote-hero-pill animate-fade-in">
             <span className="quote-pulse-dot" />
-            <span>USDOT #3894210 · CENTRAL TARIFF & RATING DESK</span>
+            <span>{dotNumber} · CENTRAL TARIFF & RATING DESK</span>
           </div>
 
           <h1 className="quote-hero-title animate-fade-in">
@@ -656,7 +658,7 @@ export const QuotePage: React.FC<QuotePageProps> = ({ onNavigate, initialService
 
                 <div className="contact-hotline-box">
                   <small>Need Immediate Tariff Assistance?</small>
-                  <strong>1-800-555-0199</strong>
+                  <strong>{supportPhone}</strong>
                   <p>24/7 Central Operations Desk Connection</p>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapPin, Building, Phone, Clock, ShieldCheck, ArrowRight } from 'lucide-react';
 import { FacilityNetworkMap } from '../components/FacilityNetworkMap';
+import { useAdminData } from '../context/AdminDataContext';
 import './LocationsPage.css';
 
 interface LocationsPageProps {
@@ -8,6 +9,8 @@ interface LocationsPageProps {
 }
 
 export const LocationsPage: React.FC<LocationsPageProps> = ({ onNavigate }) => {
+  const { settings } = useAdminData();
+  const dotNumber = settings.dotNumber || 'USDOT #3894210 · MC-892401';
   const facilities = [
     {
       name: 'Manhattan Origin Terminal',
@@ -63,7 +66,7 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({ onNavigate }) => {
         <div className="dxp-container-wide locations-hero-inner">
           <div className="locations-hero-pill animate-fade-in">
             <span className="locations-pulse-dot" />
-            <span>USDOT #3894210 · NATIONAL GATEWAY NETWORK</span>
+            <span>{dotNumber} · NATIONAL GATEWAY NETWORK</span>
           </div>
 
           <h1 className="locations-hero-title animate-fade-in">

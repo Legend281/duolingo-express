@@ -56,6 +56,7 @@ import { api } from '../services/api';
 import { generateShipmentPlan, calculateDynamicTimeProgress, getServiceCommitmentHours } from '../services/planningEngine';
 import { resolveLocation } from '../services/geocodingService';
 import { applyForwardOnlyShipmentUpdate } from '../utils/shipmentSync';
+import { useAdminData } from '../context/AdminDataContext';
 import './TrackResultPage.css';
 
 interface TrackResultPageProps {
@@ -69,6 +70,10 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   onTrackAnother,
   onNavigate,
 }) => {
+  const { settings } = useAdminData();
+  const supportPhone = settings.supportPhone || '1-800-555-0199';
+  const supportPhoneDigits = supportPhone.replace(/[^0-9+]/g, '');
+
   // Continuous real-time synchronized state
   const [liveShipment, setLiveShipment] = useState<Shipment>(shipment);
 
@@ -193,10 +198,13 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   
   const originCity = liveShipment?.origin?.city || shipment?.origin?.city || 'New York';
   const originState = liveShipment?.origin?.state || shipment?.origin?.state || 'NY';
-  const originZip = (liveShipment?.origin as any)?.zip || (shipment?.origin as any)?.zip || '10005';
+  // No fallback — ZIP is optional at booking (CreateShipmentView), and showing a fake one for
+  // a shipment that genuinely doesn't have it on file is exactly the "shows a placeholder
+  // for a field I left blank" problem this page shouldn't have.
+  const originZip = (liveShipment?.origin as any)?.zip || (shipment?.origin as any)?.zip;
   const destCity = liveShipment?.destination?.city || shipment?.destination?.city || 'Los Angeles';
   const destState = liveShipment?.destination?.state || shipment?.destination?.state || 'CA';
-  const destZip = (liveShipment?.destination as any)?.zip || (shipment?.destination as any)?.zip || '90071';
+  const destZip = (liveShipment?.destination as any)?.zip || (shipment?.destination as any)?.zip;
   const originFacility = (liveShipment?.origin as any)?.facilityName || (shipment?.origin as any)?.facilityName || `${originCity} Gateway Terminal`;
   const destFacility = (liveShipment?.destination as any)?.facilityName || (shipment?.destination as any)?.facilityName || `${destCity} Distribution Center`;
 
@@ -291,16 +299,21 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
     fuelType: 'Gasoline'
   };
 
-  // Parties data with verified authentic logistics information
-  const senderName = shipment?.sender?.name || 'Randy';
-  const senderCompany = shipment?.sender?.company || 'Apex Auto Design & Fabrication';
-  const senderAddress = shipment?.sender?.addressLine || '123 Main Street, Suite 400';
-  const senderPhone = shipment?.sender?.phone || '+1 (212) 555-0198';
+  // Parties data — only Full Name and Street Address are required at booking (see
+  // CreateShipmentView); Company/Email/Phone are explicitly optional there, so a blank one
+  // must not show a fabricated fallback value here (they used to fall back to the flagship
+  // demo shipment's own real contact info — "Randy" / "Apex Auto Design" / a fake phone
+  // number — for ANY shipment missing that field, which is exactly backwards for a public
+  // page: those fields are conditionally rendered below and simply omitted when empty).
+  const senderName = shipment?.sender?.name || 'Shipper';
+  const senderCompany = shipment?.sender?.company;
+  const senderAddress = shipment?.sender?.addressLine;
+  const senderPhone = shipment?.sender?.phone;
   const senderEmail = shipment?.sender?.email;
 
-  const recipientName = shipment?.recipient?.name || 'Daniel';
-  const recipientCompany = shipment?.recipient?.company || 'Pacific Genomics Institute';
-  const recipientAddress = shipment?.recipient?.addressLine || '654 Sunset Boulevard';
+  const recipientName = shipment?.recipient?.name || 'Consignee';
+  const recipientCompany = shipment?.recipient?.company;
+  const recipientAddress = shipment?.recipient?.addressLine;
   const recipientPhone = shipment?.recipient?.phone || '+1 (310) 555-0144';
   const recipientEmail = shipment?.recipient?.email;
 
@@ -1313,13 +1326,15 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
                     <span>From (Sender)</span>
                   </div>
                   <h4 className="party-name">{senderName}</h4>
-                  <p className="party-company">{senderCompany}</p>
-                  <p className="party-address">{senderAddress}</p>
-                  <p className="party-city-state">{originCity}, {originState} {originZip}</p>
-                  <a href={`tel:${senderPhone.replace(/[^0-9+]/g, '')}`} className="party-phone-link font-mono">
-                    <Phone size={13} />
-                    <span>{senderPhone}</span>
-                  </a>
+                  {senderCompany && <p className="party-company">{senderCompany}</p>}
+                  {senderAddress && <p className="party-address">{senderAddress}</p>}
+                  <p className="party-city-state">{originCity}, {originState}{originZip ? ` ${originZip}` : ''}</p>
+                  {senderPhone && (
+                    <a href={`tel:${senderPhone.replace(/[^0-9+]/g, '')}`} className="party-phone-link font-mono">
+                      <Phone size={13} />
+                      <span>{senderPhone}</span>
+                    </a>
+                  )}
                   {senderEmail && (
                     <a href={`mailto:${senderEmail}`} className="party-email-link font-mono">
                       <Mail size={13} />
@@ -1335,13 +1350,15 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
                     <span>To (Recipient)</span>
                   </div>
                   <h4 className="party-name">{recipientName}</h4>
-                  <p className="party-company">{recipientCompany}</p>
-                  <p className="party-address">{recipientAddress}</p>
-                  <p className="party-city-state">{destCity}, {destState} {destZip}</p>
-                  <a href={`tel:${recipientPhone.replace(/[^0-9+]/g, '')}`} className="party-phone-link font-mono">
-                    <Phone size={13} />
-                    <span>{recipientPhone}</span>
-                  </a>
+                  {recipientCompany && <p className="party-company">{recipientCompany}</p>}
+                  {recipientAddress && <p className="party-address">{recipientAddress}</p>}
+                  <p className="party-city-state">{destCity}, {destState}{destZip ? ` ${destZip}` : ''}</p>
+                  {recipientPhone && (
+                    <a href={`tel:${recipientPhone.replace(/[^0-9+]/g, '')}`} className="party-phone-link font-mono">
+                      <Phone size={13} />
+                      <span>{recipientPhone}</span>
+                    </a>
+                  )}
                   {recipientEmail && (
                     <a href={`mailto:${recipientEmail}`} className="party-email-link font-mono">
                       <Mail size={13} />
@@ -1429,9 +1446,9 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
           </div>
 
           <div className="help-banner-actions">
-            <a href="tel:18005550190" className="help-btn phone-btn orange-dispatch-btn">
+            <a href={`tel:${supportPhoneDigits}`} className="help-btn phone-btn orange-dispatch-btn">
               <Phone size={15} />
-              <span>Call Dispatch 1-800-555-0190</span>
+              <span>Call Dispatch {supportPhone}</span>
             </a>
             <button className="help-btn contact-btn" onClick={() => setSupportOpen(true)} type="button">
               <Mail size={15} />

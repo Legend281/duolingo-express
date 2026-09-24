@@ -22,6 +22,7 @@ import {
   Lock,
   Package
 } from 'lucide-react';
+import { useAdminData } from '../context/AdminDataContext';
 import './ServicesPage.css';
 
 interface ServicesPageProps {
@@ -48,6 +49,8 @@ interface ServiceTier {
 }
 
 export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate }) => {
+  const { settings } = useAdminData();
+  const dotNumber = settings.dotNumber || 'USDOT #3894210 · MC-892401';
   const [selectedServiceId, setSelectedServiceId] = useState<string>('priority-courier');
   const [activeIndustryTab, setActiveIndustryTab] = useState<string>('healthcare');
 
@@ -215,7 +218,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate }) => {
         <div className="dxp-container-wide services-hero-inner">
           <div className="services-hero-badge animate-fade-in">
             <span className="services-badge-dot" />
-            <span>USDOT #3894210 · CERTIFIED COMMERCIAL COURIER SERVICES</span>
+            <span>{dotNumber} · CERTIFIED COMMERCIAL COURIER SERVICES</span>
           </div>
 
           <h1 className="services-hero-title animate-fade-in">

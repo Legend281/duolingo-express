@@ -20,6 +20,7 @@ import {
   Send,
   Sparkles
 } from 'lucide-react';
+import { useAdminData } from '../context/AdminDataContext';
 import './HelpPage.css';
 
 interface HelpPageProps {
@@ -35,6 +36,10 @@ interface FaqItem {
 }
 
 export const HelpPage: React.FC<HelpPageProps> = ({ onNavigate }) => {
+  const { settings } = useAdminData();
+  const supportPhone = settings.supportPhone || '1-800-555-0199';
+  const supportPhoneDigits = supportPhone.replace(/[^0-9+]/g, '');
+  const dotNumber = settings.dotNumber || 'USDOT #3894210 · MC-892401';
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [openFaqId, setOpenFaqId] = useState<string | null>('trk-1');
@@ -114,7 +119,7 @@ export const HelpPage: React.FC<HelpPageProps> = ({ onNavigate }) => {
       id: 'exc-2',
       category: 'exceptions',
       question: 'How do I request an in-transit address correction or terminal hold?',
-      answer: 'Authorized senders or consignees can call our 24/7 central dispatch hotline at 1-800-555-0199 with the master tracking ID to hold the consignment at a regional gateway before final delivery.',
+      answer: `Authorized senders or consignees can call our 24/7 central dispatch hotline at ${supportPhone} with the master tracking ID to hold the consignment at a regional gateway before final delivery.`,
       badge: 'Urgent Hold'
     },
     {
@@ -152,7 +157,7 @@ export const HelpPage: React.FC<HelpPageProps> = ({ onNavigate }) => {
         <div className="dxp-container-wide help-hero-inner">
           <div className="help-hero-pill animate-fade-in">
             <span className="help-pulse-dot" />
-            <span>USDOT #3894210 · 24/7 CLIENT OPERATIONS DESK</span>
+            <span>{dotNumber} · 24/7 CLIENT OPERATIONS DESK</span>
           </div>
 
           <h1 className="help-hero-title animate-fade-in">
@@ -373,11 +378,11 @@ export const HelpPage: React.FC<HelpPageProps> = ({ onNavigate }) => {
                 <span>Submit Dispatch Ticket</span>
               </button>
               <a
-                href="tel:18005550199"
+                href={`tel:${supportPhoneDigits}`}
                 className="btn-corp-ghost"
               >
                 <Phone size={16} />
-                <span>Call 1-800-555-0199</span>
+                <span>Call {supportPhone}</span>
               </a>
             </div>
           </div>

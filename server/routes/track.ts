@@ -40,17 +40,22 @@ function maskName(name: string): string {
   return parts.map(p => p.length > 1 ? `${p[0]}${'*'.repeat(Math.min(p.length - 1, 5))}` : p).join(' ');
 }
 
-// Helper to mask phone (e.g. "(310) 555-0892" -> "(310) •••-0892")
-function maskPhone(phone: string): string {
-  if (!phone) return '•••-•••-••••';
+// Helper to mask phone (e.g. "(310) 555-0892" -> "(310) •••-0892"). Returns undefined rather
+// than a fake-looking "•••-•••-••••" placeholder when there's genuinely no phone on file —
+// Phone is an optional field at booking, and a masked-looking placeholder for a shipment that
+// never had a phone number implies one exists but is hidden, which is worse than just not
+// showing a phone row on the public page at all.
+function maskPhone(phone: string): string | undefined {
+  if (!phone) return undefined;
   return phone.replace(/\d{3}-\d{4}$/, '•••-••••').replace(/\d{3}\)/, '•••)');
 }
 
 // Helper to mask email (e.g. "daniel@wcoffroad.com" -> "da***@wcoffroad.com") — keeps the
 // domain and a couple of leading characters so it's still recognizably an email address
-// without exposing the full local part to anyone who has the tracking number.
-function maskEmail(email: string): string {
-  if (!email || !email.includes('@')) return '•••@•••.com';
+// without exposing the full local part to anyone who has the tracking number. Same
+// undefined-when-absent reasoning as maskPhone above.
+function maskEmail(email: string): string | undefined {
+  if (!email || !email.includes('@')) return undefined;
   const [local, domain] = email.split('@');
   const visible = local.slice(0, Math.min(2, local.length));
   return `${visible}${'*'.repeat(Math.max(local.length - visible.length, 3))}@${domain}`;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, FileText, Lock, Eye, DollarSign, CheckCircle2, ChevronRight } from 'lucide-react';
+import { useAdminData } from '../context/AdminDataContext';
 import './LegalPage.css';
 
 interface LegalPageProps {
@@ -11,6 +12,8 @@ export const LegalPage: React.FC<LegalPageProps> = ({
   initialSection = 'privacy',
   onNavigate = () => {},
 }) => {
+  const { settings } = useAdminData();
+  const dotNumber = settings.dotNumber || 'USDOT #3894210 · MC-892401';
   const [activeDoc, setActiveDoc] = useState(initialSection);
 
   useEffect(() => {
@@ -29,7 +32,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({
         <div className="dxp-container-wide legal-hero-inner">
           <div className="legal-hero-pill animate-fade-in">
             <span className="legal-pulse-dot" />
-            <span>USDOT #3894210 · MOTOR CARRIER GOVERNANCE</span>
+            <span>{dotNumber} · MOTOR CARRIER GOVERNANCE</span>
           </div>
 
           <h1 className="legal-hero-title animate-fade-in">
@@ -111,7 +114,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({
               <span>•</span>
               <span>Effective: Immediate</span>
               <span>•</span>
-              <span>USDOT #3894210</span>
+              <span>{dotNumber}</span>
             </div>
           </div>
 

@@ -40,6 +40,7 @@ import {
 import { Barcode } from '../components/Barcode';
 import { HomeNetworkMap } from '../components/HomeNetworkMap';
 import { CLIENT_LOGOS } from '../components/ClientLogos';
+import { useAdminData } from '../context/AdminDataContext';
 import './HomePage.css';
 
 interface HomePageProps {
@@ -48,6 +49,9 @@ interface HomePageProps {
 }
 
 export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
+  const { settings } = useAdminData();
+  const supportPhone = settings.supportPhone || '1-800-555-0199';
+  const dotNumber = settings.dotNumber || 'USDOT #3894210 · MC-892401';
   // Interactive Mini Rate Estimator State
   const [estOrigin, setEstOrigin] = useState('New York, NY');
   const [estDest, setEstDest] = useState('Los Angeles, CA');
@@ -175,7 +179,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
           <div className="corp-hero-content animate-fade-in">
             <div className="corp-hero-badge">
               <span className="badge-pulse-dot" />
-              <span>USDOT #3894210 · MC-882104 · NATIONWIDE COURIER NETWORK</span>
+              <span>{dotNumber} · NATIONWIDE COURIER NETWORK</span>
             </div>
 
             <h1 className="corp-hero-title">
@@ -253,7 +257,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
 
             <div className="hero-showcase-bottom">
               <Phone size={15} className="text-orange" />
-              <span>Priority Hotline: <strong>+1 (800) 555-DUO-EXP</strong></span>
+              <span>Priority Hotline: <strong>{supportPhone}</strong></span>
             </div>
           </div>
         </div>
@@ -1007,7 +1011,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
               <div className="thermal-header-strip">
                 <div>
                   <strong className="thermal-brand font-mono">DUOLINGO EXPRESS CARRIER LABEL</strong>
-                  <span className="thermal-fmcsa font-mono">USDOT #3894210 · STANDARD MASTER WAYBILL</span>
+                  <span className="thermal-fmcsa font-mono">{dotNumber} · STANDARD MASTER WAYBILL</span>
                 </div>
                 <span className="thermal-badge font-mono">PRIORITY AIR/GROUND</span>
               </div>

@@ -20,6 +20,7 @@ import { SupportModal } from '../components/SupportModal';
 import { PRIMARY_SHIPMENT, getShipmentByTrackingNumber } from '../data/mockShipments';
 import { Shipment } from '../types/shipment';
 import { api } from '../services/api';
+import { useAdminData } from '../context/AdminDataContext';
 import './TrackPage.css';
 
 interface TrackPageProps {
@@ -29,6 +30,8 @@ interface TrackPageProps {
 }
 
 export const TrackPage: React.FC<TrackPageProps> = ({ onTrack, onNavigate, notFoundQuery }) => {
+  const { settings } = useAdminData();
+  const supportPhone = settings.supportPhone || '1-800-555-0199';
   const [activeTab, setActiveTab] = useState<'single' | 'batch'>('single');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [multiInput, setMultiInput] = useState('');
@@ -353,7 +356,7 @@ export const TrackPage: React.FC<TrackPageProps> = ({ onTrack, onNavigate, notFo
               <div className="support-contact-strip">
                 <div className="support-phone-badge">
                   <Phone size={16} className="text-orange" />
-                  <span className="font-mono font-bold">1-800-555-0199</span>
+                  <span className="font-mono font-bold">{supportPhone}</span>
                   <small>(Toll-Free Dispatch)</small>
                 </div>
                 <div className="support-status-beacon">

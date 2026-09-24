@@ -17,6 +17,7 @@ import {
   Headphones,
   FileText
 } from 'lucide-react';
+import { useAdminData } from '../context/AdminDataContext';
 import './Header.css';
 
 interface HeaderProps {
@@ -29,6 +30,14 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate = () => {},
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Admin-editable company contact info — this used to be hardcoded here (and independently
+  // hardcoded, often with different fake numbers, across every other public page), so
+  // changing the phone/email/DOT number in Settings never actually reached any of them.
+  const { settings } = useAdminData();
+  const supportPhone = settings.supportPhone || '1-800-555-0199';
+  const supportPhoneDigits = supportPhone.replace(/[^0-9+]/g, '');
+  const dispatchEmail = settings.dispatchEmail || 'dispatch@duolingoexpress.com';
+  const dotNumber = settings.dotNumber || 'USDOT #3894210 · MC-892401';
 
   // Prevent background scroll when mobile drawer is open
   useEffect(() => {
@@ -55,12 +64,12 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="dxp-topbar-left">
             <div className="topbar-item">
               <Phone size={13} className="text-orange" />
-              <span>Priority Dispatch: <strong>1-800-555-0199</strong></span>
+              <span>Priority Dispatch: <strong>{supportPhone}</strong></span>
             </div>
             <div className="topbar-divider" />
             <div className="topbar-item">
               <Mail size={13} className="text-orange" />
-              <span>dispatch@duolingoexpress.com</span>
+              <span>{dispatchEmail}</span>
             </div>
             <div className="topbar-divider" />
             <div className="topbar-item">
@@ -72,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="dxp-topbar-right">
             <div className="topbar-cert-pill font-mono">
               <CheckCircle2 size={12} className="text-emerald" />
-              <span>USDOT #3894210 · MC-882104</span>
+              <span>{dotNumber}</span>
             </div>
           </div>
         </div>
@@ -298,12 +307,12 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="live-status-dot" />
                 <span className="hotline-tag font-mono">24/7 OPERATIONS ACTIVE</span>
               </div>
-              <a href="tel:18005550199" className="hotline-phone-btn">
+              <a href={`tel:${supportPhoneDigits}`} className="hotline-phone-btn">
                 <Phone size={15} />
-                <span>Call Dispatch: 1-800-555-0199</span>
+                <span>Call Dispatch: {supportPhone}</span>
               </a>
               <div className="drawer-regulatory font-mono">
-                USDOT #3894210 · MC-882104
+                {dotNumber}
               </div>
             </div>
           </div>

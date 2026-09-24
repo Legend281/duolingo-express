@@ -19,6 +19,7 @@ import {
   FileCheck,
   Compass
 } from 'lucide-react';
+import { useAdminData } from '../context/AdminDataContext';
 import './AboutPage.css';
 
 interface AboutPageProps {
@@ -26,6 +27,8 @@ interface AboutPageProps {
 }
 
 export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
+  const { settings } = useAdminData();
+  const dotNumber = settings.dotNumber || 'USDOT #3894210 · MC-892401';
   return (
     <div className="dxp-page-about">
       {/* =========================================================================
@@ -36,7 +39,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
         <div className="dxp-container-wide about-hero-inner">
             <div className="about-hero-badge animate-fade-in">
               <span className="about-badge-dot" />
-              <span>USDOT #3894210 · MC-882104 · AUTHORIZED U.S. MOTOR CARRIER</span>
+              <span>{dotNumber} · AUTHORIZED U.S. MOTOR CARRIER</span>
             </div>
 
           <h1 className="about-hero-title animate-fade-in">
@@ -50,7 +53,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
           <div className="about-hero-credentials animate-fade-in">
             <div className="cred-badge">
               <ShieldCheck size={16} className="text-orange" />
-              <span>USDOT #3894210 Verified</span>
+              <span>{dotNumber} Verified</span>
             </div>
             <div className="cred-divider" />
             <div className="cred-badge">
@@ -357,7 +360,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
               <div className="c-badge-item">
                 <ShieldCheck size={28} className="text-orange" />
                 <div>
-                  <strong>USDOT #3894210</strong>
+                  <strong>{dotNumber}</strong>
                   <span>Active & Verified Carrier Authority</span>
                 </div>
               </div>

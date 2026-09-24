@@ -616,7 +616,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
           <div className="map-floating-alert hold animate-fade-in">
             <div className="gps-alert-main">
               <Pause size={15} />
-              <span>Transit Paused: Vehicle staged at intermediate checkpoint.</span>
+              <span>Transit Paused: Shipment staged at intermediate checkpoint.</span>
             </div>
           </div>
         )}

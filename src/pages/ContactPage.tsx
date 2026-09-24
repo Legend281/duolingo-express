@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Check
 } from 'lucide-react';
+import { useAdminData } from '../context/AdminDataContext';
 import './ContactPage.css';
 
 interface ContactPageProps {
@@ -22,6 +23,12 @@ interface ContactPageProps {
 }
 
 export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
+  const { settings } = useAdminData();
+  const supportPhone = settings.supportPhone || '1-800-555-0199';
+  const dispatchEmail = settings.dispatchEmail || 'dispatch@duolingoexpress.com';
+  const companyName = settings.companyName || 'Duolingo Express Logistics LLC';
+  const headquartersAddress = settings.headquartersAddress || 'One World Trade Center, Suite 8500, New York, NY 10007, USA';
+  const dotNumber = settings.dotNumber || 'USDOT #3894210 · MC-892401';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -82,7 +89,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
     },
     {
       q: "Can I request an urgent re-route or address hold for a shipment in transit?",
-      a: "Yes. Authorized shippers or consignees can contact our 24/7 central dispatch desk at 1-800-555-0199 with their master tracking reference to request a gateway terminal hold or address update prior to final delivery dispatch."
+      a: `Yes. Authorized shippers or consignees can contact our 24/7 central dispatch desk at ${supportPhone} with their master tracking reference to request a gateway terminal hold or address update prior to final delivery dispatch.`
     },
     {
       q: "What services do you provide for high-value tenders and vehicle transport?",
@@ -104,7 +111,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
         <div className="dxp-container-wide contact-hero-inner">
           <div className="contact-hero-pill animate-fade-in">
             <span className="contact-pulse-dot" />
-            <span>USDOT #3894210 · 24/7 CENTRAL DISPATCH DESK</span>
+            <span>{dotNumber} · 24/7 CENTRAL DISPATCH DESK</span>
           </div>
 
           <h1 className="contact-hero-title animate-fade-in">
@@ -311,7 +318,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                 <div className="channel-icon icon-orange"><Phone size={22} /></div>
                 <div>
                   <small>Toll-Free 24/7 Operations Hotline</small>
-                  <strong>1-800-555-0199</strong>
+                  <strong>{supportPhone}</strong>
                   <p>Direct Connection to Regional Dispatch Supervisors</p>
                 </div>
               </div>
@@ -320,7 +327,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                 <div className="channel-icon icon-emerald"><Mail size={22} /></div>
                 <div>
                   <small>Central Email Desk</small>
-                  <strong>dispatch@duolingoexpress.com</strong>
+                  <strong>{dispatchEmail}</strong>
                   <p>Average response time under 30 minutes</p>
                 </div>
               </div>
@@ -329,8 +336,8 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                 <div className="channel-icon icon-sky"><MapPin size={22} /></div>
                 <div>
                   <small>National Corporate Headquarters</small>
-                  <strong>Duolingo Express Logistics LLC</strong>
-                  <p>One World Trade Center, Suite 8500<br />New York, NY 10007, USA</p>
+                  <strong>{companyName}</strong>
+                  <p>{headquartersAddress}</p>
                 </div>
               </div>
 
@@ -339,7 +346,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                   <AlertTriangle size={18} className="text-amber" />
                   <strong>Active Interstate Linehaul Emergency?</strong>
                 </div>
-                <p>For urgent in-transit delivery holds or urgent vehicle transports, contact our dedicated supervisor priority line at <strong>1-800-555-0199 (Ext 1)</strong>.</p>
+                <p>For urgent in-transit delivery holds or urgent vehicle transports, contact our dedicated supervisor priority line at <strong>{supportPhone} (Ext 1)</strong>.</p>
               </div>
             </div>
           </div>
