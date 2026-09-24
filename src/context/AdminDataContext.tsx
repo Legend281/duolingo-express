@@ -35,7 +35,7 @@ interface AdminDataContextType {
   createQuoteRequest: (quoteData: Partial<QuoteRequest>) => QuoteRequest;
   convertQuoteToShipment: (quoteId: string) => Promise<Shipment | undefined>;
   createShipment: (shipmentData: Partial<Shipment>) => Shipment;
-  updateSettings: (newSettings: Partial<AdminSettings>) => void;
+  updateSettings: (newSettings: Partial<AdminSettings>) => Promise<{ success: boolean; error?: string }>;
   markNotificationRead: (id: string) => void;
   getShipment: (trackingNumber: string) => Shipment | undefined;
   generateDocument: (docData: Omit<AdminDocument, 'id' | 'createdDate' | 'status' | 'version'>) => AdminDocument;
@@ -942,9 +942,21 @@ const normalizeShipment = (s: any): Shipment => {
     api.updateDocumentPaymentStatus(docId, paymentStatus).catch(err => console.error('[API] Failed to update document payment status:', err));
   };
 
-  const updateSettings = (newSettings: Partial<AdminSettings>) => {
+  const updateSettings = (newSettings: Partial<AdminSettings>): Promise<{ success: boolean; error?: string }> => {
+    const previous = settings;
     setSettings(prev => ({ ...prev, ...newSettings }));
-    api.updateSettings(newSettings).catch(err => console.error('[API] Failed to update settings:', err));
+    return api.updateSettings(newSettings)
+      .then(() => ({ success: true }))
+      .catch((err: any) => {
+        console.error('[API] Failed to update settings:', err);
+        // The Settings page previously always showed "Saved" regardless of whether this
+        // actually reached the server — a rejected write (e.g. the Origin-check 403 while
+        // the server hadn't picked up that fix yet) looked identical to a real save, so a
+        // toggle like PII masking could be "on" in the admin UI while the public site kept
+        // serving whatever the backend still had.
+        setSettings(previous);
+        return { success: false, error: err?.message };
+      });
   };
 
   const markNotificationRead = (id: string) => {

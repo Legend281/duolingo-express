@@ -590,6 +590,10 @@ input:checked + .slider-round:before {
   z-index: 2000;
 }
 
+.settings-toast.toast-error {
+  border-color: #dc2626;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .form-row-2,

@@ -97,9 +97,14 @@ export const SettingsView: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Handle Save
-  const handleSaveAll = (e: React.FormEvent) => {
+  const [toastIsError, setToastIsError] = useState(false);
+  const handleSaveAll = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateSettings({
+    // Previously showed "saved successfully" unconditionally, regardless of whether the PUT
+    // actually reached the server — a rejected write (expired session, a rejected request)
+    // looked identical to a real save, so a toggle like PII masking could show as saved in
+    // the admin UI while the public site kept serving the old value indefinitely.
+    const result = await updateSettings({
       companyName,
       supportPhone,
       dispatchEmail,
@@ -119,8 +124,11 @@ export const SettingsView: React.FC = () => {
       signatoryTitle,
       hubSortStatus
     });
-    setToastMessage('System settings saved successfully!');
-    setTimeout(() => setToastMessage(null), 3500);
+    setToastIsError(!result.success);
+    setToastMessage(result.success
+      ? 'System settings saved successfully!'
+      : `Failed to save settings: ${result.error || 'server rejected the request'}. Your changes were not persisted.`);
+    setTimeout(() => setToastMessage(null), result.success ? 3500 : 6000);
   };
 
   const handleResetDefaults = () => {
@@ -151,8 +159,8 @@ export const SettingsView: React.FC = () => {
     <div className="settings-page-container animate-fade-in">
       {/* Toast Alert */}
       {toastMessage && (
-        <div className="settings-toast animate-fade-in">
-          <CheckCircle2 size={18} className="text-emerald" />
+        <div className={`settings-toast animate-fade-in${toastIsError ? ' toast-error' : ''}`}>
+          {toastIsError ? <AlertTriangle size={18} className="text-crimson" /> : <CheckCircle2 size={18} className="text-emerald" />}
           <span>{toastMessage}</span>
         </div>
       )}
