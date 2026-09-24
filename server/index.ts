@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import session from 'express-session';
 import helmet from 'helmet';
 import path from 'path';
+import fs from 'fs';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { initDatabase } from './db.js';
 import { shipmentsRouter } from './routes/shipments.js';
@@ -115,6 +116,43 @@ if (ADMIN_PROXY_TARGET) {
       version: '1.0.0',
       timestamp: new Date().toISOString()
     });
+  });
+
+  // TEMPORARY diagnostic — answers "does this host wipe files that aren't tracked by git on
+  // redeploy?" directly, rather than guessing. On first request ever, writes a marker file
+  // (with its own creation time) next to the database. On every later request, reports that
+  // same original timestamp back. If a redeploy resets this to a brand-new timestamp, the
+  // host is wiping untracked files on every deploy — the same thing that would be silently
+  // destroying the database each time. If the timestamp survives a redeploy, it isn't. Safe
+  // to remove once that's confirmed one way or the other.
+  app.get('/api/diag/storage', (req, res) => {
+    try {
+      const dataDir = process.env.DB_PATH ? path.dirname(process.env.DB_PATH) : path.join(process.cwd(), 'data');
+      const markerPath = path.join(dataDir, '.persistence-check.json');
+      let marker: { firstSeen: string; checkedAt: string };
+      if (fs.existsSync(markerPath)) {
+        const existing = JSON.parse(fs.readFileSync(markerPath, 'utf-8'));
+        marker = { firstSeen: existing.firstSeen, checkedAt: new Date().toISOString() };
+      } else {
+        marker = { firstSeen: new Date().toISOString(), checkedAt: new Date().toISOString() };
+        fs.mkdirSync(dataDir, { recursive: true });
+        fs.writeFileSync(markerPath, JSON.stringify({ firstSeen: marker.firstSeen }));
+      }
+      const dbPath = process.env.DB_PATH || path.join(dataDir, 'duolingo_express.db');
+      const dbExists = fs.existsSync(dbPath);
+      const dbStat = dbExists ? fs.statSync(dbPath) : null;
+      res.json({
+        success: true,
+        dataDir,
+        markerFirstSeen: marker.firstSeen,
+        markerCheckedAt: marker.checkedAt,
+        databaseFileExists: dbExists,
+        databaseFileSizeBytes: dbStat?.size ?? null,
+        databaseFileModifiedAt: dbStat ? dbStat.mtime.toISOString() : null
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
   });
 
   // API Routes
