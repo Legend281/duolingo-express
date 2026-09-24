@@ -3,10 +3,18 @@ import path from 'path';
 import fs from 'fs';
 import { seedDatabaseIfEmpty } from './seed.js';
 
-// process.cwd()-relative rather than __dirname-relative: this file's compiled location
-// changes depth (server/db.ts in dev via tsx vs dist-server/server/db.js in production), but
-// the process is always launched from the project root either way, so cwd stays stable.
-const dataDir = path.join(process.cwd(), 'data');
+// DB_PATH lets a real deployment point the database file somewhere OUTSIDE the directory
+// git/the deploy process manages, e.g. a persistent storage path a host provides separately
+// from the app's code checkout. This matters because data/ is (necessarily) gitignored — a
+// database can't be committed to source control — and on at least one deploy, the entire
+// contents of a real, in-use database disappeared immediately after a git-based redeploy,
+// consistent with the host wiping anything not tracked by git when it pulls new code. Until
+// that's confirmed and a genuinely persistent path is set here, every redeploy is a data-loss
+// risk. Falls back to the previous process.cwd()-relative location (dev, or any host where
+// that risk doesn't apply) when unset.
+const dataDir = process.env.DB_PATH
+  ? path.dirname(process.env.DB_PATH)
+  : path.join(process.cwd(), 'data');
 
 // The admin-subdomain deployment runs in proxy mode (ADMIN_PROXY_TARGET, see server/index.ts)
 // and never touches a database — every route file still does a static `import { db } from
@@ -17,7 +25,7 @@ const dataDir = path.join(process.cwd(), 'data');
 // ever did call a method on it, it'd hit a harmless empty DB rather than crashing.
 const dbPath = process.env.ADMIN_PROXY_TARGET
   ? ':memory:'
-  : path.join(dataDir, 'duolingo_express.db');
+  : (process.env.DB_PATH || path.join(dataDir, 'duolingo_express.db'));
 
 if (!process.env.ADMIN_PROXY_TARGET && !fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
