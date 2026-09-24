@@ -136,7 +136,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
         <div class="map-pin-container ${colorClass} ${isActuallyMoving ? 'is-simulating' : ''}">
           ${isCurrent && !isDelivered ? `<div class="radar-glow-ring ${isActuallyMoving ? 'active-pulse' : ''}"></div>` : ''}
           <div class="pin-badge" style="background: ${bg};">
-            ${isCurrent ? (isDelivered ? '<div class="pin-inner-truck">📦</div>' : '<div class="pin-inner-truck">🚚</div>') : '<div class="pin-inner-white"></div>'}
+            ${isCurrent ? '<div class="pin-inner-truck">📦</div>' : '<div class="pin-inner-white"></div>'}
           </div>
           <div class="pin-info-callout">
             <strong>${label}</strong>

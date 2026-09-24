@@ -74,6 +74,7 @@ export const ShipmentControlModal: React.FC<ShipmentControlModalProps> = ({
   const [selectedHub, setSelectedHub] = useState('Chicago, IL');
   const [customFacility, setCustomFacility] = useState('Chicago Regional Sort Facility');
   const [holdReason, setHoldReason] = useState('Severe Weather Condition');
+  const [customHoldReason, setCustomHoldReason] = useState('');
   const [holdHours, setHoldHours] = useState(4);
   const [delayReason, setDelayReason] = useState('Interstate Corridor Congestion');
   const [delayHours, setDelayHours] = useState(4);
@@ -273,7 +274,8 @@ export const ShipmentControlModal: React.FC<ShipmentControlModalProps> = ({
         lastUpdated: 'Just now'
       };
     } else if (targetAction === 'ON_HOLD') {
-      const res = applyHoldState(updated, holdReason, holdHours, 'Super Admin');
+      const effectiveHoldReason = holdReason === 'OTHER' ? (customHoldReason.trim() || 'Other') : holdReason;
+      const res = applyHoldState(updated, effectiveHoldReason, holdHours, 'Super Admin');
       updated = res.updatedShipment;
     } else if (targetAction === 'DELAY') {
       const res = applyDelayState(updated, delayReason, delayHours, 'Super Admin');
@@ -350,7 +352,10 @@ export const ShipmentControlModal: React.FC<ShipmentControlModalProps> = ({
                 onClick={() => setTargetAction('IN_TRANSIT')}
               >
                 <Truck size={14} />
-                <span>In Transit</span>
+                {/* Relabeled when the shipment is currently on hold so resuming it is an
+                    obvious, unambiguous single action instead of looking like just another
+                    generic status option — this is the actual "remove from hold" control. */}
+                <span>{shipment.status === 'ON_HOLD' ? 'Resume Movement' : 'In Transit'}</span>
               </button>
 
               <button
@@ -445,6 +450,7 @@ export const ShipmentControlModal: React.FC<ShipmentControlModalProps> = ({
                     <option value="Customer Request">Customer Request</option>
                     <option value="Documentation Pending">Documentation Review</option>
                     <option value="Vehicle Inspection">Maintenance Inspection</option>
+                    <option value="OTHER">Other (specify reason)</option>
                   </select>
                 </div>
                 <div className="sub-field">
@@ -461,6 +467,20 @@ export const ShipmentControlModal: React.FC<ShipmentControlModalProps> = ({
                   </select>
                 </div>
               </div>
+              {holdReason === 'OTHER' && (
+                <div className="sub-field">
+                  <label>Custom Hold Reason</label>
+                  <input
+                    type="text"
+                    className="clean-input"
+                    value={customHoldReason}
+                    onChange={(e) => setCustomHoldReason(e.target.value)}
+                    placeholder="e.g. Awaiting customs clearance"
+                    maxLength={120}
+                    required
+                  />
+                </div>
+              )}
             </div>
           )}
 

@@ -27,7 +27,7 @@ interface AdminDataContextType {
   updateShipmentDirect: (updated: Shipment) => void;
   updateShipmentFull: (updated: Shipment) => Promise<void>;
   deleteShipment: (trackingNumber: string) => Promise<boolean>;
-  updateShipmentStatus: (trackingNumber: string, newStatus: ShipmentStatus, location: string, facility: string, notes: string, progressPercent?: number, statusTextOverride?: string, lat?: number, lng?: number, eventTitleOverride?: string, skipLocalEventDuplicate?: boolean, skipServerEventCreation?: boolean) => void;
+  updateShipmentStatus: (trackingNumber: string, newStatus: ShipmentStatus, location: string, facility: string, notes: string, progressPercent?: number, statusTextOverride?: string, lat?: number, lng?: number, eventTitleOverride?: string, skipLocalEventDuplicate?: boolean, skipServerEventCreation?: boolean, estimatedDeliveryDate?: string, estimatedDeliveryTime?: string) => Promise<boolean>;
   addTrackingEvent: (trackingNumber: string, event: Partial<TrackingEvent>) => void;
   correctTrackingEvent: (trackingNumber: string, eventId: string, updates: Partial<TrackingEvent>) => void;
   publishQuote: (quoteId: string, pricing: QuoteRequestPricing, internalNotes?: string) => void;
@@ -219,6 +219,11 @@ const normalizeShipment = (s: any): Shipment => {
   };
 
   const deleteShipment = async (trackingNumber: string): Promise<boolean> => {
+    // Keep the removed shipment so a failed server delete can be restored — the caller
+    // previously removed it from view unconditionally and reported success regardless of
+    // whether the DELETE actually reached the server, so a failure (session expiry, a
+    // network blip) looked identical to success until the next refresh brought it back.
+    const removed = shipments.find(s => s.trackingNumber.toUpperCase() === trackingNumber.toUpperCase());
     setShipments(prev => prev.filter(s => s.trackingNumber.toUpperCase() !== trackingNumber.toUpperCase()));
 
     try {
@@ -226,11 +231,21 @@ const normalizeShipment = (s: any): Shipment => {
       return true;
     } catch (err) {
       console.error('[API] Failed to delete shipment:', err);
+      if (removed) {
+        setShipments(prev => prev.some(s => s.trackingNumber.toUpperCase() === trackingNumber.toUpperCase())
+          ? prev
+          : [removed, ...prev]);
+      }
       return false;
     }
   };
 
-  const updateShipmentStatus = (trackingNumber: string, newStatus: ShipmentStatus, location: string, facility: string, notes: string, progressPercent?: number, statusTextOverride?: string, lat?: number, lng?: number, eventTitleOverride?: string, skipLocalEventDuplicate?: boolean, skipServerEventCreation?: boolean) => {
+  const updateShipmentStatus = (trackingNumber: string, newStatus: ShipmentStatus, location: string, facility: string, notes: string, progressPercent?: number, statusTextOverride?: string, lat?: number, lng?: number, eventTitleOverride?: string, skipLocalEventDuplicate?: boolean, skipServerEventCreation?: boolean, estimatedDeliveryDate?: string, estimatedDeliveryTime?: string): Promise<boolean> => {
+    // Keep the pre-update snapshot so a failed server write can be rolled back instead of
+    // leaving the optimistic local change (new status, new event, pushed-back ETA) looking
+    // permanent when it was never actually persisted.
+    const previous = shipments.find(s => s.trackingNumber.toUpperCase() === trackingNumber.toUpperCase());
+
     // 1. Optimistic UI update
     setShipments(prev => prev.map(s => {
       if (s.trackingNumber.toUpperCase() === trackingNumber.toUpperCase()) {
@@ -280,6 +295,8 @@ const normalizeShipment = (s: any): Shipment => {
           status: newStatus,
           statusText: statusTextOverride || (newStatus === 'DELIVERED' ? 'Delivered & Signed' : newStatus === 'OUT_FOR_DELIVERY' ? 'Out for Final Delivery' : `In Transit - ${facility || location}`),
           progressPercent: progressPercent !== undefined ? progressPercent : (isDelivered ? 100 : s.progressPercent),
+          estimatedDelivery: estimatedDeliveryDate || s.estimatedDelivery,
+          estimatedDeliveryDetail: estimatedDeliveryTime || s.estimatedDeliveryDetail,
           lastUpdated: 'Just now',
           // When real coordinates are supplied, keep currentLocation's lat/lng in sync with
           // the city/state text so they never silently disagree (the root of the "Denver"
@@ -302,9 +319,15 @@ const normalizeShipment = (s: any): Shipment => {
     }));
 
     // 2. Persist to Backend API
-    api.updateShipmentStatus(trackingNumber, newStatus, location, facility, notes, progressPercent, statusTextOverride, lat, lng, eventTitleOverride, skipServerEventCreation).catch(err => {
-      console.error('[API] Failed to update shipment status:', err);
-    });
+    return api.updateShipmentStatus(trackingNumber, newStatus, location, facility, notes, progressPercent, statusTextOverride, lat, lng, eventTitleOverride, skipServerEventCreation, estimatedDeliveryDate, estimatedDeliveryTime)
+      .then(() => true)
+      .catch(err => {
+        console.error('[API] Failed to update shipment status:', err);
+        if (previous) {
+          setShipments(prev => prev.map(s => s.trackingNumber.toUpperCase() === trackingNumber.toUpperCase() ? previous : s));
+        }
+        return false;
+      });
   };
 
   const addTrackingEvent = (trackingNumber: string, event: Partial<TrackingEvent>) => {

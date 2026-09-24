@@ -842,6 +842,14 @@
   z-index: 1000;
 }
 
+.admin-toast-success.toast-error {
+  border-left-color: #dc2626;
+}
+
+.admin-toast-success.toast-error svg {
+  color: #f87171;
+}
+
 /* ==========================================================================
    4. RESPONSIVE BREAKPOINTS
    ========================================================================== */

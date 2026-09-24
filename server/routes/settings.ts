@@ -1,9 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db.js';
+import { requireAdminAuth } from '../middleware/auth.js';
 
 export const settingsRouter = Router();
 
-// GET /api/settings
+// GET /api/settings — deliberately public (see server/index.ts): the public site reads
+// companyName/supportPhone/dispatchEmail/headquartersAddress/dotNumber and display toggles
+// like piiMaskingEnabled/mapVisibility/showEstimatedTime from here.
 settingsRouter.get('/', (req: Request, res: Response) => {
   try {
     const row = db.prepare('SELECT value_json FROM settings WHERE key = ?').get('general') as any;
@@ -14,8 +17,8 @@ settingsRouter.get('/', (req: Request, res: Response) => {
   }
 });
 
-// PUT /api/settings
-settingsRouter.put('/', (req: Request, res: Response) => {
+// PUT /api/settings — admin only; the public site only ever reads this data.
+settingsRouter.put('/', requireAdminAuth, (req: Request, res: Response) => {
   try {
     const newSettings = req.body;
     const row = db.prepare('SELECT value_json FROM settings WHERE key = ?').get('general') as any;

@@ -131,7 +131,12 @@ if (ADMIN_PROXY_TARGET) {
   // auto-generates a BOL right after booking) — gated per-route inside documents.ts instead
   // of wholesale here, same reasoning as shipments/quotes.
   app.use('/api/documents', documentsRouter);
-  app.use('/api/settings', requireAdminAuth, settingsRouter);
+  // Not gated wholesale — GET is public (the public site needs to read company
+  // identity/display-toggle fields like companyName/supportPhone/piiMaskingEnabled), and the
+  // settings blob has nothing sensitive in it (no secrets, just business info and display
+  // toggles whose enforcement already happens server-side regardless of who can see the
+  // toggle's value). PUT is gated per-route inside settings.ts instead.
+  app.use('/api/settings', settingsRouter);
   app.use('/api/track', trackRouter);
   app.use('/api/stats', requireAdminAuth, statsRouter);
 

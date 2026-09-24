@@ -119,12 +119,14 @@ export const api = {
     lat?: number,
     lng?: number,
     eventTitle?: string,
-    skipEventCreation?: boolean
+    skipEventCreation?: boolean,
+    estimatedDeliveryDate?: string,
+    estimatedDeliveryTime?: string
   ): Promise<Shipment> {
     const res = await fetch(`${API_BASE}/shipments/${encodeURIComponent(trackingNumber)}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ newStatus, location, facility, notes, progressPercent, statusText, lat, lng, eventTitle, skipEventCreation })
+      body: JSON.stringify({ newStatus, location, facility, notes, progressPercent, statusText, lat, lng, eventTitle, skipEventCreation, estimatedDeliveryDate, estimatedDeliveryTime })
     });
     return handleResponse<Shipment>(res);
   },

@@ -360,7 +360,7 @@ shipmentsRouter.patch('/:trackingNumber/status', requireAdminAuth, (req: Request
   try {
     const tracking = (req.params.trackingNumber as string).trim().toUpperCase();
     const newStatus = req.body.newStatus || req.body.status;
-    const { location, facility, notes, progressPercent, statusText: statusTextOverride, lat, lng, eventTitle, skipEventCreation } = req.body;
+    const { location, facility, notes, progressPercent, statusText: statusTextOverride, lat, lng, eventTitle, skipEventCreation, estimatedDeliveryDate, estimatedDeliveryTime } = req.body;
 
     const row = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(tracking);
     if (!row) {
@@ -408,6 +408,13 @@ shipmentsRouter.patch('/:trackingNumber/status', requireAdminAuth, (req: Request
     // city/state-only update (e.g. from Tracking Events, which doesn't resolve coordinates
     // yet — see Phase 2) doesn't blow away a previously-correct pair with NULL.
     const hasCoords = typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng);
+    // A Hold/Delay pushes the estimated delivery date/time out (planningEngine.ts computes the
+    // new values and this route is the only write path for a status change) — without
+    // persisting them here, the pushed-back ETA only ever existed in the admin's local browser
+    // state and silently reverted to the shipment's original ETA on the next refresh, and never
+    // reached the public tracking page at all.
+    const hasEstDeliveryDate = typeof estimatedDeliveryDate === 'string' && estimatedDeliveryDate.trim();
+    const hasEstDeliveryTime = typeof estimatedDeliveryTime === 'string' && estimatedDeliveryTime.trim();
     db.prepare(`
       UPDATE shipments SET
         status = ?,
@@ -419,13 +426,18 @@ shipmentsRouter.patch('/:trackingNumber/status', requireAdminAuth, (req: Request
         current_location_lat = COALESCE(?, current_location_lat),
         current_location_lng = COALESCE(?, current_location_lng),
         current_facility = COALESCE(?, current_facility),
+        estimated_delivery_date = COALESCE(?, estimated_delivery_date),
+        estimated_delivery_time = COALESCE(?, estimated_delivery_time),
         progress_updated_at_ts = ?
       WHERE tracking_number = ?
     `).run(
       newStatus, statusText, progress,
       city || null, state || null,
       hasCoords ? lat : null, hasCoords ? lng : null,
-      facility || null, Date.now(), tracking
+      facility || null,
+      hasEstDeliveryDate ? estimatedDeliveryDate.trim() : null,
+      hasEstDeliveryTime ? estimatedDeliveryTime.trim() : null,
+      Date.now(), tracking
     );
 
     // Some callers (e.g. Tracking Events' "Record Event" form) already persisted a real,

@@ -68,6 +68,7 @@ export const AllShipmentsView: React.FC<AllShipmentsViewProps> = ({
   const [weight, setWeight] = useState('12.5');
   const [pieces, setPieces] = useState('2');
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [toastIsError, setToastIsError] = useState(false);
 
   const filteredShipments = shipments.filter(s => {
     const term = searchTerm.toLowerCase().trim();
@@ -196,8 +197,8 @@ export const AllShipmentsView: React.FC<AllShipmentsViewProps> = ({
   return (
     <div className="dxp-shipments-page">
       {successToast && (
-        <div className="admin-toast-banner animate-fade-in">
-          <CheckCircle2 size={18} className="text-emerald" />
+        <div className={`admin-toast-banner animate-fade-in${toastIsError ? ' toast-error' : ''}`}>
+          {toastIsError ? <AlertCircle size={18} className="text-crimson" /> : <CheckCircle2 size={18} className="text-emerald" />}
           <span>{successToast}</span>
         </div>
       )}
@@ -824,9 +825,12 @@ export const AllShipmentsView: React.FC<AllShipmentsViewProps> = ({
           shipment={deleteModalShipment}
           onClose={() => setDeleteModalShipment(null)}
           onConfirmDelete={async (trackingNumber) => {
-            await deleteShipment(trackingNumber);
+            const ok = await deleteShipment(trackingNumber);
             setDeleteModalShipment(null);
-            setSuccessToast(`Consignment ${trackingNumber} permanently purged from system.`);
+            setToastIsError(!ok);
+            setSuccessToast(ok
+              ? `Consignment ${trackingNumber} permanently purged from system.`
+              : `Failed to delete ${trackingNumber} — server rejected the request. It has been restored.`);
             setTimeout(() => setSuccessToast(null), 4000);
           }}
         />

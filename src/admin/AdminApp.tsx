@@ -14,6 +14,7 @@ import { useAdminData } from '../context/AdminDataContext';
 import {
   Radio,
   CheckCircle2,
+  AlertCircle,
   X,
   Send,
   Eye,
@@ -36,6 +37,7 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onNavigatePublic, onViewPubl
   // snapshot) so the modal always reflects live progress/speed as the simulation ticks.
   const [controlModalTrackingNumber, setControlModalTrackingNumber] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastIsError, setToastIsError] = useState(false);
 
   const controlModalShipment = controlModalTrackingNumber
     ? shipments.find(s => s.trackingNumber === controlModalTrackingNumber) || null
@@ -78,7 +80,10 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onNavigatePublic, onViewPubl
 
     // 2. Sync status transition to backend — pass the progress/statusText planningEngine.ts
     // already computed (hold/delay reason, frozen progress, etc.) so the server persists the
-    // real values instead of falling back to its generic per-status defaults.
+    // real values instead of falling back to its generic per-status defaults. Also forwards
+    // the pushed-back ETA a Hold/Delay computes (estimatedDelivery/estimatedDeliveryDetail) —
+    // without this the extended ETA only ever lived in this browser's local state and got
+    // silently wiped by the next refresh, and never reached the public tracking page at all.
     updateShipmentStatus(
       updated.trackingNumber,
       updated.status,
@@ -90,10 +95,17 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onNavigatePublic, onViewPubl
       lat,
       lng,
       richEvent?.title,
-      true // skipLocalEventDuplicate — updateShipmentDirect already added the real event locally
-    );
-    setToastMessage(`Shipment ${updated.trackingNumber} updated: ${updated.statusText}`);
-    setTimeout(() => setToastMessage(null), 4000);
+      true, // skipLocalEventDuplicate — updateShipmentDirect already added the real event locally
+      undefined,
+      updated.estimatedDelivery,
+      updated.estimatedDeliveryDetail
+    ).then((ok) => {
+      setToastIsError(!ok);
+      setToastMessage(ok
+        ? `Shipment ${updated.trackingNumber} updated: ${updated.statusText}`
+        : `Failed to save the update for ${updated.trackingNumber} — server rejected the request. Reverted.`);
+      setTimeout(() => setToastMessage(null), 4000);
+    });
   };
 
   const handleOpenShipmentDetail = (trackingNumber: string) => {
@@ -110,8 +122,8 @@ export const AdminApp: React.FC<AdminAppProps> = ({ onNavigatePublic, onViewPubl
     >
       {/* Toast Alert */}
       {toastMessage && (
-        <div className="admin-toast-success animate-fade-in">
-          <CheckCircle2 size={18} />
+        <div className={`admin-toast-success animate-fade-in${toastIsError ? ' toast-error' : ''}`}>
+          {toastIsError ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
           <span>{toastMessage}</span>
         </div>
       )}

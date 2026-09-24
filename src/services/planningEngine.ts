@@ -457,7 +457,13 @@ export function applyHoldState(
     isHoldFrozen: true,
     frozenProgressPercent: currentProgress,
     progressPercent: currentProgress,
-    estimatedDelivery: newETA,
+    // estimatedDelivery/estimatedDeliveryDetail (date + time-window, matching how every other
+    // part of the app models ETA — see Shipment type) rather than one combined "date • time"
+    // string, so this pushed-back ETA actually round-trips through the backend's separate
+    // estimated_delivery_date/estimated_delivery_time columns instead of getting silently
+    // dropped by callers that expect the split shape.
+    estimatedDelivery: newETADate,
+    estimatedDeliveryDetail: newETATime,
     lastUpdated: 'Just now'
   };
 
@@ -575,7 +581,9 @@ export function applyDelayState(
     status: 'DELAYED',
     statusText: `Transit Delayed (${delayReason})`,
     statusMessage: `Corridor transit delay: ${delayReason}. New estimated delivery is ${newETADate}.`,
-    estimatedDelivery: newETA,
+    // Split date/time, matching the app's ETA convention — see the same fix in applyHoldState.
+    estimatedDelivery: newETADate,
+    estimatedDeliveryDetail: newETATime,
     lastUpdated: 'Just now'
   };
 

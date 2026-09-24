@@ -140,6 +140,14 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   const isHold = status === 'ON_HOLD' || status === 'HELD';
   const isDelayed = status === 'DELAYED';
   const isOutForDelivery = status === 'OUT_FOR_DELIVERY';
+  // The admin's Operations Control modal records a hold/delay reason into statusText as
+  // "On Hold (<reason>)" / "Transit Delayed (<reason>)" — there's no separate reason column in
+  // the backend, so this is the one place that value actually survives the round trip to the
+  // database. Pull it back out here so the public page can tell the customer WHY, instead of
+  // a generic "your shipment is on hold" that never says anything more.
+  const holdOrDelayReasonMatch = /\((.+)\)\s*$/.exec(liveShipment?.statusText || '');
+  const holdOrDelayReason = holdOrDelayReasonMatch ? holdOrDelayReasonMatch[1] : undefined;
+  const hasRevisedSchedule = isHold || isDelayed || Boolean(shipment.delayNotice?.hasDelay);
   // Single canonical status label, reused everywhere the page shows the shipment's current
   // status. This used to be five separate copies of the same ternary chain, each of which
   // only special-cased HOLD/DELAYED/DELIVERED and collapsed every other real status —
@@ -207,7 +215,9 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
     : 'Shipment In Transit';
 
   const statusHeroSub = isHold
-    ? `Your shipment is on hold. We'll update this page once it resumes movement.`
+    ? `Your shipment is on hold${holdOrDelayReason ? `: ${holdOrDelayReason}` : ''}. We'll update this page once it resumes movement.`
+    : isDelayed
+    ? `Your shipment's transit has been delayed${holdOrDelayReason ? `: ${holdOrDelayReason}` : ''}. The estimated delivery below reflects the revised schedule.`
     : status === 'DELIVERED'
     ? `Your package was delivered to ${destCity}, ${destState}.`
     : isOutForDelivery
@@ -665,12 +675,12 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
             <div className="hero-metric-sep" />
 
             <div className="hero-metric-cell">
-              <div className="hero-metric-icon emerald">
+              <div className={`hero-metric-icon ${hasRevisedSchedule ? 'amber' : 'emerald'}`}>
                 <Activity size={18} />
               </div>
               <div className="hero-metric-text">
                 <span className="hero-metric-lbl">Current Status</span>
-                <strong className="hero-metric-val text-emerald">
+                <strong className={`hero-metric-val ${hasRevisedSchedule ? 'text-amber' : 'text-emerald'}`}>
                   {statusDisplayLabel}
                 </strong>
               </div>
@@ -681,6 +691,24 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
 
       {/* Main Content Body */}
       <div className="dxp-track-container">
+        {/* Hold / Delay Advisory — surfaces the specific reason an admin recorded via
+            Operations Control, instead of leaving a customer to guess why their shipment
+            stopped moving or when it'll actually arrive. */}
+        {(isHold || isDelayed) && (
+          <div className={`tracking-top-alert-banner animate-fade-in ${isHold ? 'hold' : 'delay'}`}>
+            {isHold ? <Clock size={18} /> : <AlertTriangle size={18} />}
+            <div>
+              <strong>{isHold ? 'Shipment On Hold' : 'Transit Delay Advisory'}{holdOrDelayReason ? `: ${holdOrDelayReason}` : ''}</strong>
+              <p>
+                {isHold
+                  ? 'Movement is temporarily paused. '
+                  : 'This shipment is running behind its original schedule. '}
+                Revised estimated delivery: <strong>{estDeliveryDate} · {estDeliveryTime}</strong>.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* RTO Alert (If active) */}
         {shipment?.returnLeg && (
           <div className="rto-active-advisory-banner animate-fade-in">
@@ -745,10 +773,21 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
                 <span className="chk-val">{currentCity}, {currentState} ({lastUpdated})</span>
               </div>
 
-              <div className="on-schedule-chip">
-                <CheckCircle2 size={14} className="text-emerald" />
-                <span>On schedule — Estimated delivery remains unchanged.</span>
-              </div>
+              {/* This used to unconditionally claim "On schedule" even while the shipment was
+                  actively on hold or delayed (with an ETA that had, in fact, just been pushed
+                  back) — misleading a customer checking exactly the shipment they'd most want
+                  an honest answer about. */}
+              {hasRevisedSchedule ? (
+                <div className="on-schedule-chip revised">
+                  <Clock size={14} />
+                  <span>Revised delivery estimate — see {isHold ? 'hold' : 'delay'} details above.</span>
+                </div>
+              ) : (
+                <div className="on-schedule-chip">
+                  <CheckCircle2 size={14} className="text-emerald" />
+                  <span>On schedule — Estimated delivery remains unchanged.</span>
+                </div>
+              )}
             </div>
 
             {/* Column 3: Estimated Delivery & Meta Specs */}
@@ -759,13 +798,20 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
                   <Calendar size={22} className="text-blue" />
                   <div>
                     <strong>{estDeliveryDate}</strong>
-                    <small>by the end of day</small>
+                    <small>{estDeliveryTime}</small>
                   </div>
                 </div>
-                <span className="on-schedule-pill">
-                  <CheckCircle2 size={13} />
-                  <span>On Schedule</span>
-                </span>
+                {hasRevisedSchedule ? (
+                  <span className="on-schedule-pill revised">
+                    <Clock size={13} />
+                    <span>Revised</span>
+                  </span>
+                ) : (
+                  <span className="on-schedule-pill">
+                    <CheckCircle2 size={13} />
+                    <span>On Schedule</span>
+                  </span>
+                )}
               </div>
 
               {/* Meta Specs Table */}

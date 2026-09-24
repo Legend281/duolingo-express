@@ -1,9 +1,14 @@
 import { db } from './db.js';
 
 export function seedDatabaseIfEmpty() {
-  const randyExists = db.prepare('SELECT tracking_number FROM shipments WHERE tracking_number = ?').get('DXP-2026-7K2M9QRX');
-  if (randyExists) {
-    return; // Flagship shipment already present
+  // Must check whether the table is genuinely empty, not merely whether this one flagship
+  // record exists — the earlier version checked only for 'DXP-2026-7K2M9QRX', which meant
+  // deleting that specific demo shipment (and leaving any other real shipments in place)
+  // caused it to be silently reinserted on every server restart, making that one delete look
+  // like it "didn't take" even though the DELETE itself worked correctly.
+  const { count } = db.prepare('SELECT COUNT(*) as count FROM shipments').get() as { count: number };
+  if (count > 0) {
+    return; // Database already has real data — never reseed over it.
   }
 
   console.log('[DB] Seeding flagship shipment DXP-2026-7K2M9QRX, quotes, and documents...');

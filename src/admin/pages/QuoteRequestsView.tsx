@@ -33,7 +33,17 @@ import { QuoteRequest, QuoteRequestStatus, QuoteRequestPricing } from '../../typ
 import './QuoteRequestsView.css';
 
 export const QuoteRequestsView: React.FC = () => {
-  const { quoteRequests, publishQuote, updateQuoteStatus, convertQuoteToShipment } = useAdminData();
+  const { quoteRequests, publishQuote, updateQuoteStatus, convertQuoteToShipment, settings } = useAdminData();
+
+  // The admin's "Quote Validity (Days)" setting only ever affected re-opening an already-
+  // EXPIRED quote — the actual "publish a new quote" path below (both the default here and
+  // handleSelectQuote's reset) had this same date hardcoded as a literal instead, so the
+  // setting looked like it controlled quote expiry but silently didn't for the common case.
+  const computeDefaultValidUntil = () => {
+    const days = settings.quoteValidityDays || 14;
+    return new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+      .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
 
   // Selected Quote for Review Workspace (Defaults to Randy's flagship scenario QR-2026-00124)
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
@@ -45,7 +55,7 @@ export const QuoteRequestsView: React.FC = () => {
 
   // Pricing Form State (Ultra-Simple Single Amount)
   const [finalPrice, setFinalPrice] = useState<number>(350);
-  const [validUntilDate, setValidUntilDate] = useState<string>('September 2, 2026');
+  const [validUntilDate, setValidUntilDate] = useState<string>(computeDefaultValidUntil());
   const [internalNotes, setInternalNotes] = useState<string>('Oversized automotive part. Confirm packaging before shipment creation.');
 
   // Modal States
@@ -58,10 +68,10 @@ export const QuoteRequestsView: React.FC = () => {
     setSelectedQuoteId(quote.id);
     if (quote.pricing) {
       setFinalPrice(quote.pricing.finalPrice || 350);
-      setValidUntilDate(quote.pricing.validUntil || 'September 2, 2026');
+      setValidUntilDate(quote.pricing.validUntil || computeDefaultValidUntil());
     } else {
       setFinalPrice(350);
-      setValidUntilDate('September 2, 2026');
+      setValidUntilDate(computeDefaultValidUntil());
     }
     setInternalNotes(quote.internalNotes || '');
   };

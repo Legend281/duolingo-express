@@ -81,6 +81,12 @@
   color: #15803d;
 }
 
+.admin-toast-banner.toast-error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
 /* ==========================================================================
    2. STAT STRIP (4 SUMMARY CARDS WITH SPARKLINES)
    ========================================================================== */

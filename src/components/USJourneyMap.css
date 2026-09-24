@@ -522,6 +522,7 @@
     flex-direction: column;
     align-items: stretch;
     gap: 1rem;
+    padding: 1rem 1.25rem;
   }
   .stage-node-box.dest-box {
     align-items: flex-start;
@@ -536,5 +537,78 @@
   }
   .leaflet-map-canvas {
     min-height: 320px !important;
+  }
+  .map-footer-status-bar {
+    padding: 0.75rem 1.25rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .map-route-stages-header {
+    padding: 0.85rem 1rem;
+  }
+  .stage-node-box {
+    min-width: 0;
+  }
+
+  /* The zoom group + 3-way layer switcher used to sit in one unwrapping row pinned to the
+     top-right corner — on a phone-width map that row ran wide enough to collide with the
+     Hold/Delay alert badge pinned top-left, and both fought for the same cramped strip. */
+  .map-floating-controls {
+    top: 0.6rem;
+    right: 0.6rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: calc(100% - 1.2rem);
+    gap: 0.35rem;
+  }
+  .layer-selector-group {
+    order: 1;
+  }
+  .layer-btn {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.65rem;
+  }
+  .map-ctrl-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  /* Long delay/hold advisories no longer stretch across most of the map width — they wrap
+     within a constrained box instead, so they can't run into the controls above. */
+  .map-floating-alert {
+    top: 0.6rem;
+    left: 0.6rem;
+    max-width: calc(60% - 0.6rem);
+    white-space: normal;
+    line-height: 1.35;
+    font-size: 0.7rem;
+    padding: 0.4rem 0.6rem;
+  }
+
+  .map-viewport-wrapper {
+    height: 260px;
+    min-height: 260px;
+  }
+  .leaflet-map-canvas {
+    min-height: 260px !important;
+  }
+
+  /* Permanently-visible pin labels (Origin/Current/Destination) used to render as
+     single-line, unconstrained tooltips — three of them on a ~260px-tall phone map crowd
+     together and can run past the map's edge. Wrapping them narrower keeps each legible
+     without spilling outside the visible canvas. */
+  .pin-info-callout {
+    max-width: 92px;
+    white-space: normal;
+    text-align: center;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.68rem;
+  }
+  .pin-info-callout strong {
+    font-size: 0.68rem;
+  }
+  .callout-tag {
+    font-size: 0.58rem;
   }
 }
