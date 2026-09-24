@@ -873,7 +873,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
                   style={{ width: `${Math.min(Math.max(progressPercent, 5), 100)}%` }}
                 >
                   <span className="corridor-hauler-indicator" title={`${progressPercent}% progress`}>
-                    🚛
+                    📦
                   </span>
                 </div>
               </div>
