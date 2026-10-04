@@ -304,3 +304,15 @@
 }
 
 
+
+.edit-save-error {
+  margin-right: auto;
+  font-size: 0.8rem;
+  color: #b91c1c;
+}
+
+.edit-btn-save:disabled {
+  opacity: 0.6;
+  cursor: wait;
+  transform: none;
+}

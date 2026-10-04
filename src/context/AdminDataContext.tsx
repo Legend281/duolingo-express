@@ -212,13 +212,13 @@ const normalizeShipment = (s: any): Shipment => {
   // Deliberate edits that must actually persist (e.g. the Edit Shipment modal) — unlike
   // updateShipmentDirect (also used for high-frequency local-only simulation ticks), this
   // always writes through to the backend so the change survives a refresh.
+  // Applies the server's response rather than the optimistic copy — the server re-derives
+  // fields like the current location when the route changes — and rethrows on failure so the
+  // caller can tell the admin, instead of showing a success toast for an edit that a refresh
+  // would silently undo.
   const updateShipmentFull = async (updated: Shipment): Promise<void> => {
-    updateShipmentDirect(updated);
-    try {
-      await api.updateShipment(updated.trackingNumber, updated);
-    } catch (err) {
-      console.error('[API] Failed to save shipment edit:', err);
-    }
+    const saved = await api.updateShipment(updated.trackingNumber, updated);
+    updateShipmentDirect({ ...updated, ...saved });
   };
 
   const deleteShipment = async (trackingNumber: string): Promise<{ success: boolean; error?: string }> => {

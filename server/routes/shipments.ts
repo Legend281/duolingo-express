@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db.js';
 import { syncTimeBasedProgress } from '../progress.js';
+import { calculateRouteGeometry, calculateEstimatedPosition } from '../../src/services/routingEngine.js';
+import { findNearestMetro } from '../../src/services/geocodingService.js';
 import { requireAdminAuth } from '../middleware/auth.js';
 import { publicWriteLimiter } from '../middleware/rateLimit.js';
 
@@ -632,6 +634,52 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
       ? (s.estimatedDelivery?.timeWindow ?? null)
       : (s.estimatedDeliveryDetail ?? null);
 
+    // Current location as sent by the client. The Edit Shipment modal spreads the whole
+    // existing shipment into its payload, so this is normally the OLD position — which,
+    // when origin/destination just changed, left the marker and "Current Location" text
+    // stranded on the old route (permanently, for any status the progress sync doesn't move).
+    let curCity: string | null = s.currentLocation ? (typeof s.currentLocation === 'string' ? s.currentLocation.split(',')[0].trim() : s.currentLocation.city) : null;
+    let curState: string | null = s.currentLocation ? (typeof s.currentLocation === 'string' ? s.currentLocation.split(',')[1]?.trim() : s.currentLocation.state) : null;
+    let curLat: number | null = (typeof s.currentLocation === 'object' && typeof s.currentLocation?.lat === 'number') ? s.currentLocation.lat : null;
+    let curLng: number | null = (typeof s.currentLocation === 'object' && typeof s.currentLocation?.lng === 'number') ? s.currentLocation.lng : null;
+    let curFacility: string | null = s.currentFacility || null;
+
+    // If the route itself moved, the server re-derives the current position along the NEW
+    // route at the shipment's current progress, instead of trusting the stale one above.
+    const r = row as any;
+    const newOrigin = {
+      lat: typeof s.origin?.lat === 'number' ? s.origin.lat : r.origin_lat,
+      lng: typeof s.origin?.lng === 'number' ? s.origin.lng : r.origin_lng,
+    };
+    const newDest = {
+      lat: typeof s.destination?.lat === 'number' ? s.destination.lat : r.destination_lat,
+      lng: typeof s.destination?.lng === 'number' ? s.destination.lng : r.destination_lng,
+    };
+    const moved = (a: number, b: number) => Math.abs(a - b) > 1e-6;
+    const routeChanged = moved(newOrigin.lat, r.origin_lat) || moved(newOrigin.lng, r.origin_lng)
+      || moved(newDest.lat, r.destination_lat) || moved(newDest.lng, r.destination_lng);
+
+    if (routeChanged) {
+      const progress = typeof s.progressPercent === 'number' ? s.progressPercent : (r.progress_percent ?? 0);
+      const pos = calculateEstimatedPosition(calculateRouteGeometry(newOrigin, newDest).polyline, progress);
+      curLat = pos.lat;
+      curLng = pos.lng;
+      if (progress <= 0) {
+        curCity = s.origin?.city ?? r.origin_city;
+        curState = s.origin?.state ?? r.origin_state;
+        curFacility = s.origin?.facility || `${curCity} Origin Hub`;
+      } else if (progress >= 100) {
+        curCity = s.destination?.city ?? r.destination_city;
+        curState = s.destination?.state ?? r.destination_state;
+        curFacility = s.destination?.facility || `${curCity} Sort Hub`;
+      } else {
+        const nearest = findNearestMetro(pos.lat, pos.lng);
+        curCity = nearest?.city ?? curCity;
+        curState = nearest?.state ?? curState;
+        curFacility = 'Linehaul Transit Corridor';
+      }
+    }
+
     db.prepare(`
       UPDATE shipments SET
         status = COALESCE(?, status),
@@ -689,11 +737,11 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
       typeof s.destination === 'object' ? (s.destination?.lng ?? null) : null,
       s.sender ? JSON.stringify(s.sender) : null,
       s.recipient ? JSON.stringify(s.recipient) : null,
-      s.currentLocation ? (typeof s.currentLocation === 'string' ? s.currentLocation.split(',')[0].trim() : s.currentLocation.city) : null,
-      s.currentLocation ? (typeof s.currentLocation === 'string' ? s.currentLocation.split(',')[1]?.trim() : s.currentLocation.state) : null,
-      (typeof s.currentLocation === 'object' && typeof s.currentLocation?.lat === 'number') ? s.currentLocation.lat : null,
-      (typeof s.currentLocation === 'object' && typeof s.currentLocation?.lng === 'number') ? s.currentLocation.lng : null,
-      s.currentFacility || null,
+      curCity ?? null,
+      curState ?? null,
+      curLat,
+      curLng,
+      curFacility,
       // Only reset the auto-advance clock when this call actually changes progress —
       // otherwise leave it alone so an unrelated field update doesn't restart the clock.
       s.progressPercent !== undefined ? Date.now() : null,

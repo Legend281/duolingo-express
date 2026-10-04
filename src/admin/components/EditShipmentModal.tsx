@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { X, ArrowRight, Save, Building, User, Package, Calendar, MapPin } from 'lucide-react';
 import { Shipment } from '../../types/shipment';
-import { resolveLocation } from '../../services/geocodingService';
+import { resolveLocation, resolveLocationPrecise } from '../../services/geocodingService';
 import './EditShipmentModal.css';
 
 interface EditShipmentModalProps {
   shipment: Shipment;
   onClose: () => void;
-  onSave: (updated: Shipment) => void;
+  onSave: (updated: Shipment) => Promise<void> | void;
 }
 
 export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
@@ -140,12 +140,38 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Only re-geocodes a side whose city/state the admin actually changed. Re-resolving an
+  // untouched location used to move it anyway — e.g. a small town that creation had
+  // live-geocoded precisely got snapped to its state's centroid just by editing the weight.
+  const geocodeIfChanged = async (
+    city: string,
+    state: string,
+    initialCity: string,
+    initialState: string,
+    stored: any
+  ) => {
+    const unchanged = city.trim().toLowerCase() === initialCity.trim().toLowerCase()
+      && state.trim().toLowerCase() === initialState.trim().toLowerCase();
+    if (unchanged && typeof stored?.lat === 'number' && typeof stored?.lng === 'number') {
+      return { lat: stored.lat, lng: stored.lng, facilityName: stored.facility || stored.facilityName, city: stored.city, state: stored.state };
+    }
+    const query = [city.trim(), state.trim()].filter(Boolean).join(', ');
+    return (await resolveLocationPrecise(query)) || resolveLocation(city.trim()) || resolveLocation(state.trim());
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const originQuery = [senderCity.trim(), senderState.trim()].filter(Boolean).join(', ');
-    const destQuery = [recipientCity.trim(), recipientState.trim()].filter(Boolean).join(', ');
-    const originGeo = resolveLocation(originQuery) || resolveLocation(senderCity.trim()) || resolveLocation(senderState.trim());
-    const destGeo = resolveLocation(destQuery) || resolveLocation(recipientCity.trim()) || resolveLocation(recipientState.trim());
+    if (saving) return;
+    setSaving(true);
+    setSaveError(null);
+
+    const [originGeo, destGeo] = await Promise.all([
+      geocodeIfChanged(senderCity, senderState, initialSenderCity, initialSenderState, shipment.origin),
+      geocodeIfChanged(recipientCity, recipientState, initialRecipientCity, initialRecipientState, shipment.destination),
+    ]);
 
     const updated: Shipment = {
       ...shipment,
@@ -272,8 +298,13 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
       lastUpdated: 'Just now'
     };
 
-    onSave(updated);
-    onClose();
+    try {
+      await onSave(updated);
+      onClose();
+    } catch (err: any) {
+      setSaveError(err?.message || 'Could not save changes. Please try again.');
+      setSaving(false);
+    }
   };
 
   return (
@@ -849,12 +880,13 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
 
           {/* Footer Actions */}
           <div className="edit-modal-footer">
+            {saveError && <span className="edit-save-error" role="alert">Save failed: {saveError}</span>}
             <button type="button" className="edit-btn-cancel" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="edit-btn-save">
+            <button type="submit" className="edit-btn-save" disabled={saving}>
               <Save size={15} />
-              <span>Save Changes</span>
+              <span>{saving ? 'Saving…' : 'Save Changes'}</span>
             </button>
           </div>
         </form>
