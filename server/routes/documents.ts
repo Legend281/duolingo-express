@@ -18,6 +18,7 @@ function formatDoc(row: any) {
     senderCity: row.sender_city,
     senderState: row.sender_state,
     senderZip: row.sender_zip,
+    senderCountry: row.sender_country || 'United States',
     senderPhone: row.sender_phone,
     senderEmail: row.sender_email,
     recipientName: row.recipient_name,
@@ -26,6 +27,7 @@ function formatDoc(row: any) {
     recipientCity: row.recipient_city,
     recipientState: row.recipient_state,
     recipientZip: row.recipient_zip,
+    recipientCountry: row.recipient_country || 'United States',
     recipientPhone: row.recipient_phone,
     recipientEmail: row.recipient_email,
     cargoDescription: row.cargo_description,
@@ -142,9 +144,9 @@ documentsRouter.post('/generate', publicWriteLimiter, (req: Request, res: Respon
         charges_json, bol_carrier, bol_trailer_number, bol_seal_number,
         bol_special_instructions, insurer_name, policy_number, coverage_type, deductible, premium_amount,
         created_date, status, version, version_history_json, file_size,
-        created_at_ts
+        created_at_ts, sender_country, recipient_country
       ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       )
     `).run(
       id,
@@ -155,7 +157,7 @@ documentsRouter.post('/generate', publicWriteLimiter, (req: Request, res: Respon
       d.senderCompany || null,
       d.senderAddress || null,
       d.senderCity || 'New York',
-      d.senderState || 'NY',
+      d.senderState || (d.senderCity ? '' : 'NY'),
       d.senderZip || null,
       d.senderPhone || null,
       d.senderEmail || null,
@@ -163,7 +165,7 @@ documentsRouter.post('/generate', publicWriteLimiter, (req: Request, res: Respon
       d.recipientCompany || null,
       d.recipientAddress || null,
       d.recipientCity || 'Los Angeles',
-      d.recipientState || 'CA',
+      d.recipientState || (d.recipientCity ? '' : 'CA'),
       d.recipientZip || null,
       d.recipientPhone || null,
       d.recipientEmail || null,
@@ -189,7 +191,9 @@ documentsRouter.post('/generate', publicWriteLimiter, (req: Request, res: Respon
       1,
       JSON.stringify(versionHistory),
       `${Math.floor(90 + Math.random() * 200)} KB`,
-      Date.now()
+      Date.now(),
+      d.senderCountry || 'United States',
+      d.recipientCountry || 'United States'
     );
 
     const created = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
@@ -244,6 +248,7 @@ documentsRouter.post('/:id/regenerate', requireAdminAuth, (req: Request, res: Re
         sender_city = COALESCE(?, sender_city),
         sender_state = COALESCE(?, sender_state),
         sender_zip = COALESCE(?, sender_zip),
+        sender_country = COALESCE(?, sender_country),
         sender_phone = COALESCE(?, sender_phone),
         sender_email = COALESCE(?, sender_email),
         recipient_name = COALESCE(?, recipient_name),
@@ -252,6 +257,7 @@ documentsRouter.post('/:id/regenerate', requireAdminAuth, (req: Request, res: Re
         recipient_city = COALESCE(?, recipient_city),
         recipient_state = COALESCE(?, recipient_state),
         recipient_zip = COALESCE(?, recipient_zip),
+        recipient_country = COALESCE(?, recipient_country),
         recipient_phone = COALESCE(?, recipient_phone),
         recipient_email = COALESCE(?, recipient_email),
         cargo_description = COALESCE(?, cargo_description),
@@ -264,10 +270,10 @@ documentsRouter.post('/:id/regenerate', requireAdminAuth, (req: Request, res: Re
     `).run(
       nextVersion, dateStr, JSON.stringify(updatedHistory),
       d.senderName || null, d.senderCompany || null, d.senderAddress || null,
-      d.senderCity || null, d.senderState || null, d.senderZip || null,
+      d.senderCity || null, d.senderState || null, d.senderZip || null, d.senderCountry || null,
       d.senderPhone || null, d.senderEmail || null,
       d.recipientName || null, d.recipientCompany || null, d.recipientAddress || null,
-      d.recipientCity || null, d.recipientState || null, d.recipientZip || null,
+      d.recipientCity || null, d.recipientState || null, d.recipientZip || null, d.recipientCountry || null,
       d.recipientPhone || null, d.recipientEmail || null,
       d.cargoDescription || null, d.shipmentType || null, d.service || null,
       d.weightLbs !== undefined ? d.weightLbs : null,

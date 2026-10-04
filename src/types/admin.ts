@@ -49,9 +49,11 @@ export interface QuoteRequest {
   originCity: string; // New York
   originState: string; // NY
   originZip?: string; // 10001
+  originCountry?: string; // United States (default when absent)
   destCity: string; // Los Angeles
   destState: string; // CA
   destZip?: string; // 90071
+  destCountry?: string; // United States (default when absent)
 
   // Cargo
   cargoDescription: string; // Toyota Tacoma Bumper
@@ -104,6 +106,7 @@ export interface AdminDocument {
   senderCity: string;
   senderState: string;
   senderZip?: string;
+  senderCountry?: string;
   senderPhone?: string;
   senderEmail?: string;
 
@@ -113,6 +116,7 @@ export interface AdminDocument {
   recipientCity: string;
   recipientState: string;
   recipientZip?: string;
+  recipientCountry?: string;
   recipientPhone?: string;
   recipientEmail?: string;
 

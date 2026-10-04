@@ -259,6 +259,14 @@ export function initDatabase() {
   // able to cover the gap between when it was created and when it was deleted the same day;
   // this makes that specific kind of loss structurally impossible going forward.
   try { db.exec(`ALTER TABLE shipments ADD COLUMN deleted_at_ts INTEGER;`); } catch (e) {}
+  // Worldwide shipments: every location carries its country. Existing rows were all US-only,
+  // so the default backfills them correctly. State columns stay NOT NULL but may now be ''
+  // for countries that don't use states/provinces in addresses.
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN origin_country TEXT NOT NULL DEFAULT 'United States';`); } catch (e) {}
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN destination_country TEXT NOT NULL DEFAULT 'United States';`); } catch (e) {}
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN current_location_country TEXT NOT NULL DEFAULT 'United States';`); } catch (e) {}
+  try { db.exec(`ALTER TABLE documents ADD COLUMN sender_country TEXT NOT NULL DEFAULT 'United States';`); } catch (e) {}
+  try { db.exec(`ALTER TABLE documents ADD COLUMN recipient_country TEXT NOT NULL DEFAULT 'United States';`); } catch (e) {}
 
   // Backfill existing rows so they don't all collapse to "unknown, sort last": preserve
   // today's best-effort relative order (by rowid, which reflects insertion order) as a

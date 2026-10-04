@@ -37,12 +37,16 @@ function formatQuote(row: any, includeInternalNotes: boolean = true) {
     recipientName: 'Designated Consignee',
     origin,
     originCity: origin.city || 'New York',
-    originState: origin.state || 'NY',
-    originZip: origin.postalCode || '10001',
+    // Demo defaults only when the quote has no location at all — a real non-US city with no
+    // state/ZIP must not be shown as e.g. "London, NY 10001".
+    originState: origin.state || (origin.city ? '' : 'NY'),
+    originZip: origin.postalCode || (origin.city ? '' : '10001'),
+    originCountry: origin.country || 'United States',
     destination,
     destCity: destination.city || 'Los Angeles',
-    destState: destination.state || 'CA',
-    destZip: destination.postalCode || '90021',
+    destState: destination.state || (destination.city ? '' : 'CA'),
+    destZip: destination.postalCode || (destination.city ? '' : '90021'),
+    destCountry: destination.country || 'United States',
     requestedService: row.service,
     service: row.service,
     shipmentType: row.shipment_type,
@@ -106,8 +110,12 @@ quotesRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
     const customerEmail = q.customerEmail || q.requesterEmail || 'client@example.com';
     const customerPhone = q.customerPhone || q.requesterPhone || '(555) 000-0000';
     const company = q.company || q.requesterCompany || null;
-    const origin = q.origin || { city: q.originCity || 'New York', state: q.originState || 'NY', postalCode: q.originZip || '10001' };
-    const destination = q.destination || { city: q.destCity || 'Los Angeles', state: q.destState || 'CA', postalCode: q.destZip || '90021' };
+    const origin = q.origin || (q.originCity
+      ? { city: q.originCity, state: q.originState || '', postalCode: q.originZip || '', country: q.originCountry || 'United States' }
+      : { city: 'New York', state: 'NY', postalCode: '10001', country: 'United States' });
+    const destination = q.destination || (q.destCity
+      ? { city: q.destCity, state: q.destState || '', postalCode: q.destZip || '', country: q.destCountry || 'United States' }
+      : { city: 'Los Angeles', state: 'CA', postalCode: '90021', country: 'United States' });
     const service = q.service || q.requestedService || 'Standard';
     const shipmentType = q.shipmentType || q.cargoType || 'Parcel';
     const cargoDescription = q.cargoDescription || 'Commercial Freight Cargo';
@@ -274,13 +282,15 @@ quotesRouter.post('/:id/convert', requireAdminAuth, (req: Request, res: Response
       email: q.customerEmail,
       city: q.origin.city,
       state: q.origin.state,
-      postalCode: q.origin.postalCode || '10001'
+      postalCode: q.origin.postalCode || '',
+      country: q.origin.country || 'United States'
     };
     const recipient = s.recipient && typeof s.recipient === 'object' ? s.recipient : {
       name: q.recipientName,
       city: q.destination.city,
       state: q.destination.state,
-      postalCode: q.destination.postalCode || '90021'
+      postalCode: q.destination.postalCode || '',
+      country: q.destination.country || 'United States'
     };
     const dimensions = s.dimensions && typeof s.dimensions === 'object' ? s.dimensions : rawQuoteDims;
 
@@ -294,9 +304,9 @@ quotesRouter.post('/:id/convert', requireAdminAuth, (req: Request, res: Response
         destination_city, destination_state, destination_lat, destination_lng,
         current_location_city, current_location_state, current_location_lat, current_location_lng,
         current_facility, sender_json, recipient_json, dimensions_json, progress_updated_at_ts,
-        created_at_ts
+        created_at_ts, origin_country, destination_country, current_location_country
       ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       )
     `).run(
       trackingNumber,
@@ -315,20 +325,23 @@ quotesRouter.post('/:id/convert', requireAdminAuth, (req: Request, res: Response
       s.totalPieces !== undefined ? s.totalPieces : q.pieces,
       s.declaredValue !== undefined ? s.declaredValue : (q.declaredValue || 0),
       origin.city || 'New York',
-      origin.state || 'NY',
+      origin.state || (origin.city ? '' : 'NY'),
       origin.lat || 40.7128, origin.lng || -74.006,
       destination.city || 'Los Angeles',
-      destination.state || 'CA',
+      destination.state || (destination.city ? '' : 'CA'),
       destination.lat || 34.0522, destination.lng || -118.2437,
       origin.city || 'New York',
-      origin.state || 'NY',
+      origin.state || (origin.city ? '' : 'NY'),
       origin.lat || 40.7128, origin.lng || -74.006,
       origin.facility || 'Origin Gateway Hub',
       JSON.stringify(sender),
       JSON.stringify(recipient),
       JSON.stringify(dimensions && Object.keys(dimensions).length ? dimensions : { length: 12, width: 12, height: 12 }),
       Date.now(),
-      Date.now()
+      Date.now(),
+      origin.country || 'United States',
+      destination.country || 'United States',
+      origin.country || 'United States'
     );
 
     // 2. Create pieces

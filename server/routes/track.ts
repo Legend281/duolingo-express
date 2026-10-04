@@ -120,6 +120,7 @@ trackRouter.get('/:trackingNumber', (req: Request, res: Response) => {
         company: sender.company || undefined,
         city: row.origin_city,
         state: row.origin_state,
+        country: row.origin_country || 'United States',
         phone: maskPhone(sender.phone),
         email: sender.email ? maskEmail(sender.email) : undefined
       };
@@ -128,6 +129,7 @@ trackRouter.get('/:trackingNumber', (req: Request, res: Response) => {
         company: recipient.company || undefined,
         city: row.destination_city,
         state: row.destination_state,
+        country: row.destination_country || 'United States',
         phone: maskPhone(recipient.phone),
         email: recipient.email ? maskEmail(recipient.email) : undefined
       };
@@ -163,18 +165,21 @@ trackRouter.get('/:trackingNumber', (req: Request, res: Response) => {
       origin: {
         city: row.origin_city,
         state: row.origin_state,
+        country: row.origin_country || 'United States',
         lat: row.origin_lat,
         lng: row.origin_lng
       },
       destination: {
         city: row.destination_city,
         state: row.destination_state,
+        country: row.destination_country || 'United States',
         lat: row.destination_lat,
         lng: row.destination_lng
       },
       currentLocation: {
         city: row.current_location_city,
         state: row.current_location_state,
+        country: row.current_location_country || 'United States',
         lat: row.current_location_lat,
         lng: row.current_location_lng,
         facility: row.current_facility

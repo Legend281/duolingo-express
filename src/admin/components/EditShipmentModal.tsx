@@ -184,7 +184,7 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
       origin: {
         city: senderCity.trim() || originGeo?.city || 'Origin',
         state: senderState.trim() || originGeo?.state || 'US',
-        country: 'United States',
+        country: (shipment.origin as any)?.country || 'United States',
         lat: originGeo?.lat || (shipment.origin as any)?.lat || 31.9686,
         lng: originGeo?.lng || (shipment.origin as any)?.lng || -99.9018,
         facility: originGeo?.facilityName || `${senderCity.trim()} Origin Hub`
@@ -192,7 +192,7 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
       destination: {
         city: recipientCity.trim() || destGeo?.city || 'Destination',
         state: recipientState.trim() || destGeo?.state || 'US',
-        country: 'United States',
+        country: (shipment.destination as any)?.country || 'United States',
         lat: destGeo?.lat || (shipment.destination as any)?.lat || 38.9072,
         lng: destGeo?.lng || (shipment.destination as any)?.lng || -77.0369,
         facility: destGeo?.facilityName || `${recipientCity.trim()} Sort Hub`
@@ -202,7 +202,7 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
         city: senderCity.trim(),
         state: senderState.trim(),
         addressLine: senderAddress.trim(),
-        country: 'United States',
+        country: (shipment.sender as any)?.country || (shipment.origin as any)?.country || 'United States',
         company: senderCompany.trim() || undefined,
         email: senderEmail.trim() || undefined,
         phone: senderPhone.trim() || undefined,
@@ -213,7 +213,7 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
         city: recipientCity.trim(),
         state: recipientState.trim(),
         addressLine: recipientAddress.trim(),
-        country: 'United States',
+        country: (shipment.recipient as any)?.country || (shipment.destination as any)?.country || 'United States',
         company: recipientCompany.trim() || undefined,
         email: recipientEmail.trim() || undefined,
         phone: recipientPhone.trim() || undefined,

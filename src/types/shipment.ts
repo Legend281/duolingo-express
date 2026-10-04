@@ -91,6 +91,7 @@ export interface RouteCheckpoint {
   id: string;
   name: string;
   state: string;
+  country?: string;
   type: 'origin' | 'previous' | 'current' | 'next' | 'destination';
   statusLabel: string;
   dateLabel?: string;

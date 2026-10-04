@@ -102,18 +102,21 @@ function formatShipment(row: any) {
     origin: {
       city: row.origin_city,
       state: row.origin_state,
+      country: row.origin_country || 'United States',
       lat: row.origin_lat,
       lng: row.origin_lng
     },
     destination: {
       city: row.destination_city,
       state: row.destination_state,
+      country: row.destination_country || 'United States',
       lat: row.destination_lat,
       lng: row.destination_lng
     },
     currentLocation: {
       city: row.current_location_city,
       state: row.current_location_state,
+      country: row.current_location_country || 'United States',
       lat: row.current_location_lat,
       lng: row.current_location_lng,
       facility: row.current_facility
@@ -233,9 +236,10 @@ shipmentsRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
         vehicle_json, pet_json, pallet_json, container_json, freight_json, document_json,
         references_json, cargo_category, photos_json,
         handling_requirements_json, pickup_window, internal_pricing_note,
-        progress_updated_at_ts, created_at_ts
+        progress_updated_at_ts, created_at_ts,
+        origin_country, destination_country, current_location_country
       ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       )
     `);
 
@@ -256,15 +260,17 @@ shipmentsRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
       s.totalPieces || 1,
       s.declaredValue || 0,
       s.origin?.city || 'New York',
-      s.origin?.state || 'NY',
+      // A blank state is legitimate for many countries — only fall back to the demo default
+      // when no location was sent at all, or e.g. London would be saved as "London, NY".
+      s.origin?.state || (s.origin?.city ? '' : 'NY'),
       s.origin?.lat || 40.7128,
       s.origin?.lng || -74.006,
       s.destination?.city || 'Los Angeles',
-      s.destination?.state || 'CA',
+      s.destination?.state || (s.destination?.city ? '' : 'CA'),
       s.destination?.lat || 34.0522,
       s.destination?.lng || -118.2437,
       s.currentLocation?.city || s.origin?.city || 'New York',
-      s.currentLocation?.state || s.origin?.state || 'NY',
+      s.currentLocation?.state || s.origin?.state || (s.currentLocation?.city || s.origin?.city ? '' : 'NY'),
       s.currentLocation?.lat || s.origin?.lat || 40.7128,
       s.currentLocation?.lng || s.origin?.lng || -74.006,
       s.currentFacility || s.currentLocation?.facility || 'Intake Terminal',
@@ -287,7 +293,10 @@ shipmentsRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
       // created_at_ts: always server-authoritative (never trust a client-supplied value —
       // that's exactly how "Today" as a literal string ended up in the display column and
       // broke sorting) so newest-first ordering is always reliably correct.
-      Date.now()
+      Date.now(),
+      s.origin?.country || 'United States',
+      s.destination?.country || 'United States',
+      s.currentLocation?.country || s.origin?.country || 'United States'
     );
 
     // Insert Pieces
@@ -306,7 +315,7 @@ shipmentsRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
         totalPieces: 1,
         status: s.status || 'RECEIVED',
         statusText: 'Consignment Staged',
-        currentLocation: `${s.origin?.city || 'New York'}, ${s.origin?.state || 'NY'}`,
+        currentLocation: (s.origin?.city ? [s.origin.city, s.origin.state].filter(Boolean).join(', ') : 'New York, NY'),
         weightLbs: s.totalWeightLbs || 10,
         dimensions: s.dimensions || { length: 12, width: 12, height: 12 }
       }
@@ -323,7 +332,7 @@ shipmentsRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
         p.totalPieces || pieces.length,
         p.status || s.status || 'RECEIVED',
         p.statusText || 'Scanned & Registered',
-        p.currentLocation || `${s.origin?.city || 'New York'}, ${s.origin?.state || 'NY'}`,
+        p.currentLocation || (s.origin?.city ? [s.origin.city, s.origin.state].filter(Boolean).join(', ') : 'New York, NY'),
         p.weightLbs || (s.totalWeightLbs ? s.totalWeightLbs / pieces.length : 10),
         JSON.stringify(p.dimensions || s.dimensions || {})
       );
@@ -342,7 +351,7 @@ shipmentsRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
       trackingNumber,
       s.status || 'RECEIVED',
       'Consignment Registered & Barcode Issued',
-      `${s.origin?.city || 'New York'}, ${s.origin?.state || 'NY'}`,
+      (s.origin?.city ? [s.origin.city, s.origin.state].filter(Boolean).join(', ') : 'New York, NY'),
       s.currentLocation?.facility || 'Intake Gateway',
       `${createdAt} ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
       'Shipment received into the Duolingo Express national sort network. Linear Code 128 barcode assigned.',
@@ -362,7 +371,7 @@ shipmentsRouter.patch('/:trackingNumber/status', requireAdminAuth, (req: Request
   try {
     const tracking = (req.params.trackingNumber as string).trim().toUpperCase();
     const newStatus = req.body.newStatus || req.body.status;
-    const { location, facility, notes, progressPercent, statusText: statusTextOverride, lat, lng, eventTitle, skipEventCreation, estimatedDeliveryDate, estimatedDeliveryTime } = req.body;
+    const { location, country, facility, notes, progressPercent, statusText: statusTextOverride, lat, lng, eventTitle, skipEventCreation, estimatedDeliveryDate, estimatedDeliveryTime } = req.body;
 
     const row = db.prepare('SELECT * FROM shipments WHERE tracking_number = ? AND deleted_at_ts IS NULL').get(tracking);
     if (!row) {
@@ -425,6 +434,7 @@ shipmentsRouter.patch('/:trackingNumber/status', requireAdminAuth, (req: Request
         last_updated = 'Just now',
         current_location_city = COALESCE(?, current_location_city),
         current_location_state = COALESCE(?, current_location_state),
+        current_location_country = COALESCE(?, current_location_country),
         current_location_lat = COALESCE(?, current_location_lat),
         current_location_lng = COALESCE(?, current_location_lng),
         current_facility = COALESCE(?, current_facility),
@@ -435,6 +445,7 @@ shipmentsRouter.patch('/:trackingNumber/status', requireAdminAuth, (req: Request
     `).run(
       newStatus, statusText, progress,
       city || null, state || null,
+      typeof country === 'string' && country.trim() ? country.trim() : null,
       hasCoords ? lat : null, hasCoords ? lng : null,
       facility || null,
       hasEstDeliveryDate ? estimatedDeliveryDate.trim() : null,
@@ -643,6 +654,7 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
     let curLat: number | null = (typeof s.currentLocation === 'object' && typeof s.currentLocation?.lat === 'number') ? s.currentLocation.lat : null;
     let curLng: number | null = (typeof s.currentLocation === 'object' && typeof s.currentLocation?.lng === 'number') ? s.currentLocation.lng : null;
     let curFacility: string | null = s.currentFacility || null;
+    let curCountry: string | null = (typeof s.currentLocation === 'object' && s.currentLocation?.country) || null;
 
     // If the route itself moved, the server re-derives the current position along the NEW
     // route at the shipment's current progress, instead of trusting the stale one above.
@@ -667,15 +679,19 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
       if (progress <= 0) {
         curCity = s.origin?.city ?? r.origin_city;
         curState = s.origin?.state ?? r.origin_state;
+        curCountry = s.origin?.country || r.origin_country;
         curFacility = s.origin?.facility || `${curCity} Origin Hub`;
       } else if (progress >= 100) {
         curCity = s.destination?.city ?? r.destination_city;
         curState = s.destination?.state ?? r.destination_state;
+        curCountry = s.destination?.country || r.destination_country;
         curFacility = s.destination?.facility || `${curCity} Sort Hub`;
       } else {
         const nearest = findNearestMetro(pos.lat, pos.lng);
         curCity = nearest?.city ?? curCity;
         curState = nearest?.state ?? curState;
+        // findNearestMetro only knows US metros for now (worldwide naming is a later phase).
+        if (nearest) curCountry = 'United States';
         curFacility = 'Linehaul Transit Corridor';
       }
     }
@@ -700,11 +716,14 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
         destination_state = COALESCE(?, destination_state),
         destination_lat = COALESCE(?, destination_lat),
         destination_lng = COALESCE(?, destination_lng),
+        origin_country = COALESCE(?, origin_country),
+        destination_country = COALESCE(?, destination_country),
         sender_json = COALESCE(?, sender_json),
         recipient_json = COALESCE(?, recipient_json),
         last_updated = 'Just now',
         current_location_city = COALESCE(?, current_location_city),
         current_location_state = COALESCE(?, current_location_state),
+        current_location_country = COALESCE(?, current_location_country),
         current_location_lat = COALESCE(?, current_location_lat),
         current_location_lng = COALESCE(?, current_location_lng),
         current_facility = COALESCE(?, current_facility),
@@ -735,10 +754,13 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
       typeof s.destination === 'object' ? (s.destination?.state ?? null) : null,
       typeof s.destination === 'object' ? (s.destination?.lat ?? null) : null,
       typeof s.destination === 'object' ? (s.destination?.lng ?? null) : null,
+      typeof s.origin === 'object' ? (s.origin?.country || null) : null,
+      typeof s.destination === 'object' ? (s.destination?.country || null) : null,
       s.sender ? JSON.stringify(s.sender) : null,
       s.recipient ? JSON.stringify(s.recipient) : null,
       curCity ?? null,
       curState ?? null,
+      curCountry,
       curLat,
       curLng,
       curFacility,
