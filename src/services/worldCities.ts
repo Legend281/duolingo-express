@@ -335,3 +335,63 @@ export function utcOffsetLabelFromLongitude(lng: number): string {
   const offset = Math.round(lng / 15);
   return offset === 0 ? 'UTC' : `UTC${offset > 0 ? '+' : '-'}${Math.abs(offset)}`;
 }
+
+// Country picker list: [display name, ISO 3166-1 alpha-2]. United States first (the default),
+// the rest alphabetical. Codes are what the geocoder filters on, so a name only has to be
+// unambiguous, not identical to any provider's spelling.
+export const COUNTRIES: ReadonlyArray<readonly [string, string]> = [
+  ['United States', 'US'],
+  ['Afghanistan', 'AF'], ['Albania', 'AL'], ['Algeria', 'DZ'], ['Andorra', 'AD'], ['Angola', 'AO'],
+  ['Antigua and Barbuda', 'AG'], ['Argentina', 'AR'], ['Armenia', 'AM'], ['Australia', 'AU'], ['Austria', 'AT'],
+  ['Azerbaijan', 'AZ'], ['Bahamas', 'BS'], ['Bahrain', 'BH'], ['Bangladesh', 'BD'], ['Barbados', 'BB'],
+  ['Belarus', 'BY'], ['Belgium', 'BE'], ['Belize', 'BZ'], ['Benin', 'BJ'], ['Bhutan', 'BT'],
+  ['Bolivia', 'BO'], ['Bosnia and Herzegovina', 'BA'], ['Botswana', 'BW'], ['Brazil', 'BR'], ['Brunei', 'BN'],
+  ['Bulgaria', 'BG'], ['Burkina Faso', 'BF'], ['Burundi', 'BI'], ['Cabo Verde', 'CV'], ['Cambodia', 'KH'],
+  ['Cameroon', 'CM'], ['Canada', 'CA'], ['Central African Republic', 'CF'], ['Chad', 'TD'], ['Chile', 'CL'],
+  ['China', 'CN'], ['Colombia', 'CO'], ['Comoros', 'KM'], ['Congo', 'CG'], ['Costa Rica', 'CR'],
+  ["Côte d'Ivoire", 'CI'], ['Croatia', 'HR'], ['Cuba', 'CU'], ['Cyprus', 'CY'], ['Czechia', 'CZ'],
+  ['Democratic Republic of the Congo', 'CD'], ['Denmark', 'DK'], ['Djibouti', 'DJ'], ['Dominica', 'DM'],
+  ['Dominican Republic', 'DO'], ['Ecuador', 'EC'], ['Egypt', 'EG'], ['El Salvador', 'SV'],
+  ['Equatorial Guinea', 'GQ'], ['Eritrea', 'ER'], ['Estonia', 'EE'], ['Eswatini', 'SZ'], ['Ethiopia', 'ET'],
+  ['Fiji', 'FJ'], ['Finland', 'FI'], ['France', 'FR'], ['Gabon', 'GA'], ['Gambia', 'GM'],
+  ['Georgia', 'GE'], ['Germany', 'DE'], ['Ghana', 'GH'], ['Greece', 'GR'], ['Grenada', 'GD'],
+  ['Guatemala', 'GT'], ['Guinea', 'GN'], ['Guinea-Bissau', 'GW'], ['Guyana', 'GY'], ['Haiti', 'HT'],
+  ['Honduras', 'HN'], ['Hong Kong', 'HK'], ['Hungary', 'HU'], ['Iceland', 'IS'], ['India', 'IN'],
+  ['Indonesia', 'ID'], ['Iran', 'IR'], ['Iraq', 'IQ'], ['Ireland', 'IE'], ['Israel', 'IL'],
+  ['Italy', 'IT'], ['Jamaica', 'JM'], ['Japan', 'JP'], ['Jordan', 'JO'], ['Kazakhstan', 'KZ'],
+  ['Kenya', 'KE'], ['Kiribati', 'KI'], ['Kosovo', 'XK'], ['Kuwait', 'KW'], ['Kyrgyzstan', 'KG'],
+  ['Laos', 'LA'], ['Latvia', 'LV'], ['Lebanon', 'LB'], ['Lesotho', 'LS'], ['Liberia', 'LR'],
+  ['Libya', 'LY'], ['Liechtenstein', 'LI'], ['Lithuania', 'LT'], ['Luxembourg', 'LU'], ['Macao', 'MO'],
+  ['Madagascar', 'MG'], ['Malawi', 'MW'], ['Malaysia', 'MY'], ['Maldives', 'MV'], ['Mali', 'ML'],
+  ['Malta', 'MT'], ['Marshall Islands', 'MH'], ['Mauritania', 'MR'], ['Mauritius', 'MU'], ['Mexico', 'MX'],
+  ['Micronesia', 'FM'], ['Moldova', 'MD'], ['Monaco', 'MC'], ['Mongolia', 'MN'], ['Montenegro', 'ME'],
+  ['Morocco', 'MA'], ['Mozambique', 'MZ'], ['Myanmar', 'MM'], ['Namibia', 'NA'], ['Nauru', 'NR'],
+  ['Nepal', 'NP'], ['Netherlands', 'NL'], ['New Zealand', 'NZ'], ['Nicaragua', 'NI'], ['Niger', 'NE'],
+  ['Nigeria', 'NG'], ['North Korea', 'KP'], ['North Macedonia', 'MK'], ['Norway', 'NO'], ['Oman', 'OM'],
+  ['Pakistan', 'PK'], ['Palau', 'PW'], ['Palestine', 'PS'], ['Panama', 'PA'], ['Papua New Guinea', 'PG'],
+  ['Paraguay', 'PY'], ['Peru', 'PE'], ['Philippines', 'PH'], ['Poland', 'PL'], ['Portugal', 'PT'],
+  ['Qatar', 'QA'], ['Romania', 'RO'], ['Russia', 'RU'], ['Rwanda', 'RW'], ['Saint Kitts and Nevis', 'KN'],
+  ['Saint Lucia', 'LC'], ['Saint Vincent and the Grenadines', 'VC'], ['Samoa', 'WS'], ['San Marino', 'SM'],
+  ['São Tomé and Príncipe', 'ST'], ['Saudi Arabia', 'SA'], ['Senegal', 'SN'], ['Serbia', 'RS'],
+  ['Seychelles', 'SC'], ['Sierra Leone', 'SL'], ['Singapore', 'SG'], ['Slovakia', 'SK'], ['Slovenia', 'SI'],
+  ['Solomon Islands', 'SB'], ['Somalia', 'SO'], ['South Africa', 'ZA'], ['South Korea', 'KR'],
+  ['South Sudan', 'SS'], ['Spain', 'ES'], ['Sri Lanka', 'LK'], ['Sudan', 'SD'], ['Suriname', 'SR'],
+  ['Sweden', 'SE'], ['Switzerland', 'CH'], ['Syria', 'SY'], ['Taiwan', 'TW'], ['Tajikistan', 'TJ'],
+  ['Tanzania', 'TZ'], ['Thailand', 'TH'], ['Timor-Leste', 'TL'], ['Togo', 'TG'], ['Tonga', 'TO'],
+  ['Trinidad and Tobago', 'TT'], ['Tunisia', 'TN'], ['Türkiye', 'TR'], ['Turkmenistan', 'TM'], ['Tuvalu', 'TV'],
+  ['Uganda', 'UG'], ['Ukraine', 'UA'], ['United Arab Emirates', 'AE'], ['United Kingdom', 'GB'],
+  ['Uruguay', 'UY'], ['Uzbekistan', 'UZ'], ['Vanuatu', 'VU'], ['Vatican City', 'VA'], ['Venezuela', 'VE'],
+  ['Vietnam', 'VN'], ['Yemen', 'YE'], ['Zambia', 'ZM'], ['Zimbabwe', 'ZW'],
+];
+
+/**
+ * The picker's own spelling for any way a country might be written ("UK", "Turkey",
+ * "united kingdom"), so a stored value always matches an option in the dropdown.
+ * Blank means United States (legacy rows); unknown names pass through unchanged.
+ */
+export function pickerCountryName(country?: string | null): string {
+  const canonical = canonicalCountry(country);
+  if (!canonical) return 'United States';
+  const key = normalizePlace(canonical);
+  return COUNTRIES.find(([name]) => normalizePlace(name) === key)?.[0] || canonical;
+}

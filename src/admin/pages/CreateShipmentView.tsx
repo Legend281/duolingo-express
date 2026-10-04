@@ -45,6 +45,8 @@ import {
   Heart
 } from 'lucide-react';
 import { resolveLocation, resolveLocationPrecise, STATE_NAMES } from '../../services/geocodingService';
+import { isUnitedStates } from '../../services/worldCities';
+import { CountrySelect } from '../../components/CountrySelect';
 import { calculateRouteGeometry } from '../../services/routingEngine';
 import { generateShipmentPlan } from '../../services/planningEngine';
 import { useAdminData } from '../../context/AdminDataContext';
@@ -228,6 +230,7 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
   const [senderCity, setSenderCity] = useState('');
   const [senderState, setSenderState] = useState('');
   const [senderZip, setSenderZip] = useState('');
+  const [senderCountry, setSenderCountry] = useState('United States');
 
   const [recipientName, setRecipientName] = useState('');
   const [recipientCompany, setRecipientCompany] = useState('');
@@ -237,6 +240,12 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
   const [recipientCity, setRecipientCity] = useState('');
   const [recipientState, setRecipientState] = useState('');
   const [recipientZip, setRecipientZip] = useState('');
+  const [recipientCountry, setRecipientCountry] = useState('United States');
+  const senderIsUS = isUnitedStates(senderCountry);
+  const recipientIsUS = isUnitedStates(recipientCountry);
+  // "Austin, TX" for US addresses; "Lagos, Nigeria" / "Leeds, England, United Kingdom" elsewhere.
+  const placeLabel = (city: string, state: string, country: string) =>
+    [city.trim(), state.trim(), isUnitedStates(country) ? '' : country].filter(Boolean).join(', ');
 
   // Warns (doesn't block, same as dateOrderWarning below) when the State field isn't a real
   // US state/territory code. Geocoding silently falls back to the geographic center of the
@@ -249,14 +258,15 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
     if (STATE_NAMES[val]) return true;
     return Object.values(STATE_NAMES).some(name => name.toUpperCase() === val);
   };
+  // US addresses only — other countries' regions are free text and optional.
   const senderStateWarning = React.useMemo(() => {
-    if (isRecognizedState(senderState)) return null;
+    if (!senderIsUS || isRecognizedState(senderState)) return null;
     return `"${senderState}" isn't a recognized US state — did you mean the state, not a city or county? Unrecognized states silently route to the middle of the country on the map.`;
-  }, [senderState]);
+  }, [senderState, senderIsUS]);
   const recipientStateWarning = React.useMemo(() => {
-    if (isRecognizedState(recipientState)) return null;
+    if (!recipientIsUS || isRecognizedState(recipientState)) return null;
     return `"${recipientState}" isn't a recognized US state — did you mean the state, not a city or county? Unrecognized states silently route to the middle of the country on the map.`;
-  }, [recipientState]);
+  }, [recipientState, recipientIsUS]);
 
   // ----------------------------------------------------
   // STEP 3: Packages (For Non-Vehicle Cargo)
@@ -325,6 +335,7 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
   const [createdShipmentRecord, setCreatedShipmentRecord] = useState<Shipment | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isCreatingShipment, setIsCreatingShipment] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // Generate tracking identity on mount or when reaching review
   useEffect(() => {
@@ -345,12 +356,16 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
   // letting the admin type their own override, which is honored once touched.
   const previewEstimatedDeliveryDate = React.useMemo(() => {
     try {
-      const originGeo = resolveLocation([senderCity, senderState].filter(Boolean).join(', ').trim())
-        || resolveLocation(senderCity.trim())
-        || { city: senderCity || 'Origin', state: senderState || 'US', lat: 31.9686, lng: -99.9018, facilityName: `${senderCity || 'Origin'} Hub` };
-      const destGeo = resolveLocation([recipientCity, recipientState].filter(Boolean).join(', ').trim())
-        || resolveLocation(recipientCity.trim())
-        || { city: recipientCity || 'Destination', state: recipientState || 'US', lat: 38.9072, lng: -77.0369, facilityName: `${recipientCity || 'Destination'} Facility` };
+      // Offline lookup only (this runs on every keystroke). A non-US city that isn't in the
+      // offline world table has no preview — the real ETA is computed at submit, after the
+      // live lookup — rather than a preview built from a made-up US coordinate.
+      const originGeo = resolveLocation([senderCity, senderState].filter(Boolean).join(', ').trim(), senderCountry)
+        || resolveLocation(senderCity.trim(), senderCountry)
+        || (senderIsUS ? { city: senderCity || 'Origin', state: senderState || 'US', lat: 31.9686, lng: -99.9018, facilityName: `${senderCity || 'Origin'} Hub` } : null);
+      const destGeo = resolveLocation([recipientCity, recipientState].filter(Boolean).join(', ').trim(), recipientCountry)
+        || resolveLocation(recipientCity.trim(), recipientCountry)
+        || (recipientIsUS ? { city: recipientCity || 'Destination', state: recipientState || 'US', lat: 38.9072, lng: -77.0369, facilityName: `${recipientCity || 'Destination'} Facility` } : null);
+      if (!originGeo || !destGeo) return null;
       const routePlan = calculateRouteGeometry(
         { lat: originGeo.lat, lng: originGeo.lng, name: originGeo.city },
         { lat: destGeo.lat, lng: destGeo.lng, name: destGeo.city }
@@ -366,7 +381,7 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
     } catch {
       return null;
     }
-  }, [senderCity, senderState, recipientCity, recipientState, service, pickupDate]);
+  }, [senderCity, senderState, senderCountry, senderIsUS, recipientCity, recipientState, recipientCountry, recipientIsUS, service, pickupDate]);
 
   useEffect(() => {
     if (!expectedDeliveryDateTouched && previewEstimatedDeliveryDate) {
@@ -468,13 +483,14 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
     setRecipientCity(senderCity);
     setRecipientState(senderState);
     setRecipientZip(senderZip);
+    setRecipientCountry(senderCountry);
   };
 
 
-  // Autonomous Geocoding on ZIP code change
+  // Autonomous Geocoding on ZIP code change (US ZIPs only — the offline table is US metros)
   const handleSenderZipChange = (zip: string) => {
     setSenderZip(zip);
-    if (zip.trim().length >= 5) {
+    if (senderIsUS && zip.trim().length >= 5) {
       const geo = resolveLocation(zip);
       if (geo) {
         setSenderCity(geo.city);
@@ -485,7 +501,7 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
 
   const handleRecipientZipChange = (zip: string) => {
     setRecipientZip(zip);
-    if (zip.trim().length >= 5) {
+    if (recipientIsUS && zip.trim().length >= 5) {
       const geo = resolveLocation(zip);
       if (geo) {
         setRecipientCity(geo.city);
@@ -861,7 +877,23 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
     // already in the offline table, and only reaches out to a live geocoding API for
     // anything else — so a shipment to a smaller town gets that town's real coordinates
     // instead of silently landing on its state's rough centroid.
-    const originGeo = (await resolveLocationPrecise(originQuery)) || {
+    const preciseOrigin = await resolveLocationPrecise(originQuery, senderCountry);
+    const preciseDest = await resolveLocationPrecise(destQuery, recipientCountry);
+
+    // Outside the US there's no safe guess to fall back to (the defaults below are US
+    // coordinates), so an unrecognized city stops here instead of being plotted somewhere wrong.
+    const notFound = [
+      !senderIsUS && !preciseOrigin ? `pickup city "${originQuery || '(blank)'}" in ${senderCountry}` : null,
+      !recipientIsUS && !preciseDest ? `delivery city "${destQuery || '(blank)'}" in ${recipientCountry}` : null,
+    ].filter(Boolean);
+    if (notFound.length > 0) {
+      setCreateError(`Couldn't find the ${notFound.join(' or the ')}. Check the spelling (try the nearest larger city), then register again.`);
+      setIsCreatingShipment(false);
+      return;
+    }
+    setCreateError(null);
+
+    const originGeo = preciseOrigin || {
       city: senderCity.trim() || 'Origin City',
       state: senderState.trim() || 'US',
       stateFull: 'United States',
@@ -872,7 +904,7 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
       facilityName: `${senderCity.trim() || 'Origin'} Hub`
     };
 
-    const destGeo = (await resolveLocationPrecise(destQuery)) || {
+    const destGeo = preciseDest || {
       city: recipientCity.trim() || 'Destination City',
       state: recipientState.trim() || 'US',
       stateFull: 'United States',
@@ -1041,6 +1073,7 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
       estimatedDelivery: expectedDeliveryDate || shipmentPlan.estimatedDeliveryDate,
       estimatedDeliveryDetail: 'by ' + shipmentPlan.estimatedDeliveryTime,
       currentLocation: {
+        country: senderCountry,
         city: originGeo.city,
         state: originGeo.state,
         lat: originGeo.lat,
@@ -1054,7 +1087,7 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
       origin: {
         city: senderCity.trim() || originGeo.city,
         state: senderState.trim() || originGeo.state,
-        country: 'United States',
+        country: senderCountry,
         lat: originGeo.lat,
         lng: originGeo.lng,
         facility: originGeo.facilityName
@@ -1062,7 +1095,7 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
       destination: {
         city: recipientCity.trim() || destGeo.city,
         state: recipientState.trim() || destGeo.state,
-        country: 'United States',
+        country: recipientCountry,
         lat: destGeo.lat,
         lng: destGeo.lng,
         facility: destGeo.facilityName
@@ -1076,7 +1109,7 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
         postalCode: senderZip.trim() || originGeo.zip,
         phone: senderPhone.trim(),
         email: senderEmail.trim(),
-        country: 'United States'
+        country: senderCountry
       },
       recipient: {
         name: recipientName.trim() || 'Consignee / Recipient',
@@ -1087,7 +1120,7 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
         postalCode: recipientZip.trim() || destGeo.zip,
         phone: recipientPhone.trim(),
         email: recipientEmail.trim(),
-        country: 'United States'
+        country: recipientCountry
       },
       totalWeightLbs: totalWeight,
       totalPieces: totalPieces,
@@ -1153,6 +1186,7 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
         senderCity: senderCity,
         senderState: senderState,
         senderZip: senderZip,
+        senderCountry: senderCountry,
         senderPhone: senderPhone,
         recipientName: recipientName || 'Destination Consignee',
         recipientCompany: recipientCompany || 'Consignee Receiver',
@@ -1160,6 +1194,7 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
         recipientCity: recipientCity,
         recipientState: recipientState,
         recipientZip: recipientZip,
+        recipientCountry: recipientCountry,
         recipientPhone: recipientPhone,
         cargoDescription: shipmentDescription || 'Commercial Freight Cargo',
         shipmentType: shipmentType,
@@ -1675,24 +1710,29 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
                   />
                 </div>
 
+                <div className="input-field full-width">
+                  <label>Country</label>
+                  <CountrySelect value={senderCountry} onChange={setSenderCountry} />
+                </div>
+
                 <div className="input-grid-3">
                   <div className="input-field">
-                    <label>City or State</label>
+                    <label>{senderIsUS ? 'City or State' : 'City'}</label>
                     <input
                       type="text"
                       value={senderCity}
                       onChange={e => setSenderCity(e.target.value)}
-                      placeholder="Origin City or State (e.g. Texas, Austin)"
+                      placeholder={senderIsUS ? 'Origin City or State (e.g. Texas, Austin)' : 'Origin City (e.g. Lagos)'}
                     />
                   </div>
                   <div className="input-field">
-                    <label>State</label>
+                    <label>{senderIsUS ? 'State' : 'Region (Optional)'}</label>
                     <input
                       type="text"
-                      list="us-states-list"
+                      list={senderIsUS ? 'us-states-list' : undefined}
                       value={senderState}
-                      onChange={e => setSenderState(e.target.value.toUpperCase())}
-                      placeholder="ST / State (e.g. TX)"
+                      onChange={e => setSenderState(senderIsUS ? e.target.value.toUpperCase() : e.target.value)}
+                      placeholder={senderIsUS ? 'ST / State (e.g. TX)' : 'Region (Optional)'}
                       maxLength={35}
                     />
                     {senderStateWarning && (
@@ -1702,12 +1742,12 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
                     )}
                   </div>
                   <div className="input-field">
-                    <label>ZIP Code (Optional)</label>
+                    <label>{senderIsUS ? 'ZIP Code (Optional)' : 'Postal Code (Optional)'}</label>
                     <input
                       type="text"
                       value={senderZip}
                       onChange={e => handleSenderZipChange(e.target.value)}
-                      placeholder="ZIP Code (Optional)"
+                      placeholder={senderIsUS ? 'ZIP Code (Optional)' : 'Postal Code (Optional)'}
                     />
                   </div>
                 </div>
@@ -1770,24 +1810,29 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
                   />
                 </div>
 
+                <div className="input-field full-width">
+                  <label>Country</label>
+                  <CountrySelect value={recipientCountry} onChange={setRecipientCountry} />
+                </div>
+
                 <div className="input-grid-3">
                   <div className="input-field">
-                    <label>City or State</label>
+                    <label>{recipientIsUS ? 'City or State' : 'City'}</label>
                     <input
                       type="text"
                       value={recipientCity}
                       onChange={e => setRecipientCity(e.target.value)}
-                      placeholder="Destination City or State (e.g. Washington DC)"
+                      placeholder={recipientIsUS ? 'Destination City or State (e.g. Washington DC)' : 'Destination City (e.g. London)'}
                     />
                   </div>
                   <div className="input-field">
-                    <label>State</label>
+                    <label>{recipientIsUS ? 'State' : 'Region (Optional)'}</label>
                     <input
                       type="text"
-                      list="us-states-list"
+                      list={recipientIsUS ? 'us-states-list' : undefined}
                       value={recipientState}
-                      onChange={e => setRecipientState(e.target.value.toUpperCase())}
-                      placeholder="ST / State (e.g. DC)"
+                      onChange={e => setRecipientState(recipientIsUS ? e.target.value.toUpperCase() : e.target.value)}
+                      placeholder={recipientIsUS ? 'ST / State (e.g. DC)' : 'Region (Optional)'}
                       maxLength={35}
                     />
                     {recipientStateWarning && (
@@ -1797,12 +1842,12 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
                     )}
                   </div>
                   <div className="input-field">
-                    <label>ZIP Code (Optional)</label>
+                    <label>{recipientIsUS ? 'ZIP Code (Optional)' : 'Postal Code (Optional)'}</label>
                     <input
                       type="text"
                       value={recipientZip}
                       onChange={e => setRecipientZip(e.target.value)}
-                      placeholder="ZIP Code (Optional)"
+                      placeholder={recipientIsUS ? 'ZIP Code (Optional)' : 'Postal Code (Optional)'}
                     />
                   </div>
                 </div>
@@ -3261,8 +3306,8 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
               <div className="step-corridor-strip">
                 <div className="corridor-endpoint">
                   <span className="corridor-role">ORIGIN</span>
-                  <strong>{senderCity || 'New York'}, {senderState || 'NY'}</strong>
-                  <span className="corridor-zip font-mono">ZIP {senderZip || '10005'}</span>
+                  <strong>{placeLabel(senderCity, senderState, senderCountry) || 'Origin'}</strong>
+                  {senderZip && <span className="corridor-zip font-mono">{senderIsUS ? 'ZIP' : 'Postal'} {senderZip}</span>}
                 </div>
                 <div className="corridor-arrow-bridge">
                   <span className="bridge-line" />
@@ -3274,8 +3319,8 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
                 </div>
                 <div className="corridor-endpoint dest">
                   <span className="corridor-role">DESTINATION</span>
-                  <strong className="text-orange">{recipientCity || 'Los Angeles'}, {recipientState || 'CA'}</strong>
-                  <span className="corridor-zip font-mono">ZIP {recipientZip || '90071'}</span>
+                  <strong className="text-orange">{placeLabel(recipientCity, recipientState, recipientCountry) || 'Destination'}</strong>
+                  {recipientZip && <span className="corridor-zip font-mono">{recipientIsUS ? 'ZIP' : 'Postal'} {recipientZip}</span>}
                 </div>
               </div>
 
@@ -3759,13 +3804,13 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
                   <div className="review-route-display">
                     <div className="r-box">
                       <span className="r-tag">ORIGIN</span>
-                      <strong>{senderCity}, {senderState} {senderZip}</strong>
+                      <strong>{placeLabel(senderCity, senderState, senderCountry)} {senderZip}</strong>
                       <p>{senderName} • {senderCompany}</p>
                     </div>
                     <div className="r-arrow">↓</div>
                     <div className="r-box">
                       <span className="r-tag">DESTINATION</span>
-                      <strong>{recipientCity}, {recipientState} {recipientZip}</strong>
+                      <strong>{placeLabel(recipientCity, recipientState, recipientCountry)} {recipientZip}</strong>
                       <p>{recipientName} • {recipientCompany}</p>
                     </div>
                   </div>
@@ -3910,6 +3955,12 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
                   <ArrowRight size={14} />
                 </button>
               ) : (
+                <>
+                {createError && (
+                  <span role="alert" style={{ fontSize: '0.75rem', color: '#dc2626', maxWidth: '22rem' }}>
+                    ⚠ {createError}
+                  </span>
+                )}
                 <button
                   type="button"
                   className="create-shipment-final-btn"
@@ -3919,6 +3970,7 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
                   <CheckCircle2 size={17} />
                   <span>{isCreatingShipment ? 'Verifying Route & Registering…' : 'Register Master Consignment'}</span>
                 </button>
+                </>
               )}
             </div>
           </div>

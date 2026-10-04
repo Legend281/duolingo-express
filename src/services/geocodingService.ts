@@ -8,6 +8,7 @@
 import {
   WORLD_CITIES,
   WorldCity,
+  COUNTRIES,
   findWorldCity,
   findNearestWorldCity,
   canonicalCountry,
@@ -340,6 +341,8 @@ let REGION_CODE_BY_NAME: Map<string, string> | null = null;
 export function countryCodeFor(country?: string | null): string | undefined {
   const name = canonicalCountry(country);
   if (!name) return undefined;
+  const listed = COUNTRIES.find(([n]) => normalizePlace(n) === normalizePlace(name));
+  if (listed) return listed[1];
   if (!REGION_CODE_BY_NAME) {
     REGION_CODE_BY_NAME = new Map();
     try {

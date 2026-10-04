@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, ArrowRight, Save, Building, User, Package, Calendar, MapPin } from 'lucide-react';
 import { Shipment } from '../../types/shipment';
 import { resolveLocation, resolveLocationPrecise } from '../../services/geocodingService';
+import { isUnitedStates, pickerCountryName } from '../../services/worldCities';
+import { CountrySelect } from '../../components/CountrySelect';
 import './EditShipmentModal.css';
 
 interface EditShipmentModalProps {
@@ -18,18 +20,24 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
   // Sender form state
   const initialSenderName = typeof shipment.sender === 'object' ? (shipment.sender?.name || '') : String(shipment.sender || '');
   const initialSenderCity = typeof shipment.origin === 'object' ? (shipment.origin?.city || 'New York') : 'New York';
-  const initialSenderState = typeof shipment.origin === 'object' ? (shipment.origin?.state || 'NY') : 'NY';
+  // A real city with a blank state is legitimate outside the US — only invent the demo
+  // default when there's no location at all.
+  const initialSenderState = typeof shipment.origin === 'object' ? (shipment.origin?.state || (shipment.origin?.city ? '' : 'NY')) : 'NY';
+  const initialSenderCountry = pickerCountryName((shipment.origin as any)?.country);
   const initialSenderAddress = typeof shipment.sender === 'object' ? (shipment.sender?.addressLine || '100 Broadway') : '100 Broadway';
 
   // Recipient form state
   const initialRecipientName = typeof shipment.recipient === 'object' ? (shipment.recipient?.name || '') : String(shipment.recipient || '');
   const initialRecipientCity = typeof shipment.destination === 'object' ? (shipment.destination?.city || 'Los Angeles') : 'Los Angeles';
-  const initialRecipientState = typeof shipment.destination === 'object' ? (shipment.destination?.state || 'CA') : 'CA';
+  const initialRecipientState = typeof shipment.destination === 'object' ? (shipment.destination?.state || (shipment.destination?.city ? '' : 'CA')) : 'CA';
+  const initialRecipientCountry = pickerCountryName((shipment.destination as any)?.country);
   const initialRecipientAddress = typeof shipment.recipient === 'object' ? (shipment.recipient?.addressLine || '500 Grand Ave') : '500 Grand Ave';
 
   const [senderName, setSenderName] = useState(initialSenderName);
   const [senderCity, setSenderCity] = useState(initialSenderCity);
   const [senderState, setSenderState] = useState(initialSenderState);
+  const [senderCountry, setSenderCountry] = useState(initialSenderCountry);
+  const senderIsUS = isUnitedStates(senderCountry);
   const [senderAddress, setSenderAddress] = useState(initialSenderAddress);
   // Company/Email/Phone/ZIP were entirely absent from this form — every save silently wiped
   // them out, because the PUT route replaces the whole stored sender/recipient JSON blob with
@@ -43,6 +51,8 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
   const [recipientName, setRecipientName] = useState(initialRecipientName);
   const [recipientCity, setRecipientCity] = useState(initialRecipientCity);
   const [recipientState, setRecipientState] = useState(initialRecipientState);
+  const [recipientCountry, setRecipientCountry] = useState(initialRecipientCountry);
+  const recipientIsUS = isUnitedStates(recipientCountry);
   const [recipientAddress, setRecipientAddress] = useState(initialRecipientAddress);
   const [recipientCompany, setRecipientCompany] = useState(typeof shipment.recipient === 'object' ? (shipment.recipient?.company || '') : '');
   const [recipientEmail, setRecipientEmail] = useState(typeof shipment.recipient === 'object' ? (shipment.recipient?.email || '') : '');
@@ -143,23 +153,30 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Only re-geocodes a side whose city/state the admin actually changed. Re-resolving an
-  // untouched location used to move it anyway — e.g. a small town that creation had
+  // Only re-geocodes a side whose city/state/country the admin actually changed. Re-resolving
+  // an untouched location used to move it anyway — e.g. a small town that creation had
   // live-geocoded precisely got snapped to its state's centroid just by editing the weight.
+  // Returns { changed, geo }: geo is null when a changed non-US place couldn't be found.
   const geocodeIfChanged = async (
     city: string,
     state: string,
+    country: string,
     initialCity: string,
     initialState: string,
+    initialCountry: string,
     stored: any
   ) => {
     const unchanged = city.trim().toLowerCase() === initialCity.trim().toLowerCase()
-      && state.trim().toLowerCase() === initialState.trim().toLowerCase();
+      && state.trim().toLowerCase() === initialState.trim().toLowerCase()
+      && country === initialCountry;
     if (unchanged && typeof stored?.lat === 'number' && typeof stored?.lng === 'number') {
-      return { lat: stored.lat, lng: stored.lng, facilityName: stored.facility || stored.facilityName, city: stored.city, state: stored.state };
+      return { changed: false, geo: { lat: stored.lat, lng: stored.lng, facilityName: stored.facility || stored.facilityName, city: stored.city, state: stored.state } };
     }
     const query = [city.trim(), state.trim()].filter(Boolean).join(', ');
-    return (await resolveLocationPrecise(query)) || resolveLocation(city.trim()) || resolveLocation(state.trim());
+    const geo = (await resolveLocationPrecise(query, country))
+      || resolveLocation(city.trim(), country)
+      || (isUnitedStates(country) ? resolveLocation(state.trim()) : null);
+    return { changed: true, geo };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -168,10 +185,23 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
     setSaving(true);
     setSaveError(null);
 
-    const [originGeo, destGeo] = await Promise.all([
-      geocodeIfChanged(senderCity, senderState, initialSenderCity, initialSenderState, shipment.origin),
-      geocodeIfChanged(recipientCity, recipientState, initialRecipientCity, initialRecipientState, shipment.destination),
+    const [originLookup, destLookup] = await Promise.all([
+      geocodeIfChanged(senderCity, senderState, senderCountry, initialSenderCity, initialSenderState, initialSenderCountry, shipment.origin),
+      geocodeIfChanged(recipientCity, recipientState, recipientCountry, initialRecipientCity, initialRecipientState, initialRecipientCountry, shipment.destination),
     ]);
+    // A changed non-US location that can't be found must not keep the OLD coordinates under
+    // a new name — stop and ask, the same way the Create form does.
+    const notFound = [
+      originLookup.changed && !originLookup.geo && !senderIsUS ? `"${senderCity.trim()}" in ${senderCountry}` : null,
+      destLookup.changed && !destLookup.geo && !recipientIsUS ? `"${recipientCity.trim()}" in ${recipientCountry}` : null,
+    ].filter(Boolean);
+    if (notFound.length > 0) {
+      setSaveError(`Couldn't find ${notFound.join(' or ')}. Check the spelling (try the nearest larger city).`);
+      setSaving(false);
+      return;
+    }
+    const originGeo = originLookup.geo;
+    const destGeo = destLookup.geo;
 
     const updated: Shipment = {
       ...shipment,
@@ -183,16 +213,16 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
       estimatedDelivery: estDelivery,
       origin: {
         city: senderCity.trim() || originGeo?.city || 'Origin',
-        state: senderState.trim() || originGeo?.state || 'US',
-        country: (shipment.origin as any)?.country || 'United States',
+        state: senderState.trim() || originGeo?.state || '',
+        country: senderCountry,
         lat: originGeo?.lat || (shipment.origin as any)?.lat || 31.9686,
         lng: originGeo?.lng || (shipment.origin as any)?.lng || -99.9018,
         facility: originGeo?.facilityName || `${senderCity.trim()} Origin Hub`
       } as any,
       destination: {
         city: recipientCity.trim() || destGeo?.city || 'Destination',
-        state: recipientState.trim() || destGeo?.state || 'US',
-        country: (shipment.destination as any)?.country || 'United States',
+        state: recipientState.trim() || destGeo?.state || '',
+        country: recipientCountry,
         lat: destGeo?.lat || (shipment.destination as any)?.lat || 38.9072,
         lng: destGeo?.lng || (shipment.destination as any)?.lng || -77.0369,
         facility: destGeo?.facilityName || `${recipientCity.trim()} Sort Hub`
@@ -202,7 +232,7 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
         city: senderCity.trim(),
         state: senderState.trim(),
         addressLine: senderAddress.trim(),
-        country: (shipment.sender as any)?.country || (shipment.origin as any)?.country || 'United States',
+        country: senderCountry,
         company: senderCompany.trim() || undefined,
         email: senderEmail.trim() || undefined,
         phone: senderPhone.trim() || undefined,
@@ -213,7 +243,7 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
         city: recipientCity.trim(),
         state: recipientState.trim(),
         addressLine: recipientAddress.trim(),
-        country: (shipment.recipient as any)?.country || (shipment.destination as any)?.country || 'United States',
+        country: recipientCountry,
         company: recipientCompany.trim() || undefined,
         email: recipientEmail.trim() || undefined,
         phone: recipientPhone.trim() || undefined,
@@ -317,7 +347,7 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
             <div className="edit-waybill-wrap">
               <h3 className="edit-waybill font-mono">{shipment.trackingNumber}</h3>
               <span className="edit-route-sub">
-                {senderCity}, {senderState} <ArrowRight size={11} className="text-orange" /> {recipientCity}, {recipientState}
+                {[senderCity, senderState, senderIsUS ? '' : senderCountry].filter(Boolean).join(', ')} <ArrowRight size={11} className="text-orange" /> {[recipientCity, recipientState, recipientIsUS ? '' : recipientCountry].filter(Boolean).join(', ')}
               </span>
             </div>
           </div>
@@ -376,6 +406,10 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
                     placeholder="(555) 000-0000"
                   />
                 </div>
+                <div className="edit-field full">
+                  <label>Country</label>
+                  <CountrySelect value={senderCountry} onChange={setSenderCountry} />
+                </div>
                 <div className="edit-field">
                   <label>Origin City</label>
                   <input
@@ -386,13 +420,13 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
                   />
                 </div>
                 <div className="edit-field">
-                  <label>State</label>
+                  <label>{senderIsUS ? 'State' : 'Region (Optional)'}</label>
                   <input
                     type="text"
                     value={senderState}
                     onChange={(e) => setSenderState(e.target.value)}
-                    maxLength={4}
-                    required
+                    maxLength={senderIsUS ? 4 : 35}
+                    required={senderIsUS}
                   />
                 </div>
                 <div className="edit-field full">
@@ -404,7 +438,7 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
                   />
                 </div>
                 <div className="edit-field">
-                  <label>ZIP Code (Optional)</label>
+                  <label>{senderIsUS ? 'ZIP Code (Optional)' : 'Postal Code (Optional)'}</label>
                   <input
                     type="text"
                     value={senderZip}
@@ -458,6 +492,10 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
                     placeholder="(555) 000-0000"
                   />
                 </div>
+                <div className="edit-field full">
+                  <label>Country</label>
+                  <CountrySelect value={recipientCountry} onChange={setRecipientCountry} />
+                </div>
                 <div className="edit-field">
                   <label>Destination City</label>
                   <input
@@ -468,13 +506,13 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
                   />
                 </div>
                 <div className="edit-field">
-                  <label>State</label>
+                  <label>{recipientIsUS ? 'State' : 'Region (Optional)'}</label>
                   <input
                     type="text"
                     value={recipientState}
                     onChange={(e) => setRecipientState(e.target.value)}
-                    maxLength={4}
-                    required
+                    maxLength={recipientIsUS ? 4 : 35}
+                    required={recipientIsUS}
                   />
                 </div>
                 <div className="edit-field full">
@@ -486,7 +524,7 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
                   />
                 </div>
                 <div className="edit-field">
-                  <label>ZIP Code (Optional)</label>
+                  <label>{recipientIsUS ? 'ZIP Code (Optional)' : 'Postal Code (Optional)'}</label>
                   <input
                     type="text"
                     value={recipientZip}
