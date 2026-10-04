@@ -5,6 +5,17 @@
  * Resolves exact pickup/delivery coordinates, formatted addresses, and gateway facilities.
  */
 
+import {
+  WORLD_CITIES,
+  WorldCity,
+  findWorldCity,
+  findNearestWorldCity,
+  canonicalCountry,
+  isUnitedStates,
+  normalizePlace,
+  utcOffsetLabelFromLongitude,
+} from './worldCities.js';
+
 export interface GeoLocationResult {
   formattedAddress?: string;
   city: string;
@@ -17,7 +28,27 @@ export interface GeoLocationResult {
   timezone: string;
   facilityName: string;
   isExactCoordinate?: boolean;
+  countryCode?: string; // ISO 3166-1 alpha-2, upper case (e.g. "US", "GB", "NG") when known
 }
+
+function worldCityToGeo(c: WorldCity): GeoLocationResult {
+  return {
+    formattedAddress: [c.city, c.region !== c.city ? c.region : '', c.country].filter(Boolean).join(', '),
+    city: c.city,
+    state: c.region,
+    stateFull: c.region,
+    country: c.country,
+    lat: c.lat,
+    lng: c.lng,
+    timezone: c.timezone,
+    facilityName: `${c.city} International Gateway`,
+    isExactCoordinate: true,
+  };
+}
+
+// Every country the offline world table covers — lets a country-less input like
+// "London, United Kingdom" be recognized as international instead of parsed as a US address.
+const WORLD_TABLE_COUNTRIES = new Set(WORLD_CITIES.map(c => normalizePlace(c.country)));
 
 // In-memory geocoding cache to avoid redundant API calls
 const GEOCODE_CACHE = new Map<string, GeoLocationResult>();
@@ -303,68 +334,228 @@ function getTimezoneForState(stateCode: string): string {
   return 'ET';
 }
 
+// Country name -> ISO 3166-1 alpha-2, built once from the runtime's own English region names
+// (Intl.DisplayNames), so no hand-maintained table of ~250 countries is needed.
+let REGION_CODE_BY_NAME: Map<string, string> | null = null;
+export function countryCodeFor(country?: string | null): string | undefined {
+  const name = canonicalCountry(country);
+  if (!name) return undefined;
+  if (!REGION_CODE_BY_NAME) {
+    REGION_CODE_BY_NAME = new Map();
+    try {
+      const names = new Intl.DisplayNames(['en'], { type: 'region' });
+      for (let a = 65; a <= 90; a++) {
+        for (let b = 65; b <= 90; b++) {
+          const code = String.fromCharCode(a, b);
+          try {
+            const n = names.of(code);
+            if (n && n !== code && !REGION_CODE_BY_NAME.has(normalizePlace(n))) REGION_CODE_BY_NAME.set(normalizePlace(n), code);
+          } catch { /* not a region code */ }
+        }
+      }
+    } catch { /* Intl.DisplayNames unavailable: callers fall back to name matching */ }
+  }
+  return REGION_CODE_BY_NAME.get(normalizePlace(name));
+}
+
+/** Short display label for an IANA zone ("Africa/Lagos" -> "GMT+1", "America/Chicago" -> "CDT"). */
+function timezoneLabel(iana: string | undefined, lng: number): string {
+  if (iana) {
+    try {
+      const part = new Intl.DateTimeFormat('en-US', { timeZone: iana, timeZoneName: 'short' })
+        .formatToParts(new Date())
+        .find(p => p.type === 'timeZoneName');
+      if (part?.value) return part.value;
+    } catch { /* unknown zone */ }
+  }
+  return utcOffsetLabelFromLongitude(lng);
+}
+
+/** Label for a non-US point: the nearest table city's label when one is close, else from its IANA zone. */
+function internationalTimezone(lat: number, lng: number, country: string, iana?: string): string {
+  const near = findNearestWorldCity(lat, lng, country);
+  const closeEnough = near && Math.abs(near.lat - lat) < 9 && Math.abs(near.lng - lng) < 9;
+  return closeEnough ? near!.timezone : timezoneLabel(iana, lng);
+}
+
+async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { signal: controller.signal, headers: { 'Accept': 'application/json' } });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 /**
- * Asynchronously geocodes an address or ZIP using live OpenStreetMap provider
- * with in-memory caching and fallback to the reference table.
+ * Primary live geocoder: Open-Meteo's free place-name search (GeoNames data, no API key,
+ * fast, every country). City-level only, which is all routing and the map need. The first
+ * comma-separated part is the place name; any further parts ("IL", "Lagos State") are used
+ * to pick between same-named places.
  */
-export async function geocodeAddressLive(query: string): Promise<GeoLocationResult | null> {
+async function geocodeOpenMeteo(query: string, countryName: string, international: boolean): Promise<GeoLocationResult | null> {
+  const parts = query.split(',').map(p => p.trim()).filter(Boolean);
+  const name = parts[0];
+  if (!name) return null;
+  const hints = parts.slice(1).map(normalizePlace).filter(h => h && h !== normalizePlace(countryName));
+
+  const code = international ? countryCodeFor(countryName) : 'US';
+  const resp = await fetchWithTimeout(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=20&language=en&format=json${code ? `&countryCode=${code}` : ''}`,
+    4000
+  );
+  if (!resp.ok) return null;
+  const data = await resp.json();
+  let results: any[] = Array.isArray(data?.results) ? data.results : [];
+  if (!code) {
+    results = results.filter(r => normalizePlace(canonicalCountry(r.country)) === normalizePlace(countryName));
+  }
+  if (results.length === 0) return null;
+
+  // A hint may be a US state code ("IL"), a full region name, or a district.
+  const hintMatches = (r: any) => hints.some(h => {
+    const admin1 = normalizePlace(r.admin1 || '');
+    const admin2 = normalizePlace(r.admin2 || '');
+    const fullState = STATE_NAMES[h.toUpperCase()];
+    return admin1 === h
+      || (admin1 && (admin1.startsWith(h) || h.startsWith(admin1)))
+      || admin2 === h
+      || (!!fullState && admin1 === normalizePlace(fullState));
+  });
+  let item = hints.length ? results.find(hintMatches) : results[0];
+  if (!item) {
+    // For a US query naming a real state, a same-named town in a DIFFERENT state is wrong;
+    // better to fall through than plot it hundreds of miles away. Elsewhere the hint is often
+    // a district the dataset doesn't carry, so the top match is the best answer.
+    const namesUSState = !international && hints.some(h =>
+      STATE_NAMES[h.toUpperCase()] || Object.values(STATE_NAMES).some(s => normalizePlace(s) === h)
+    );
+    if (namesUSState) return null;
+    item = results[0];
+  }
+
+  const lat = Number(item.latitude);
+  const lng = Number(item.longitude);
+  const countryCode = String(item.country_code || code || '').toUpperCase();
+  const isUS = countryCode === 'US';
+  const city = item.name || name;
+  let state: string;
+  let stateFull: string;
+  let timezone: string;
+  if (isUS) {
+    stateFull = item.admin1 || '';
+    state = Object.entries(STATE_NAMES).find(([, full]) => full === stateFull)?.[0] || stateFull;
+    timezone = getTimezoneForState(state);
+  } else {
+    state = item.admin1 || '';
+    stateFull = state;
+    timezone = internationalTimezone(lat, lng, item.country || countryName, item.timezone);
+  }
+  return {
+    formattedAddress: [city, state, isUS ? 'United States' : item.country].filter(Boolean).join(', '),
+    city,
+    state,
+    stateFull,
+    country: isUS ? 'United States' : (item.country || countryName),
+    countryCode: countryCode || undefined,
+    lat,
+    lng,
+    timezone,
+    facilityName: isUS ? `${city} Logistics Terminal` : `${city} International Gateway`,
+    isExactCoordinate: true,
+  };
+}
+
+/**
+ * Secondary live geocoder: OpenStreetMap Nominatim. Handles fuller street-style queries, but
+ * its public server rate-limits aggressively and blocks some networks outright (403), so it
+ * is only tried when Open-Meteo has no answer.
+ */
+async function geocodeNominatim(query: string, countryName: string, localMatch: GeoLocationResult | null): Promise<GeoLocationResult | null> {
+  const encoded = encodeURIComponent(`${query}, ${countryName}`);
+  const resp = await fetchWithTimeout(
+    `https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&addressdetails=1&limit=1&accept-language=en`,
+    4000
+  );
+  if (!resp.ok) return null;
+  const data = await resp.json();
+  if (!Array.isArray(data) || data.length === 0) return null;
+
+  const item = data[0];
+  const addr = item.address || {};
+  const countryCode = String(addr.country_code || '').toUpperCase();
+  const isUS = countryCode === 'US';
+  const lat = parseFloat(item.lat);
+  const lng = parseFloat(item.lon);
+  const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || localMatch?.city || query.split(',')[0].trim();
+
+  let state: string;
+  let stateFull: string;
+  let timezone: string;
+  if (isUS) {
+    state = addr['ISO3166-2-lvl4']?.replace('US-', '') || addr.state_code || localMatch?.state || '';
+    stateFull = STATE_NAMES[state] || addr.state || localMatch?.stateFull || state;
+    timezone = getTimezoneForState(state);
+  } else {
+    // Outside the US the region's full name reads better than an ISO subdivision code.
+    state = addr.state || addr.region || addr.province || addr.state_district || '';
+    stateFull = state;
+    timezone = internationalTimezone(lat, lng, addr.country || countryName);
+  }
+
+  return {
+    formattedAddress: item.display_name,
+    city,
+    state,
+    stateFull,
+    zip: addr.postcode || localMatch?.zip,
+    country: isUS ? 'United States' : (addr.country || countryName),
+    countryCode: countryCode || undefined,
+    lat,
+    lng,
+    timezone,
+    facilityName: isUS ? `${city} Logistics Terminal` : `${city} International Gateway`,
+    isExactCoordinate: true
+  };
+}
+
+/**
+ * Asynchronously geocodes a place using live providers (Open-Meteo, then Nominatim) with an
+ * in-memory cache, falling back to the offline reference tables.
+ * `country` omitted (or any spelling of the US) keeps the original US-only search.
+ */
+export async function geocodeAddressLive(query: string, country?: string): Promise<GeoLocationResult | null> {
   const cleanQuery = (query || '').trim();
   if (!cleanQuery) return null;
 
-  const cacheKey = cleanQuery.toLowerCase();
+  const international = !isUnitedStates(country);
+  const countryName = international ? canonicalCountry(country) : 'United States';
+
+  const cacheKey = `${cleanQuery.toLowerCase()}|${countryName.toLowerCase()}`;
   if (GEOCODE_CACHE.has(cacheKey)) {
     return GEOCODE_CACHE.get(cacheKey)!;
   }
 
-  // Check local offline table first for instant response
-  const localMatch = resolveLocation(cleanQuery);
+  // Offline match: the fallback if every live provider fails. Never the US table for an
+  // international query (e.g. "Birmingham" would otherwise match Birmingham, AL).
+  const worldMatch = international ? findWorldCity(cleanQuery, countryName) : null;
+  const localMatch = international ? (worldMatch ? worldCityToGeo(worldMatch) : null) : resolveLocation(cleanQuery);
 
-  try {
-    const encoded = encodeURIComponent(`${cleanQuery}, United States`);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2200); // 2.2s timeout
-
-    const resp = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&addressdetails=1&limit=1`,
-      {
-        signal: controller.signal,
-        headers: { 'Accept': 'application/json' }
-      }
-    );
-    clearTimeout(timeoutId);
-
-    if (resp.ok) {
-      const data = await resp.json();
-      if (Array.isArray(data) && data.length > 0) {
-        const item = data[0];
-        const addr = item.address || {};
-        const city = addr.city || addr.town || addr.village || addr.county || localMatch?.city || 'Metro City';
-        const state = addr['ISO3166-2-lvl4']?.replace('US-', '') || addr.state_code || localMatch?.state || 'NY';
-        const stateFull = STATE_NAMES[state] || addr.state || localMatch?.stateFull || 'New York';
-        const zip = addr.postcode || localMatch?.zip;
-        const lat = parseFloat(item.lat);
-        const lng = parseFloat(item.lon);
-
-        const result: GeoLocationResult = {
-          formattedAddress: item.display_name,
-          city,
-          state,
-          stateFull,
-          zip,
-          country: 'United States',
-          lat,
-          lng,
-          timezone: getTimezoneForState(state),
-          facilityName: `${city} Logistics Terminal`,
-          isExactCoordinate: true
-        };
-
+  const providers = [
+    () => geocodeOpenMeteo(cleanQuery, countryName, international),
+    () => geocodeNominatim(cleanQuery, countryName, localMatch),
+  ];
+  for (const provider of providers) {
+    try {
+      const result = await provider();
+      if (result) {
         GEOCODE_CACHE.set(cacheKey, result);
         return result;
       }
+    } catch {
+      // Network error / timeout: try the next provider.
     }
-  } catch {
-    // Fall back smoothly to reference database on network / timeout
   }
 
   if (localMatch) {
@@ -376,16 +567,20 @@ export async function geocodeAddressLive(query: string): Promise<GeoLocationResu
 }
 
 /**
- * Hybrid resolver: instant for the ~80 major metros already in the offline table (no network
- * call, so shipment creation / quote submission stay fast for the common case), and only
- * falls through to the live geocoding API for everything else — smaller towns that would
+ * Hybrid resolver: instant for the major metros/cities already in the offline tables (no
+ * network call, so shipment creation / quote submission stay fast for the common case), and
+ * only falls through to the live geocoding API for everything else — smaller towns that would
  * otherwise silently resolve to their state's rough centroid instead of their real location.
  * This is the function shipment/quote creation should call instead of the synchronous
- * resolveLocation() alone, whenever the extra ~200ms-2s for an uncommon town is acceptable
+ * resolveLocation() alone, whenever the extra ~200ms-4s for an uncommon town is acceptable
  * (i.e. not on every keystroke, but on final submit).
+ *
+ * `country` omitted or any spelling of the US keeps the original US-only behavior. For any
+ * other country, an unrecognized place returns null rather than a guessed coordinate — the
+ * caller should ask the user to check the spelling instead of plotting it somewhere wrong.
  */
-export async function resolveLocationPrecise(input: string): Promise<GeoLocationResult | null> {
-  const local = resolveLocation(input);
+export async function resolveLocationPrecise(input: string, country?: string): Promise<GeoLocationResult | null> {
+  const local = resolveLocation(input, country);
   if (local?.isExactCoordinate) {
     return local;
   }
@@ -393,7 +588,7 @@ export async function resolveLocationPrecise(input: string): Promise<GeoLocation
   // network round-trip to get the real town. geocodeAddressLive() already falls back to the
   // same local result on failure/timeout, so this never regresses below what resolveLocation
   // alone would have given.
-  const live = await geocodeAddressLive(input);
+  const live = await geocodeAddressLive(input, country);
   return live || local;
 }
 
@@ -421,8 +616,26 @@ export function findNearestMetro(lat: number, lng: number): { city: string; stat
  * Guarantees that ANY US state (e.g. "Texas", "Washington DC", "Florida", "Ohio"), city, or ZIP code
  * will immediately map to accurate geographic coordinates and display correctly on the map.
  */
-export function resolveLocation(input: string): GeoLocationResult | null {
+export function resolveLocation(input: string, country?: string): GeoLocationResult | null {
   if (!input) return null;
+
+  // International: only the offline world table applies. Returns null when the city isn't in
+  // it (the caller falls through to the live geocoder) — never the US-centroid fallback below.
+  if (!isUnitedStates(country)) {
+    const c = findWorldCity(input, canonicalCountry(country));
+    return c ? worldCityToGeo(c) : null;
+  }
+  // No country given, but the input itself ends in a non-US country the world table knows
+  // ("London, United Kingdom", "Lagos, Nigeria") — don't parse it as a US address.
+  if (!country) {
+    const parts = input.split(',').map(p => p.trim()).filter(Boolean);
+    const tail = parts.length > 1 ? canonicalCountry(parts[parts.length - 1]) : '';
+    if (tail && !isUnitedStates(tail) && WORLD_TABLE_COUNTRIES.has(normalizePlace(tail))) {
+      const c = findWorldCity(parts.slice(0, -1).join(', '), tail);
+      return c ? worldCityToGeo(c) : null;
+    }
+  }
+
   const cleaned = input.replace(/\b(usa|united states)\b/gi, '').replace(/^[,\s]+|[,\s]+$/g, '').trim();
   if (!cleaned) return null;
   const trimmed = cleaned;
