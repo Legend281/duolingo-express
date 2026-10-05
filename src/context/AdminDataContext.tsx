@@ -3,7 +3,10 @@ import { Shipment, ShipmentStatus, TrackingEvent } from '../types/shipment';
 import { QuoteRequest, QuoteRequestStatus, QuoteRequestPricing, AdminNotification, AdminSettings, AdminDocument, DocumentStatus, DocumentVersion } from '../types/admin';
 import { api } from '../services/api';
 import { simulationEngine } from '../services/simulationEngine';
-import { resolveLocation, resolveLocationPrecise } from '../services/geocodingService';
+import { resolveLocation, resolveLocationPrecise, formatPlace } from '../services/geocodingService';
+import { isUnitedStates, pickerCountryName } from '../services/worldCities';
+import { calculateRouteGeometry } from '../services/routingEngine';
+import { generateShipmentPlan } from '../services/planningEngine';
 import { MOCK_SHIPMENTS } from '../data/mockShipments';
 import { applyForwardOnlyShipmentUpdate } from '../utils/shipmentSync';
 
@@ -497,12 +500,16 @@ const normalizeShipment = (s: any): Shipment => {
       requesterPhone: qd.requesterPhone || qd.customerPhone || '(555) 000-0000',
       requesterCompany: qd.requesterCompany || qd.company,
       recipientName: qd.recipientName || 'Designated Consignee',
+      // Demo defaults only when no location was given at all — a real city with a blank
+      // state/ZIP (normal outside the US) stays blank instead of becoming "Lagos, NY 10001".
       originCity: qd.originCity || qd.origin?.city || 'New York',
-      originState: qd.originState || qd.origin?.state || 'NY',
-      originZip: qd.originZip || qd.origin?.postalCode || '10001',
+      originState: qd.originState || qd.origin?.state || ((qd.originCity || qd.origin?.city) ? '' : 'NY'),
+      originZip: qd.originZip || qd.origin?.postalCode || ((qd.originCity || qd.origin?.city) ? '' : '10001'),
+      originCountry: qd.originCountry || qd.origin?.country || 'United States',
       destCity: qd.destCity || qd.destination?.city || 'Los Angeles',
-      destState: qd.destState || qd.destination?.state || 'CA',
-      destZip: qd.destZip || qd.destination?.postalCode || '90071',
+      destState: qd.destState || qd.destination?.state || ((qd.destCity || qd.destination?.city) ? '' : 'CA'),
+      destZip: qd.destZip || qd.destination?.postalCode || ((qd.destCity || qd.destination?.city) ? '' : '90071'),
+      destCountry: qd.destCountry || qd.destination?.country || 'United States',
       requestedService: qd.requestedService || qd.service || 'Standard',
       cargoType: qd.cargoType || qd.shipmentType || 'Parcel',
       cargoDescription: qd.cargoDescription || 'Consignment Cargo',
@@ -528,15 +535,49 @@ const normalizeShipment = (s: any): Shipment => {
     const trackingNumber = `DXP-2026-${randomSuffix}`;
 
     const tq = targetQuote as any;
+    const hasOriginCity = !!(tq.originCity || tq.origin?.city);
+    const hasDestCity = !!(tq.destCity || tq.destination?.city);
     const originCity = tq.originCity || tq.origin?.city || 'New York';
-    const originState = tq.originState || tq.origin?.state || 'NY';
+    // A blank state is normal outside the US; demo defaults only when there's no city at all.
+    const originState = tq.originState || tq.origin?.state || (hasOriginCity ? '' : 'NY');
     const destCity = tq.destCity || tq.destination?.city || 'Los Angeles';
-    const destState = tq.destState || tq.destination?.state || 'CA';
+    const destState = tq.destState || tq.destination?.state || (hasDestCity ? '' : 'CA');
+    const originCountry = pickerCountryName(tq.originCountry || tq.origin?.country);
+    const destCountry = pickerCountryName(tq.destCountry || tq.destination?.country);
+    const originZip = tq.originZip || tq.origin?.postalCode || '';
+    const destZip = tq.destZip || tq.destination?.postalCode || '';
 
-    // resolveLocationPrecise: instant for major metros, falls through to live geocoding for
-    // smaller towns instead of silently landing on the state's rough centroid.
-    const originGeo = await resolveLocationPrecise(tq.originZip || `${originCity}, ${originState}`);
-    const destGeo = await resolveLocationPrecise(tq.destZip || `${destCity}, ${destState}`);
+    // resolveLocationPrecise: instant for major metros/world cities, falls through to live
+    // geocoding for smaller towns. US quotes may look up by ZIP; elsewhere by city + region in
+    // the quote's country.
+    const lookup = (city: string, state: string, zip: string, country: string) =>
+      resolveLocationPrecise(isUnitedStates(country) && zip ? zip : [city, state].filter(Boolean).join(', '), country);
+    const originGeo = await lookup(originCity, originState, originZip, originCountry);
+    const destGeo = await lookup(destCity, destState, destZip, destCountry);
+    // No US coordinate is a safe stand-in for a city abroad — stop before creating anything.
+    const notFound = [
+      !originGeo && !isUnitedStates(originCountry) ? `"${originCity}" in ${originCountry}` : null,
+      !destGeo && !isUnitedStates(destCountry) ? `"${destCity}" in ${destCountry}` : null,
+    ].filter(Boolean);
+    if (notFound.length > 0) {
+      throw new Error(`Couldn't locate ${notFound.join(' or ')}. Correct the quote's city spelling, then convert again.`);
+    }
+    const originPt = { lat: originGeo?.lat || 40.7128, lng: originGeo?.lng || -74.0060 };
+    const destPt = { lat: destGeo?.lat || 34.0522, lng: destGeo?.lng || -118.2437 };
+    const originPlace = formatPlace(originCity, originState, originCountry);
+
+    // Real ETA from today's date and the route (it used to be a fixed "Aug 25, 2026").
+    const service = tq.requestedService || tq.service || 'Standard';
+    const route = calculateRouteGeometry(
+      { ...originPt, name: originCity, country: originCountry, state: originState },
+      { ...destPt, name: destCity, country: destCountry, state: destState }
+    );
+    const plan = generateShipmentPlan(
+      { city: originCity, state: originState, country: originCountry, ...originPt },
+      { city: destCity, state: destState, country: destCountry, ...destPt },
+      service,
+      route.distanceMiles
+    );
 
     const newShipment: any = {
       id: `shp-${Date.now()}`,
@@ -550,7 +591,7 @@ const normalizeShipment = (s: any): Shipment => {
       progressPercent: 15,
       lastUpdated: 'Just now',
       createdAt: 'Today',
-      service: tq.requestedService || tq.service || 'Standard',
+      service,
       shipmentType: tq.cargoType || tq.shipmentType || 'Parcel',
       cargoCategory: tq.cargoCategory || 'General Freight',
       cargoDescription: tq.cargoDescription || 'Commercial Freight Cargo',
@@ -561,20 +602,18 @@ const normalizeShipment = (s: any): Shipment => {
       origin: {
         city: originCity,
         state: originState,
-        country: 'United States',
-        lat: originGeo?.lat || 40.7128,
-        lng: originGeo?.lng || -74.0060,
+        country: originCountry,
+        ...originPt,
         facility: originGeo?.facilityName || `${originCity} Gateway Hub`
       },
       destination: {
         city: destCity,
         state: destState,
-        country: 'United States',
-        lat: destGeo?.lat || 34.0522,
-        lng: destGeo?.lng || -118.2437,
+        country: destCountry,
+        ...destPt,
         facility: destGeo?.facilityName || `${destCity} Sort Hub`
       },
-      currentLocation: `${originCity}, ${originState}`,
+      currentLocation: { city: originCity, state: originState, country: originCountry, ...originPt },
       currentFacility: 'Origin Gateway Hub',
       sender: {
         name: tq.requesterName || tq.customerName || 'Shipper',
@@ -583,18 +622,18 @@ const normalizeShipment = (s: any): Shipment => {
         email: tq.requesterEmail || tq.customerEmail,
         city: originCity,
         state: originState,
-        postalCode: tq.originZip || tq.origin?.postalCode || '10001',
-        country: 'USA'
+        postalCode: originZip,
+        country: originCountry
       },
       recipient: {
         name: tq.recipientName || 'Designated Consignee',
         city: destCity,
         state: destState,
-        postalCode: tq.destZip || tq.destination?.postalCode || '90001',
-        country: 'USA'
+        postalCode: destZip,
+        country: destCountry
       },
-      estimatedDelivery: 'Aug 25, 2026',
-      estimatedDeliveryDetail: 'by 5:00 PM',
+      estimatedDelivery: plan.estimatedDeliveryDate,
+      estimatedDeliveryDetail: `by ${plan.estimatedDeliveryTime}`,
       pieces: [
         {
           id: `${trackingNumber}-P1`,
@@ -603,7 +642,7 @@ const normalizeShipment = (s: any): Shipment => {
           trackingNumber: `${trackingNumber}-01`,
           status: 'RECEIVED',
           statusText: 'Consignment Registered',
-          currentLocation: `${originCity}, ${originState}`,
+          currentLocation: originPlace,
           weightLbs: tq.totalWeightLbs || tq.weightLbs || 45,
           dimensions: typeof tq.dimensions === 'object' ? tq.dimensions : { length: 12, width: 12, height: 12 }
         }
@@ -613,7 +652,7 @@ const normalizeShipment = (s: any): Shipment => {
           id: `e-${Date.now()}`,
           status: 'RECEIVED',
           title: 'Consignment Registered from Rate Quote',
-          location: `${originCity}, ${originState}`,
+          location: originPlace,
           facility: 'Origin Gateway Hub',
           timestamp: 'Just now',
           description: `Consignment generated from approved quote ${targetQuote.id}. Linear Code 128 barcode assigned.`,
@@ -675,9 +714,11 @@ const normalizeShipment = (s: any): Shipment => {
       senderCompany: tq.requesterCompany,
       senderCity: originCity,
       senderState: originState,
+      senderCountry: originCountry,
       recipientName: tq.recipientName || 'Consignee',
       recipientCity: destCity,
       recipientState: destState,
+      recipientCountry: destCountry,
       cargoDescription: tq.cargoDescription || 'Commercial Freight Cargo',
       shipmentType: tq.cargoType || 'Parcel',
       service: tq.requestedService || 'Priority Express',
@@ -710,9 +751,11 @@ const normalizeShipment = (s: any): Shipment => {
       senderName: tq.requesterName || 'Shipper',
       senderCity: originCity,
       senderState: originState,
+      senderCountry: originCountry,
       recipientName: tq.recipientName || 'Consignee',
       recipientCity: destCity,
       recipientState: destState,
+      recipientCountry: destCountry,
       cargoDescription: tq.cargoDescription || 'Commercial Freight Cargo',
       shipmentType: tq.cargoType || 'Parcel',
       service: tq.requestedService || 'Priority Express',
@@ -756,10 +799,13 @@ const normalizeShipment = (s: any): Shipment => {
     const destCity = typeof shipmentData.destination === 'object' ? shipmentData.destination.city : (shipmentData.destination || 'Los Angeles');
     const destState = typeof shipmentData.destination === 'object' ? shipmentData.destination.state : 'CA';
 
+    // An object location is kept as-is (same shape the server returns after a refresh) so its
+    // country and coordinates survive — flattening it to "City, State" dropped the country, and
+    // the just-booked shipment showed "Enugu, Enugu State" until the page was reloaded.
     const normalizedLocation = typeof shipmentData.currentLocation === 'string'
       ? shipmentData.currentLocation
       : (typeof shipmentData.currentLocation === 'object' && (shipmentData.currentLocation as any)?.city
-          ? `${(shipmentData.currentLocation as any).city}, ${(shipmentData.currentLocation as any).state || ''}`
+          ? shipmentData.currentLocation
           : `${originCity}, ${originState}`);
 
     const normalizedDelivery = typeof shipmentData.estimatedDelivery === 'string'

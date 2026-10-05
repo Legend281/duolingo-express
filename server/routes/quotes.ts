@@ -316,8 +316,10 @@ quotesRouter.post('/:id/convert', requireAdminAuth, (req: Request, res: Response
       15,
       'Just now',
       createdAt,
-      'August 25, 2026',
-      'by 5:00 PM',
+      // The admin client computes a real ETA from today's date and the route; this used to be
+      // a fixed 'August 25, 2026' for every converted quote, regardless of when or where.
+      (typeof s.estimatedDelivery === 'string' ? s.estimatedDelivery : s.estimatedDelivery?.date) || 'August 25, 2026',
+      s.estimatedDeliveryDetail || (typeof s.estimatedDelivery === 'object' ? s.estimatedDelivery?.timeWindow : null) || 'by 5:00 PM',
       s.service || q.service,
       s.shipmentType || q.shipmentType,
       s.cargoDescription || q.cargoDescription,

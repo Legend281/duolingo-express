@@ -192,6 +192,13 @@
   text-align: center;
 }
 
+/* Non-US: a free-text region name ("Western Australia"), not a 2-letter code. */
+.city-state-row .input-state.input-region {
+  flex: 2;
+  max-width: none;
+  text-align: left;
+}
+
 .dimensions-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

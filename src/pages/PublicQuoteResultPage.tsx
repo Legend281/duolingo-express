@@ -22,7 +22,31 @@ import {
 } from 'lucide-react';
 import { QuoteRequest } from '../types/admin';
 import { useAdminData } from '../context/AdminDataContext';
+import { formatPlace } from '../services/geocodingService';
+import { isUnitedStates } from '../services/worldCities';
 import './PublicQuoteResultPage.css';
+
+/**
+ * One side of a quote's route, read from either the flat (originCity) or nested (origin.city)
+ * shape. Nothing is invented: a blank state or ZIP stays blank (this page used to show
+ * "New York, NY ZIP 10118" for any missing value, which is wrong for a non-US address).
+ */
+function quoteSide(quote: any, side: 'origin' | 'dest') {
+  const nested = side === 'origin' ? quote.origin : quote.destination;
+  const city = (side === 'origin' ? quote.originCity : quote.destCity) || nested?.city || '';
+  const state = (side === 'origin' ? quote.originState : quote.destState) || nested?.state || '';
+  const postal = (side === 'origin' ? quote.originZip : quote.destZip) || nested?.postalCode || '';
+  const country = (side === 'origin' ? quote.originCountry : quote.destCountry) || nested?.country || 'United States';
+  const isUS = isUnitedStates(country);
+  return {
+    city: city || (side === 'origin' ? 'Origin' : 'Destination'),
+    place: formatPlace(city, state, country) || (side === 'origin' ? 'Origin' : 'Destination'),
+    postalLabel: postal ? `${isUS ? 'ZIP' : 'Postal'} ${postal}` : '',
+    postal,
+    isUS,
+    country,
+  };
+}
 
 interface PublicQuoteResultPageProps {
   quote: QuoteRequest;
@@ -50,6 +74,9 @@ export const PublicQuoteResultPage: React.FC<PublicQuoteResultPageProps> = ({
 
   const isPublished = quote.status === 'QUOTE_PUBLISHED' || quote.status === 'ACCEPTED' || quote.status === 'CONVERTED' || (quote.pricing && quote.pricing.finalPrice > 0);
   const isPending = quote.status === 'NEW' || quote.status === 'UNDER_REVIEW';
+  const originSide = quoteSide(quote, 'origin');
+  const destSide = quoteSide(quote, 'dest');
+  const isInternational = originSide.country !== destSide.country;
 
   const formatDimensions = (dims: any) => {
     if (!dims) return '72 × 24 × 18 in';
@@ -160,7 +187,7 @@ export const PublicQuoteResultPage: React.FC<PublicQuoteResultPageProps> = ({
                     <span className="deck-title">OFFICIAL CHARGES BREAKDOWN</span>
                     <div className="charges-table">
                       <div className="charge-row">
-                        <span>Interstate Linehaul Transport ({quote.originCity || 'NY'} → {quote.destCity || 'CA'})</span>
+                        <span>{isInternational ? 'International' : 'Interstate'} Linehaul Transport ({originSide.city} → {destSide.city})</span>
                         <strong className="font-mono">${Number(baseShipping).toFixed(2)}</strong>
                       </div>
                       <div className="charge-row">
@@ -228,7 +255,7 @@ export const PublicQuoteResultPage: React.FC<PublicQuoteResultPageProps> = ({
                   </div>
                   <h3>Central Tariff Desk Review in Progress</h3>
                   <p>
-                    Our rating team is actively calculating the interstate transit cost based on verified carrier linehaul schedules. Once published, your price will automatically appear on this page.
+                    Our rating team is actively calculating the {isInternational ? 'international' : 'interstate'} transit cost based on verified carrier schedules. Once published, your price will automatically appear on this page.
                   </p>
                   <div className="hotline-banner">
                     <Phone size={16} className="text-blue" />
@@ -247,8 +274,8 @@ export const PublicQuoteResultPage: React.FC<PublicQuoteResultPageProps> = ({
                 <div className="route-banner-grid">
                   <div className="route-loc origin">
                     <span className="loc-tag">ORIGIN</span>
-                    <strong>{quote.originCity || (quote as any).origin?.city || 'New York'}, {quote.originState || (quote as any).origin?.state || 'NY'}</strong>
-                    <small className="font-mono">ZIP {quote.originZip || (quote as any).origin?.postalCode || '10118'}</small>
+                    <strong>{originSide.place}</strong>
+                    {originSide.postalLabel && <small className="font-mono">{originSide.postalLabel}</small>}
                   </div>
                   <div className="route-center-line">
                     <div className="line" />
@@ -257,8 +284,8 @@ export const PublicQuoteResultPage: React.FC<PublicQuoteResultPageProps> = ({
                   </div>
                   <div className="route-loc dest">
                     <span className="loc-tag">DESTINATION</span>
-                    <strong>{quote.destCity || (quote as any).destination?.city || 'Los Angeles'}, {quote.destState || (quote as any).destination?.state || 'CA'}</strong>
-                    <small className="font-mono">ZIP {quote.destZip || (quote as any).destination?.postalCode || '90021'}</small>
+                    <strong>{destSide.place}</strong>
+                    {destSide.postalLabel && <small className="font-mono">{destSide.postalLabel}</small>}
                   </div>
                 </div>
 
@@ -412,7 +439,7 @@ export const PublicQuoteResultPage: React.FC<PublicQuoteResultPageProps> = ({
             <span className="box-title">ORIGIN & SHIPPER</span>
             <strong>{quote.requesterName || (quote as any).customerName || 'Shipper'}</strong>
             {(quote as any).requesterCompany || (quote as any).company ? <span>{(quote as any).requesterCompany || (quote as any).company}</span> : null}
-            <span>{quote.originCity || (quote as any).origin?.city || 'New York'}, {quote.originState || (quote as any).origin?.state || 'NY'} {quote.originZip || (quote as any).origin?.postalCode || '10118'}</span>
+            <span>{originSide.place}{originSide.postal ? ` ${originSide.postal}` : ''}</span>
             <span>Tel: {quote.requesterPhone || (quote as any).customerPhone || '—'}</span>
             <span>Email: {quote.requesterEmail || (quote as any).customerEmail || '—'}</span>
           </div>
@@ -420,9 +447,9 @@ export const PublicQuoteResultPage: React.FC<PublicQuoteResultPageProps> = ({
           <div className="print-party-box">
             <span className="box-title">DESTINATION CONSIGNEE</span>
             <strong>{quote.recipientName || 'Designated Receiving Party'}</strong>
-            <span>{quote.destCity || (quote as any).destination?.city || 'Los Angeles'}, {quote.destState || (quote as any).destination?.state || 'CA'} {quote.destZip || (quote as any).destination?.postalCode || '90021'}</span>
+            <span>{destSide.place}{destSide.postal ? ` ${destSide.postal}` : ''}</span>
             <span>Requested Service: <strong>{quote.requestedService || (quote as any).service || 'Standard Ground'}</strong></span>
-            <span>Linehaul Transit: <strong>Interstate Direct Corridor</strong></span>
+            <span>Linehaul Transit: <strong>{isInternational ? 'International Direct Route' : 'Interstate Direct Corridor'}</strong></span>
           </div>
         </div>
 
@@ -463,7 +490,7 @@ export const PublicQuoteResultPage: React.FC<PublicQuoteResultPageProps> = ({
           </thead>
           <tbody>
             <tr>
-              <td>Interstate Linehaul Line Transport ({quote.originCity || 'NY'} → {quote.destCity || 'CA'})</td>
+              <td>{isInternational ? 'International' : 'Interstate'} Linehaul Line Transport ({originSide.city} → {destSide.city})</td>
               <td>Contract Tariff Rate</td>
               <td className="text-right font-mono">${Number(baseShipping).toFixed(2)}</td>
             </tr>

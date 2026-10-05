@@ -210,6 +210,9 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   const destCity = liveShipment?.destination?.city || shipment?.destination?.city || 'Los Angeles';
   const destState = liveShipment?.destination?.state || shipment?.destination?.state || ((liveShipment?.destination?.city || shipment?.destination?.city) ? '' : 'CA');
   const destCountry = (liveShipment?.destination as any)?.country || (shipment?.destination as any)?.country || 'United States';
+  // "Austin, TX" in the US; "Leeds, England, United Kingdom" elsewhere.
+  const originPlace = formatPlace(originCity, originState, originCountry);
+  const destPlace = formatPlace(destCity, destState, destCountry);
   const destZip = (liveShipment?.recipient as any)?.postalCode || (liveShipment?.destination as any)?.zip || (shipment?.recipient as any)?.postalCode || (shipment?.destination as any)?.zip;
   const originFacility = (liveShipment?.origin as any)?.facilityName || (shipment?.origin as any)?.facilityName || `${originCity} Gateway Terminal`;
   const destFacility = (liveShipment?.destination as any)?.facilityName || (shipment?.destination as any)?.facilityName || `${destCity} Distribution Center`;
@@ -233,12 +236,12 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
     : isDelayed
     ? `Your shipment's transit has been delayed${holdOrDelayReason ? `: ${holdOrDelayReason}` : ''}. The estimated delivery below reflects the revised schedule.`
     : status === 'DELIVERED'
-    ? `Your package was delivered to ${destCity}, ${destState}.`
+    ? `Your package was delivered to ${destPlace}.`
     : isOutForDelivery
-    ? `Your package is out for delivery today in ${destCity}, ${destState}.`
+    ? `Your package is out for delivery today in ${destPlace}.`
     : status === 'RECEIVED'
-    ? `Your package has been received and is awaiting pickup for transit to ${destCity}, ${destState}.`
-    : `Your package is on its way to ${destCity}, ${destState}.`;
+    ? `Your package has been received and is awaiting pickup for transit to ${destPlace}.`
+    : `Your package is on its way to ${destPlace}.`;
 
   const currentCity = typeof liveShipment?.currentLocation === 'string'
     ? liveShipment.currentLocation.split(',')[0].trim()
@@ -541,7 +544,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
           timezone: 'ET',
           displayDate: dStr,
           displayTime: tStr,
-          title: `Delivered to Consignee — ${destCity}, ${destState}`,
+          title: `Delivered to Consignee — ${destPlace}`,
           facility: `${destCity} Consignee Delivery Address`,
           city: destCity,
           state: destState,
@@ -658,12 +661,12 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
           <div className="hero-route-strip">
             <div className="hero-route-stop">
               <MapPin size={16} className="text-blue" />
-              <span>{originCity}, {originState}</span>
+              <span>{originPlace}</span>
             </div>
             <ArrowRight size={14} className="hero-route-arrow" />
             <div className="hero-route-stop">
               <MapPin size={16} className="text-blue" />
-              <span>{destCity}, {destState}</span>
+              <span>{destPlace}</span>
             </div>
           </div>
 
@@ -746,7 +749,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
             <RotateCcw size={18} className="text-amber" />
             <div>
               <strong>Return to Origin In Progress ({shipment.returnLeg.reason})</strong>
-              <p>Consignment journey reversed back to sender at {originCity}, {originState}. Return tracking: <span className="font-mono">{shipment.returnLeg.returnTrackingNumber}</span></p>
+              <p>Consignment journey reversed back to sender at {originPlace}. Return tracking: <span className="font-mono">{shipment.returnLeg.returnTrackingNumber}</span></p>
             </div>
           </div>
         )}
@@ -877,7 +880,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
               </div>
               <div className="corridor-point-text">
                 <span className="corridor-label">ORIGIN TERMINAL</span>
-                <strong className="corridor-city">{originCity}, {originState}</strong>
+                <strong className="corridor-city">{originPlace}</strong>
                 <small className="corridor-facility">{originFacility}</small>
               </div>
             </div>
@@ -916,7 +919,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
               </div>
               <div className="corridor-point-text">
                 <span className="corridor-label">FINAL DESTINATION</span>
-                <strong className="corridor-city">{destCity}, {destState}</strong>
+                <strong className="corridor-city">{destPlace}</strong>
                 <small className="corridor-facility">{destFacility}</small>
               </div>
             </div>
@@ -1262,7 +1265,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
                   <div className="dtl-cell-content">
                     <small>Origin</small>
                     <strong>
-                      {originCity}, {originState}
+                      {originPlace}
                       <span className="gps-sub font-mono">
                         ({originGeo.lat.toFixed(4)}, {originGeo.lng.toFixed(4)})
                       </span>
@@ -1284,7 +1287,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
                   <div className="dtl-cell-content">
                     <small>Destination</small>
                     <strong>
-                      {destCity}, {destState}
+                      {destPlace}
                       <span className="gps-sub font-mono">
                         ({destGeo.lat.toFixed(4)}, {destGeo.lng.toFixed(4)})
                       </span>
@@ -1344,7 +1347,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
                   <h4 className="party-name">{senderName}</h4>
                   {senderCompany && <p className="party-company">{senderCompany}</p>}
                   {senderAddress && <p className="party-address">{senderAddress}</p>}
-                  <p className="party-city-state">{originCity}, {originState}{originZip ? ` ${originZip}` : ''}</p>
+                  <p className="party-city-state">{originPlace}{originZip ? ` ${originZip}` : ''}</p>
                   {senderPhone && (
                     <a href={`tel:${senderPhone.replace(/[^0-9+]/g, '')}`} className="party-phone-link font-mono">
                       <Phone size={13} />
@@ -1368,7 +1371,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
                   <h4 className="party-name">{recipientName}</h4>
                   {recipientCompany && <p className="party-company">{recipientCompany}</p>}
                   {recipientAddress && <p className="party-address">{recipientAddress}</p>}
-                  <p className="party-city-state">{destCity}, {destState}{destZip ? ` ${destZip}` : ''}</p>
+                  <p className="party-city-state">{destPlace}{destZip ? ` ${destZip}` : ''}</p>
                   {recipientPhone && (
                     <a href={`tel:${recipientPhone.replace(/[^0-9+]/g, '')}`} className="party-phone-link font-mono">
                       <Phone size={13} />

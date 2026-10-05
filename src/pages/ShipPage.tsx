@@ -23,7 +23,11 @@ import {
 } from 'lucide-react';
 import { Barcode } from '../components/Barcode';
 import { useAdminData } from '../context/AdminDataContext';
-import { resolveLocation } from '../services/geocodingService';
+import { resolveLocationPrecise, formatPlace } from '../services/geocodingService';
+import { isUnitedStates } from '../services/worldCities';
+import { calculateRouteGeometry } from '../services/routingEngine';
+import { generateShipmentPlan } from '../services/planningEngine';
+import { CountrySelect } from '../components/CountrySelect';
 import './ShipPage.css';
 
 interface ShipPageProps {
@@ -55,6 +59,8 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
   const [senderCity, setSenderCity] = useState('');
   const [senderState, setSenderState] = useState('');
   const [senderZip, setSenderZip] = useState('');
+  const [senderCountry, setSenderCountry] = useState('United States');
+  const senderIsUS = isUnitedStates(senderCountry);
   const [pickupType, setPickupType] = useState<'pickup' | 'dropoff'>('pickup');
   const [pickupWindow, setPickupWindow] = useState('Today 2:00 PM - 5:00 PM ET');
 
@@ -66,6 +72,8 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
   const [recipientCity, setRecipientCity] = useState('');
   const [recipientState, setRecipientState] = useState('');
   const [recipientZip, setRecipientZip] = useState('');
+  const [recipientCountry, setRecipientCountry] = useState('United States');
+  const recipientIsUS = isUnitedStates(recipientCountry);
   const [deliveryInstructions, setDeliveryInstructions] = useState('');
 
   // Form State - Pieces (Clean, empty piece item)
@@ -127,12 +135,13 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
   const validateStep = (step: number): boolean => {
     setFormError(null);
     if (step === 1) {
-      if (!senderContact.trim() || !senderPhone.trim() || !senderAddress.trim() || !senderCity.trim() || !senderState.trim() || !senderZip.trim()) {
+      // State and ZIP are required for US addresses only; elsewhere they're optional.
+      if (!senderContact.trim() || !senderPhone.trim() || !senderAddress.trim() || !senderCity.trim() || (senderIsUS && (!senderState.trim() || !senderZip.trim()))) {
         setFormError('Please fill out all required sender and pickup address fields before continuing.');
         return false;
       }
     } else if (step === 2) {
-      if (!recipientContact.trim() || !recipientPhone.trim() || !recipientAddress.trim() || !recipientCity.trim() || !recipientState.trim() || !recipientZip.trim()) {
+      if (!recipientContact.trim() || !recipientPhone.trim() || !recipientAddress.trim() || !recipientCity.trim() || (recipientIsUS && (!recipientState.trim() || !recipientZip.trim()))) {
         setFormError('Please fill out all required destination recipient fields before continuing.');
         return false;
       }
@@ -169,13 +178,42 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
       return;
     }
 
     setIsSubmitting(true);
+
+    // Look each place up in its own country (live lookup for towns not in the offline tables).
+    const originGeo = await resolveLocationPrecise([senderCity.trim(), senderState.trim()].filter(Boolean).join(', '), senderCountry);
+    const destGeo = await resolveLocationPrecise([recipientCity.trim(), recipientState.trim()].filter(Boolean).join(', '), recipientCountry);
+    // No US coordinate is a safe stand-in for a city abroad — ask instead of booking it wrong.
+    const notFound = [
+      !originGeo && !senderIsUS ? `pickup city "${senderCity.trim()}" in ${senderCountry}` : null,
+      !destGeo && !recipientIsUS ? `delivery city "${recipientCity.trim()}" in ${recipientCountry}` : null,
+    ].filter(Boolean);
+    if (notFound.length > 0) {
+      setFormError(`We couldn't find the ${notFound.join(' or the ')}. Please check the spelling (or use the nearest larger city) and try again.`);
+      setIsSubmitting(false);
+      return;
+    }
+    const originPt = { lat: originGeo?.lat || 31.9686, lng: originGeo?.lng || -99.9018 };
+    const destPt = { lat: destGeo?.lat || 38.9072, lng: destGeo?.lng || -77.0369 };
+    const originPlace = formatPlace(senderCity, senderState, senderCountry);
+    // Real ETA from today and the route (it used to be the text "2-3 Business Days" for every
+    // booking, which no date logic downstream could read).
+    const route = calculateRouteGeometry(
+      { ...originPt, name: senderCity, country: senderCountry, state: senderState },
+      { ...destPt, name: recipientCity, country: recipientCountry, state: recipientState }
+    );
+    const plan = generateShipmentPlan(
+      { city: senderCity, state: senderState, country: senderCountry, ...originPt },
+      { city: recipientCity, state: recipientState, country: recipientCountry, ...destPt },
+      getServiceName(),
+      route.distanceMiles
+    );
 
     const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
     const newTrackingId = `DXP-2026-${randomSuffix}`;
@@ -188,7 +226,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
       trackingNumber: `${newTrackingId}-${(idx + 1).toString().padStart(2, '0')}`,
       status: 'AWAITING_PICKUP' as const,
       statusText: 'Consignment Tender Staged for Intake',
-      currentLocation: `${senderCity}, ${senderState}`,
+      currentLocation: originPlace,
       weightLbs: parseFloat(p.weight) || 5.0,
       dimensions: {
         length: parseFloat(p.length) || 12,
@@ -197,8 +235,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
       }
     }));
 
-    const originGeo = resolveLocation([senderCity.trim(), senderState.trim()].filter(Boolean).join(', ')) || resolveLocation(senderCity.trim()) || resolveLocation(senderState.trim());
-    const destGeo = resolveLocation([recipientCity.trim(), recipientState.trim()].filter(Boolean).join(', ')) || resolveLocation(recipientCity.trim()) || resolveLocation(recipientState.trim());
+    // (originGeo / destGeo are resolved at the top of handleSubmit, by country.)
 
     // Register into persistent application state & backend database
     createShipment({
@@ -225,19 +262,17 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
       },
       origin: {
         city: senderCity,
-        state: senderState,
-        country: 'United States',
-        lat: originGeo?.lat || 31.9686,
-        lng: originGeo?.lng || -99.9018
+        state: senderState || originGeo?.state || '',
+        country: senderCountry,
+        ...originPt
       },
       destination: {
         city: recipientCity,
-        state: recipientState,
-        country: 'United States',
-        lat: destGeo?.lat || 38.9072,
-        lng: destGeo?.lng || -77.0369
+        state: recipientState || destGeo?.state || '',
+        country: recipientCountry,
+        ...destPt
       },
-      currentLocation: `${senderCity}, ${senderState}`,
+      currentLocation: { city: senderCity, state: senderState || originGeo?.state || '', country: senderCountry, ...originPt } as any,
       currentFacility: `${senderCity} Regional Gateway`,
       sender: {
         company: senderCompany,
@@ -247,7 +282,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
         city: senderCity,
         state: senderState,
         postalCode: senderZip,
-        country: 'United States'
+        country: senderCountry
       },
       recipient: {
         company: recipientCompany,
@@ -257,10 +292,10 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
         city: recipientCity,
         state: recipientState,
         postalCode: recipientZip,
-        country: 'United States'
+        country: recipientCountry
       },
-      estimatedDelivery: '2-3 Business Days',
-      estimatedDeliveryDetail: 'by 5:00 PM',
+      estimatedDelivery: plan.estimatedDeliveryDate,
+      estimatedDeliveryDetail: `by ${plan.estimatedDeliveryTime}`,
       pieces: piecesFormatted,
       events: [
         {
@@ -270,7 +305,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
           displayTime: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
           status: 'AWAITING_PICKUP',
           title: 'Consignment Tender Registered & Barcodes Provisioned',
-          location: `${senderCity}, ${senderState}`,
+          location: originPlace,
           facility: `${senderCity} Intake Hub`,
           city: senderCity,
           state: senderState,
@@ -293,6 +328,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
       senderCity: senderCity,
       senderState: senderState,
       senderZip: senderZip,
+      senderCountry: senderCountry,
       senderPhone: senderPhone,
       recipientName: recipientContact,
       recipientCompany: recipientCompany,
@@ -300,6 +336,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
       recipientCity: recipientCity,
       recipientState: recipientState,
       recipientZip: recipientZip,
+      recipientCountry: recipientCountry,
       recipientPhone: recipientPhone,
       cargoDescription: piecesList[0]?.description || 'Commercial Express Consignment',
       shipmentType: 'Parcel',
@@ -415,7 +452,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
               </div>
 
               <div className="barcode-block-meta">
-                <div><strong>Route:</strong> {senderCity}, {senderState} → {recipientCity}, {recipientState}</div>
+                <div><strong>Route:</strong> {formatPlace(senderCity, senderState, senderCountry)} → {formatPlace(recipientCity, recipientState, recipientCountry)}</div>
                 <div><strong>Pieces:</strong> {totalPieces} ({totalWeight.toFixed(1)} lbs gross)</div>
                 <div><strong>Tender Mode:</strong> {pickupType === 'pickup' ? 'Courier Pickup Scheduled' : 'Origin Hub Drop-off'}</div>
               </div>
@@ -511,7 +548,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
                   <span className="step-num">{currentStep > 1 ? '✓' : '1'}</span>
                   <div className="step-label-group">
                     <span className="step-title">Origin & Sender</span>
-                    <span className="step-sub">{senderCity ? `${senderCity}, ${senderState}` : 'Pickup'}</span>
+                    <span className="step-sub">{senderCity ? formatPlace(senderCity, senderState, senderCountry) : 'Pickup'}</span>
                   </div>
                 </button>
 
@@ -523,7 +560,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
                   <span className="step-num">{currentStep > 2 ? '✓' : '2'}</span>
                   <div className="step-label-group">
                     <span className="step-title">Destination</span>
-                    <span className="step-sub">{recipientCity ? `${recipientCity}, ${recipientState}` : 'Delivery'}</span>
+                    <span className="step-sub">{recipientCity ? formatPlace(recipientCity, recipientState, recipientCountry) : 'Delivery'}</span>
                   </div>
                 </button>
 
@@ -636,6 +673,11 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
                     </div>
 
                     <div className="form-group">
+                      <label>Country *</label>
+                      <CountrySelect value={senderCountry} onChange={setSenderCountry} className="dxp-input" />
+                    </div>
+
+                    <div className="form-group">
                       <label>City *</label>
                       <input
                         type="text"
@@ -643,32 +685,32 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
                         value={senderCity}
                         onChange={(e) => setSenderCity(e.target.value)}
                         className="dxp-input"
-                        placeholder="e.g. New York"
+                        placeholder={senderIsUS ? 'e.g. New York' : 'e.g. Lagos'}
                       />
                     </div>
 
                     <div className="form-group mini">
-                      <label>State *</label>
+                      <label>{senderIsUS ? 'State *' : 'Region'}</label>
                       <input
                         type="text"
-                        required
-                        maxLength={2}
+                        required={senderIsUS}
+                        maxLength={senderIsUS ? 2 : 35}
                         value={senderState}
-                        onChange={(e) => setSenderState(e.target.value.toUpperCase())}
-                        className="dxp-input uppercase font-mono"
-                        placeholder="NY"
+                        onChange={(e) => setSenderState(senderIsUS ? e.target.value.toUpperCase() : e.target.value)}
+                        className={senderIsUS ? 'dxp-input uppercase font-mono' : 'dxp-input'}
+                        placeholder={senderIsUS ? 'NY' : 'Optional'}
                       />
                     </div>
 
                     <div className="form-group mini">
-                      <label>ZIP Code *</label>
+                      <label>{senderIsUS ? 'ZIP Code *' : 'Postal Code'}</label>
                       <input
                         type="text"
-                        required
+                        required={senderIsUS}
                         value={senderZip}
                         onChange={(e) => setSenderZip(e.target.value)}
                         className="dxp-input font-mono"
-                        placeholder="10007"
+                        placeholder={senderIsUS ? '10007' : 'Optional'}
                       />
                     </div>
                   </div>
@@ -789,6 +831,11 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
                     </div>
 
                     <div className="form-group">
+                      <label>Country *</label>
+                      <CountrySelect value={recipientCountry} onChange={setRecipientCountry} className="dxp-input" />
+                    </div>
+
+                    <div className="form-group">
                       <label>City *</label>
                       <input
                         type="text"
@@ -796,32 +843,32 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
                         value={recipientCity}
                         onChange={(e) => setRecipientCity(e.target.value)}
                         className="dxp-input"
-                        placeholder="e.g. Los Angeles"
+                        placeholder={recipientIsUS ? 'e.g. Los Angeles' : 'e.g. London'}
                       />
                     </div>
 
                     <div className="form-group mini">
-                      <label>State *</label>
+                      <label>{recipientIsUS ? 'State *' : 'Region'}</label>
                       <input
                         type="text"
-                        required
-                        maxLength={2}
+                        required={recipientIsUS}
+                        maxLength={recipientIsUS ? 2 : 35}
                         value={recipientState}
-                        onChange={(e) => setRecipientState(e.target.value.toUpperCase())}
-                        className="dxp-input uppercase font-mono"
-                        placeholder="CA"
+                        onChange={(e) => setRecipientState(recipientIsUS ? e.target.value.toUpperCase() : e.target.value)}
+                        className={recipientIsUS ? 'dxp-input uppercase font-mono' : 'dxp-input'}
+                        placeholder={recipientIsUS ? 'CA' : 'Optional'}
                       />
                     </div>
 
                     <div className="form-group mini">
-                      <label>ZIP Code *</label>
+                      <label>{recipientIsUS ? 'ZIP Code *' : 'Postal Code'}</label>
                       <input
                         type="text"
-                        required
+                        required={recipientIsUS}
                         value={recipientZip}
                         onChange={(e) => setRecipientZip(e.target.value)}
                         className="dxp-input font-mono"
-                        placeholder="90017"
+                        placeholder={recipientIsUS ? '90017' : 'Optional'}
                       />
                     </div>
 
@@ -1134,7 +1181,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
                     <MapPin size={16} className="text-orange" />
                     <div>
                       <small>ORIGIN</small>
-                      <strong>{senderCity || 'Origin'}, {senderState || 'US'}</strong>
+                      <strong>{formatPlace(senderCity, senderState, senderCountry) || 'Origin'}</strong>
                     </div>
                   </div>
                   <div className="route-arrow-line">
@@ -1145,7 +1192,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
                     <MapPin size={16} className="text-orange" />
                     <div>
                       <small>DESTINATION</small>
-                      <strong>{recipientCity || 'Destination'}, {recipientState || 'US'}</strong>
+                      <strong>{formatPlace(recipientCity, recipientState, recipientCountry) || 'Destination'}</strong>
                     </div>
                   </div>
                 </div>

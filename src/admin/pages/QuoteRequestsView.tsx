@@ -31,6 +31,12 @@ import {
 import { useAdminData } from '../../context/AdminDataContext';
 import { QuoteRequest, QuoteRequestStatus, QuoteRequestPricing } from '../../types/admin';
 import './QuoteRequestsView.css';
+import { formatPlace } from '../../services/geocodingService';
+
+// "Austin, TX" in the US; "Lagos, Nigeria" elsewhere (quotes from before countries existed are US).
+const quotePlace = (q: any, side: 'origin' | 'dest') => side === 'origin'
+  ? formatPlace(q.originCity, q.originState, q.originCountry || q.origin?.country)
+  : formatPlace(q.destCity, q.destState, q.destCountry || q.destination?.country);
 
 export const QuoteRequestsView: React.FC = () => {
   const { quoteRequests, publishQuote, updateQuoteStatus, convertQuoteToShipment, settings } = useAdminData();
@@ -51,6 +57,7 @@ export const QuoteRequestsView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [serviceFilter, setServiceFilter] = useState<string>('ALL');
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [errorToast, setErrorToast] = useState<string | null>(null);
   const [isConverting, setIsConverting] = useState(false);
 
   // Pricing Form State (Ultra-Simple Single Amount)
@@ -126,6 +133,10 @@ export const QuoteRequestsView: React.FC = () => {
         setSuccessToast(`Accepted quote ${quoteId} converted directly to master shipment ${createdShipment.trackingNumber}!`);
         setTimeout(() => setSuccessToast(null), 5000);
       }
+    } catch (err: any) {
+      // e.g. a non-US city the geocoder can't find — nothing was created; say why.
+      setErrorToast(err?.message || 'Could not convert this quote.');
+      setTimeout(() => setErrorToast(null), 8000);
     } finally {
       setIsConverting(false);
     }
@@ -174,6 +185,12 @@ export const QuoteRequestsView: React.FC = () => {
           <span>{successToast}</span>
         </div>
       )}
+      {errorToast && (
+        <div className="quote-toast-error animate-fade-in" role="alert">
+          <AlertTriangle size={16} />
+          <span>{errorToast}</span>
+        </div>
+      )}
 
       {/* =========================================================================
           VIEW A: DETAIL WORKSPACE (If a quote is opened for review)
@@ -207,8 +224,8 @@ export const QuoteRequestsView: React.FC = () => {
               <div className="route-visual-banner">
                 <div className="route-node origin">
                   <span className="r-tag">ORIGIN</span>
-                  <strong>{selectedQuote.originCity}, {selectedQuote.originState}</strong>
-                  <small className="font-mono">{selectedQuote.originZip || '10001'}</small>
+                  <strong>{quotePlace(selectedQuote, 'origin')}</strong>
+                  {selectedQuote.originZip && <small className="font-mono">{selectedQuote.originZip}</small>}
                 </div>
                 <div className="route-divider-arrow">
                   <div className="line" />
@@ -217,8 +234,8 @@ export const QuoteRequestsView: React.FC = () => {
                 </div>
                 <div className="route-node dest">
                   <span className="r-tag">DESTINATION</span>
-                  <strong>{selectedQuote.destCity}, {selectedQuote.destState}</strong>
-                  <small className="font-mono">{selectedQuote.destZip || '90071'}</small>
+                  <strong>{quotePlace(selectedQuote, 'dest')}</strong>
+                  {selectedQuote.destZip && <small className="font-mono">{selectedQuote.destZip}</small>}
                 </div>
               </div>
 
@@ -652,9 +669,9 @@ export const QuoteRequestsView: React.FC = () => {
                       {/* Route */}
                       <td>
                         <div className="route-cell">
-                          <span>{quote.originCity}, {quote.originState}</span>
+                          <span>{quotePlace(quote, 'origin')}</span>
                           <ArrowRight size={12} className="route-arr" />
-                          <span>{quote.destCity}, {quote.destState}</span>
+                          <span>{quotePlace(quote, 'dest')}</span>
                         </div>
                       </td>
 

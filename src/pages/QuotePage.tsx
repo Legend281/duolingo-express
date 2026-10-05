@@ -22,6 +22,9 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAdminData } from '../context/AdminDataContext';
+import { CountrySelect } from '../components/CountrySelect';
+import { isUnitedStates } from '../services/worldCities';
+import { formatPlace } from '../services/geocodingService';
 import './QuotePage.css';
 
 interface QuotePageProps {
@@ -48,6 +51,10 @@ export const QuotePage: React.FC<QuotePageProps> = ({ onNavigate, initialService
   const [destCity, setDestCity] = useState('');
   const [destState, setDestState] = useState('');
   const [destZip, setDestZip] = useState('');
+  const [originCountry, setOriginCountry] = useState('United States');
+  const [destCountry, setDestCountry] = useState('United States');
+  const originIsUS = isUnitedStates(originCountry);
+  const destIsUS = isUnitedStates(destCountry);
 
   // Cargo Specs (Strict 4 Allowed Core Services, Zero Freight/Train/Ship)
   const [cargoDescription, setCargoDescription] = useState('');
@@ -121,15 +128,19 @@ export const QuotePage: React.FC<QuotePageProps> = ({ onNavigate, initialService
         company: company.trim() || undefined,
         customerEmail: customerEmail.trim(),
         customerPhone: customerPhone.trim(),
+        // Exactly what was entered — a blank state/ZIP stays blank (it used to be filled in
+        // as NY/10001 and CA/90001, which is wrong for any non-US address).
         origin: {
           city: originCity.trim(),
-          state: originState.trim() || 'NY',
-          postalCode: originZip.trim() || '10001'
+          state: originState.trim(),
+          postalCode: originZip.trim(),
+          country: originCountry
         },
         destination: {
           city: destCity.trim(),
-          state: destState.trim() || 'CA',
-          postalCode: destZip.trim() || '90001'
+          state: destState.trim(),
+          postalCode: destZip.trim(),
+          country: destCountry
         },
         cargoDescription: cargoDescription.trim() || 'Commercial Express Consignment',
         shipmentType: (cargoType === 'Vehicle / Automobile' ? 'Vehicle' : 'Parcel') as any,
@@ -163,8 +174,8 @@ export const QuotePage: React.FC<QuotePageProps> = ({ onNavigate, initialService
         company: company.trim() || undefined,
         customerEmail: customerEmail.trim(),
         customerPhone: customerPhone.trim(),
-        origin: { city: originCity, state: originState, postalCode: originZip },
-        destination: { city: destCity, state: destState, postalCode: destZip },
+        origin: { city: originCity, state: originState, postalCode: originZip, country: originCountry },
+        destination: { city: destCity, state: destState, postalCode: destZip, country: destCountry },
         cargoDescription: cargoDescription || 'Commercial Express Consignment',
         service,
         weightLbs: parseFloat(weight) || 10,
@@ -192,6 +203,8 @@ export const QuotePage: React.FC<QuotePageProps> = ({ onNavigate, initialService
     setDestCity('');
     setDestState('');
     setDestZip('');
+    setOriginCountry('United States');
+    setDestCountry('United States');
     setCargoDescription('');
     setWeight('');
     setPieces('1');
@@ -270,8 +283,8 @@ export const QuotePage: React.FC<QuotePageProps> = ({ onNavigate, initialService
                   <strong>{customerName} {company ? `(${company})` : ''}</strong>
                 </div>
                 <div className="rec-item">
-                  <small>Interstate Corridor:</small>
-                  <strong>{originCity || 'Origin'}, {originState || 'NY'} → {destCity || 'Dest'}, {destState || 'CA'}</strong>
+                  <small>Route:</small>
+                  <strong>{formatPlace(originCity, originState, originCountry) || 'Origin'} → {formatPlace(destCity, destState, destCountry) || 'Destination'}</strong>
                 </div>
                 <div className="rec-item">
                   <small>Cargo Consignment:</small>
@@ -404,35 +417,46 @@ export const QuotePage: React.FC<QuotePageProps> = ({ onNavigate, initialService
 
                 <div className="form-row-2">
                   <div className="form-group">
-                    <label>Origin City & State *</label>
+                    <label>Origin Country *</label>
+                    <CountrySelect value={originCountry} onChange={setOriginCountry} className="dxp-input" />
+                  </div>
+                  <div className="form-group">
+                    <label>Destination Country *</label>
+                    <CountrySelect value={destCountry} onChange={setDestCountry} className="dxp-input" />
+                  </div>
+                </div>
+
+                <div className="form-row-2">
+                  <div className="form-group">
+                    <label>{originIsUS ? 'Origin City & State *' : 'Origin City & Region *'}</label>
                     <div className="city-state-row">
                       <input
                         type="text"
                         required
                         value={originCity}
                         onChange={(e) => setOriginCity(e.target.value)}
-                        placeholder="Origin City (e.g. New York)"
+                        placeholder={originIsUS ? 'Origin City (e.g. New York)' : 'Origin City (e.g. Lagos)'}
                         className="dxp-input input-city"
                       />
                       <input
                         type="text"
-                        required
-                        maxLength={2}
+                        required={originIsUS}
+                        maxLength={originIsUS ? 2 : 35}
                         value={originState}
-                        onChange={(e) => setOriginState(e.target.value.toUpperCase())}
-                        placeholder="NY"
-                        className="dxp-input input-state font-mono uppercase"
+                        onChange={(e) => setOriginState(originIsUS ? e.target.value.toUpperCase() : e.target.value)}
+                        placeholder={originIsUS ? 'NY' : 'Region (optional)'}
+                        className={originIsUS ? 'dxp-input input-state font-mono uppercase' : 'dxp-input input-state input-region'}
                       />
                     </div>
                   </div>
 
                   <div className="form-group">
-                    <label>Origin ZIP Code</label>
+                    <label>{originIsUS ? 'Origin ZIP Code' : 'Origin Postal Code'}</label>
                     <input
                       type="text"
                       value={originZip}
                       onChange={(e) => setOriginZip(e.target.value)}
-                      placeholder="e.g. 10007"
+                      placeholder={originIsUS ? 'e.g. 10007' : 'Optional'}
                       className="dxp-input font-mono"
                     />
                   </div>
@@ -440,35 +464,35 @@ export const QuotePage: React.FC<QuotePageProps> = ({ onNavigate, initialService
 
                 <div className="form-row-2">
                   <div className="form-group">
-                    <label>Destination City & State *</label>
+                    <label>{destIsUS ? 'Destination City & State *' : 'Destination City & Region *'}</label>
                     <div className="city-state-row">
                       <input
                         type="text"
                         required
                         value={destCity}
                         onChange={(e) => setDestCity(e.target.value)}
-                        placeholder="Destination City (e.g. Los Angeles)"
+                        placeholder={destIsUS ? 'Destination City (e.g. Los Angeles)' : 'Destination City (e.g. London)'}
                         className="dxp-input input-city"
                       />
                       <input
                         type="text"
-                        required
-                        maxLength={2}
+                        required={destIsUS}
+                        maxLength={destIsUS ? 2 : 35}
                         value={destState}
-                        onChange={(e) => setDestState(e.target.value.toUpperCase())}
-                        placeholder="CA"
-                        className="dxp-input input-state font-mono uppercase"
+                        onChange={(e) => setDestState(destIsUS ? e.target.value.toUpperCase() : e.target.value)}
+                        placeholder={destIsUS ? 'CA' : 'Region (optional)'}
+                        className={destIsUS ? 'dxp-input input-state font-mono uppercase' : 'dxp-input input-state input-region'}
                       />
                     </div>
                   </div>
 
                   <div className="form-group">
-                    <label>Destination ZIP Code</label>
+                    <label>{destIsUS ? 'Destination ZIP Code' : 'Destination Postal Code'}</label>
                     <input
                       type="text"
                       value={destZip}
                       onChange={(e) => setDestZip(e.target.value)}
-                      placeholder="e.g. 90017"
+                      placeholder={destIsUS ? 'e.g. 90017' : 'Optional'}
                       className="dxp-input font-mono"
                     />
                   </div>
