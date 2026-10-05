@@ -292,9 +292,15 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
   // ----------------------------------------------------
   // STEP 5: Service & Operational Requirements
   // ----------------------------------------------------
-  const [pickupDate, setPickupDate] = useState('2026-08-19');
+  // Defaults to today (local date) — it used to be a fixed 2026-08-19, which gave every new
+  // shipment whose pickup date wasn't changed by hand an ETA already in the past.
+  const [pickupDate, setPickupDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
   const [pickupWindow, setPickupWindow] = useState('09:00 AM - 12:00 PM');
-  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('August 22, 2026');
+  // Filled from the live plan preview below; blank means "use the plan computed at submit".
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
   const [expectedDeliveryDateTouched, setExpectedDeliveryDateTouched] = useState(false);
 
   // Warns (doesn't block — the admin can still legitimately need to record a same-day or
@@ -384,8 +390,11 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
   }, [senderCity, senderState, senderCountry, senderIsUS, recipientCity, recipientState, recipientCountry, recipientIsUS, service, pickupDate]);
 
   useEffect(() => {
-    if (!expectedDeliveryDateTouched && previewEstimatedDeliveryDate) {
-      setExpectedDeliveryDate(previewEstimatedDeliveryDate);
+    // When no preview is possible (e.g. a non-US city only the live lookup at submit can
+    // find), clear it rather than keep a stale date from an earlier route — submit then uses
+    // the real plan's ETA.
+    if (!expectedDeliveryDateTouched) {
+      setExpectedDeliveryDate(previewEstimatedDeliveryDate || '');
     }
   }, [previewEstimatedDeliveryDate, expectedDeliveryDateTouched]);
 
@@ -3380,7 +3389,7 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
                       type="text"
                       value={expectedDeliveryDate}
                       onChange={e => { setExpectedDeliveryDate(e.target.value); setExpectedDeliveryDateTouched(true); }}
-                      placeholder="e.g. August 22, 2026"
+                      placeholder="Calculated automatically at registration"
                     />
                     {expectedDeliveryDateTouched ? (
                       <span className="field-hint-txt" style={{ fontSize: '0.65rem' }}>

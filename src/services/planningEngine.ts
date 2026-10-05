@@ -251,7 +251,12 @@ export function generateShipmentPlan(
   const destCountryName = canonicalCountry(destination.country) || 'United States';
   const originCountryName = canonicalCountry(origin.country) || 'United States';
 
-  const startDate = pickupDateStr ? new Date(pickupDateStr) : new Date();
+  // A bare "YYYY-MM-DD" (the Create form's date input) is a LOCAL calendar day; new Date() would
+  // read it as UTC midnight, which is the previous evening anywhere west of Greenwich.
+  const dateOnly = pickupDateStr?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const startDate = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]), 8, 0, 0, 0)
+    : pickupDateStr ? new Date(pickupDateStr) : new Date();
   if (isNaN(startDate.getTime())) {
     startDate.setTime(Date.now());
   }
