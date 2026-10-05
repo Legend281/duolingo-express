@@ -10,6 +10,7 @@ import { SqliteSessionStore } from './sessionStore.js';
 import { startBackupSchedule, ensurePersistenceMarker } from './backup.js';
 import { repairLegacyDates } from './dateRepair.js';
 import { adminRouter } from './routes/admin.js';
+import { cspDirectives } from './csp.js';
 import { shipmentsRouter } from './routes/shipments.js';
 import { quotesRouter } from './routes/quotes.js';
 import { documentsRouter } from './routes/documents.js';
@@ -50,16 +51,19 @@ if (!ADMIN_PROXY_TARGET) {
 }
 
 // Middleware
-// contentSecurityPolicy and crossOriginEmbedderPolicy are off deliberately, not an
-// oversight: this app loads map tiles from ArcGIS, fonts from Google Fonts, and (on the
-// flagship demo shipment) photos from Unsplash — none of those send the response headers a
-// strict CSP/COEP would require, so turning helmet's defaults on as-is would silently break
-// the map and images. Doing CSP properly means cataloguing every external host this app
-// actually uses and allow-listing exactly those — worth doing as a deliberate follow-up,
-// not as a default flip. Everything else helmet sets (X-Content-Type-Options, X-Frame-
-// Options, Strict-Transport-Security, Referrer-Policy, etc.) is safe with no such tradeoff.
+// Content Security Policy: an explicit allow-list of the outside services the site really uses
+// (see server/csp.ts for the inventory). CSP_REPORT_ONLY=true makes browsers report violations
+// without blocking — for trialing a change on the live site.
+// crossOriginEmbedderPolicy stays off: Unsplash photos and ArcGIS map tiles don't send the
+// Cross-Origin-Resource-Policy headers COEP would require, so it would blank them out.
+// Everything else helmet sets (X-Content-Type-Options, X-Frame-Options, HSTS, Referrer-Policy)
+// is on by default.
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: cspDirectives(process.env.NODE_ENV === 'production'),
+    reportOnly: process.env.CSP_REPORT_ONLY === 'true',
+  },
   crossOriginEmbedderPolicy: false,
 }));
 
