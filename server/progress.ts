@@ -1,7 +1,7 @@
 import { db } from './db.js';
 import { calculateRouteGeometry, calculateEstimatedPosition } from '../src/services/routingEngine.js';
 import { resolveProgressPaceHours } from '../src/services/planningEngine.js';
-import { findNearestMetro } from '../src/services/geocodingService.js';
+import { findNearestMetro, domesticCountry, formatPlace } from '../src/services/geocodingService.js';
 
 /**
  * Advances a shipment's progress based on real elapsed time, server-side, so it moves
@@ -74,6 +74,9 @@ interface ProgressRow {
   current_location_lng?: number;
   current_location_city?: string;
   current_location_state?: string;
+  current_location_country?: string;
+  origin_country?: string;
+  destination_country?: string;
 }
 
 
@@ -125,7 +128,8 @@ export function syncTimeBasedProgress(row: ProgressRow): number {
 
   const nextProgress = Math.max(0, Math.min(94, Math.round((row.progress_percent + advance) * 10) / 10));
   const pos = calculateEstimatedPosition(routeGeom.polyline, nextProgress);
-  const nearestMetro = findNearestMetro(pos.lat, pos.lng);
+  // Named from US metros + world cities; kept inside the country for domestic shipments.
+  const nearestMetro = findNearestMetro(pos.lat, pos.lng, domesticCountry(row.origin_country, row.destination_country));
 
   // Advance status alongside progress: once a pre-transit shipment has genuinely started
   // moving, it should read IN_TRANSIT rather than staying stuck on "Received"/"Processing"
@@ -142,11 +146,12 @@ export function syncTimeBasedProgress(row: ProgressRow): number {
         current_location_lat = ?, current_location_lng = ?,
         current_location_city = COALESCE(?, current_location_city),
         current_location_state = COALESCE(?, current_location_state),
+        current_location_country = COALESCE(?, current_location_country),
         status = ?, status_text = COALESCE(?, status_text)
     WHERE tracking_number = ?
   `).run(
     nextProgress, now, pos.lat, pos.lng,
-    nearestMetro?.city ?? null, nearestMetro?.state ?? null,
+    nearestMetro?.city ?? null, nearestMetro?.state ?? null, nearestMetro?.country ?? null,
     nextStatus, nextStatus !== row.status ? nextStatusText : null,
     row.tracking_number
   );
@@ -169,7 +174,7 @@ export function syncTimeBasedProgress(row: ProgressRow): number {
       row.tracking_number,
       nextStatus,
       'Departed Facility — Linehaul Transit Underway',
-      nearestMetro ? `${nearestMetro.city}, ${nearestMetro.state}` : 'Interstate Transit Corridor',
+      nearestMetro ? formatPlace(nearestMetro.city, nearestMetro.state, nearestMetro.country) : 'Linehaul Transit Corridor',
       'Automated Schedule-Based Checkpoint',
       `${nowDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ${nowDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
       'Consignment departed origin facility and is proceeding along the scheduled linehaul corridor.',
@@ -187,6 +192,7 @@ export function syncTimeBasedProgress(row: ProgressRow): number {
   if (nearestMetro) {
     row.current_location_city = nearestMetro.city;
     row.current_location_state = nearestMetro.state;
+    row.current_location_country = nearestMetro.country;
   }
 
   return nextProgress;

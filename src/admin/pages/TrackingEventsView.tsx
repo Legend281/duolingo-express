@@ -34,7 +34,7 @@ import {
 import { useAdminData } from '../../context/AdminDataContext';
 import { Shipment, ShipmentStatus, TrackingEvent } from '../../types/shipment';
 import { AdminViewType } from '../AdminLayout';
-import { resolveLocation, resolveLocationPrecise } from '../../services/geocodingService';
+import { resolveLocation, resolveLocationPrecise, formatPlace } from '../../services/geocodingService';
 import './TrackingEventsView.css';
 
 // Pre-defined structured standard network locations
@@ -82,9 +82,7 @@ const formatLocationStr = (loc: any): string => {
   if (typeof loc === 'string') return loc;
   if (typeof loc === 'object') {
     const city = loc.city || loc.name || '';
-    const state = loc.state || '';
-    if (city && state) return `${city}, ${state}`;
-    if (city) return city;
+    if (city) return formatPlace(city, loc.state, loc.country);
     if (loc.facility) return loc.facility;
   }
   return 'In Transit Hub';

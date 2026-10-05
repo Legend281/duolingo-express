@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from '../db.js';
 import { syncTimeBasedProgress } from '../progress.js';
 import { calculateRouteGeometry, calculateEstimatedPosition } from '../../src/services/routingEngine.js';
-import { findNearestMetro } from '../../src/services/geocodingService.js';
+import { findNearestMetro, domesticCountry } from '../../src/services/geocodingService.js';
 import { requireAdminAuth } from '../middleware/auth.js';
 import { publicWriteLimiter } from '../middleware/rateLimit.js';
 
@@ -687,11 +687,10 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
         curCountry = s.destination?.country || r.destination_country;
         curFacility = s.destination?.facility || `${curCity} Sort Hub`;
       } else {
-        const nearest = findNearestMetro(pos.lat, pos.lng);
+        const nearest = findNearestMetro(pos.lat, pos.lng, domesticCountry(s.origin?.country || r.origin_country, s.destination?.country || r.destination_country));
         curCity = nearest?.city ?? curCity;
         curState = nearest?.state ?? curState;
-        // findNearestMetro only knows US metros for now (worldwide naming is a later phase).
-        if (nearest) curCountry = 'United States';
+        if (nearest) curCountry = nearest.country;
         curFacility = 'Linehaul Transit Corridor';
       }
     }

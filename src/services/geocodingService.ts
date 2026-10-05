@@ -601,17 +601,63 @@ export async function resolveLocationPrecise(input: string, country?: string): P
  * route (schedule-based server sync, or a live admin simulation tick) — instead of freezing at
  * the origin city while the marker itself keeps visibly moving.
  */
-export function findNearestMetro(lat: number, lng: number): { city: string; state: string } | null {
-  let best: { city: string; state: string } | null = null;
-  let bestDistSq = Infinity;
-  for (const entry of Object.values(US_METRO_DATABASE)) {
-    const distSq = (entry.lat - lat) ** 2 + (entry.lng - lng) ** 2;
-    if (distSq < bestDistSq) {
-      bestDistSq = distSq;
-      best = { city: entry.city, state: entry.state };
+export interface NearestPlace {
+  city: string;
+  state: string; // US: 2-letter code; elsewhere: region name (may equal the city)
+  country: string;
+  distanceMiles: number;
+}
+
+// Worldwide candidates: the US metro table plus the offline world city table.
+const NEAREST_PLACE_CANDIDATES: Array<Omit<NearestPlace, 'distanceMiles'> & { lat: number; lng: number }> = [
+  ...Object.values(US_METRO_DATABASE).map(e => ({ city: e.city, state: e.state, country: 'United States', lat: e.lat, lng: e.lng })),
+  ...WORLD_CITIES.map(c => ({ city: c.city, state: c.region, country: c.country, lat: c.lat, lng: c.lng })),
+];
+
+/** The country to keep in-transit naming inside, or undefined for a cross-border shipment. */
+export function domesticCountry(originCountry?: string | null, destinationCountry?: string | null): string | undefined {
+  const o = canonicalCountry(originCountry) || 'United States';
+  const d = canonicalCountry(destinationCountry) || 'United States';
+  return normalizePlace(o) === normalizePlace(d) ? o : undefined;
+}
+
+/**
+ * Closest known city to a coordinate, anywhere in the world (US metros + world gateway
+ * cities), with its country. Used to name a moving shipment's estimated position.
+ * Distance is great-circle (miles), not raw degrees, so high latitudes aren't skewed.
+ *
+ * `withinCountry`: for a domestic shipment (origin and destination in the same country), pass
+ * that country so a Detroit -> Buffalo truck isn't labeled "Toronto, Canada" just because the
+ * route skirts the border. Ignored if the tables have no city in that country.
+ */
+export function findNearestMetro(lat: number, lng: number, withinCountry?: string | null): NearestPlace | null {
+  let best: NearestPlace | null = null;
+  const toRad = Math.PI / 180;
+  const countryKey = withinCountry ? normalizePlace(canonicalCountry(withinCountry) || 'United States') : '';
+  const domestic = countryKey ? NEAREST_PLACE_CANDIDATES.filter(c => normalizePlace(c.country) === countryKey) : [];
+  for (const c of domestic.length ? domestic : NEAREST_PLACE_CANDIDATES) {
+    const dLat = (c.lat - lat) * toRad;
+    const dLng = (c.lng - lng) * toRad;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat * toRad) * Math.cos(c.lat * toRad) * Math.sin(dLng / 2) ** 2;
+    const miles = 3958.8 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    if (!best || miles < best.distanceMiles) {
+      best = { city: c.city, state: c.state, country: c.country, distanceMiles: miles };
     }
   }
   return best;
+}
+
+/**
+ * One consistent way to print a place: "Austin, TX" in the US; elsewhere the region is kept
+ * only when it adds something and the country is appended — "Niamey, Niger",
+ * "Leeds, England, United Kingdom". Blank parts never leave a stray comma.
+ */
+export function formatPlace(city?: string | null, state?: string | null, country?: string | null): string {
+  const c = (city || '').trim();
+  const s = (state || '').trim();
+  const showState = s && normalizePlace(s) !== normalizePlace(c);
+  const showCountry = !isUnitedStates(country) && normalizePlace(canonicalCountry(country)) !== normalizePlace(c);
+  return [c, showState ? s : '', showCountry ? (country || '').trim() : ''].filter(Boolean).join(', ');
 }
 
 /**

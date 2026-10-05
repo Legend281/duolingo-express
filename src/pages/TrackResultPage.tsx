@@ -54,7 +54,7 @@ import { calculateRouteGeometry } from '../services/routingEngine';
 import { simulationEngine } from '../services/simulationEngine';
 import { api } from '../services/api';
 import { generateShipmentPlan, calculateDynamicTimeProgress, getServiceCommitmentHours } from '../services/planningEngine';
-import { resolveLocation } from '../services/geocodingService';
+import { resolveLocation, formatPlace } from '../services/geocodingService';
 import { applyForwardOnlyShipmentUpdate } from '../utils/shipmentSync';
 import { useAdminData } from '../context/AdminDataContext';
 import './TrackResultPage.css';
@@ -245,7 +245,10 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
     ? liveShipment.currentLocation.split(',')[1]?.trim() || originState
     : (typeof liveShipment?.currentLocation === 'object' && (liveShipment.currentLocation as any)?.state) || (typeof shipment?.currentLocation === 'object' && (shipment?.currentLocation as any)?.state) || 'IL';
 
-  const currentLocationText = `${currentCity}, ${currentState}`;
+  const currentCountry = (typeof liveShipment?.currentLocation === 'object' && (liveShipment.currentLocation as any)?.country)
+    || (typeof shipment?.currentLocation === 'object' && (shipment?.currentLocation as any)?.country)
+    || 'United States';
+  const currentLocationText = formatPlace(currentCity, currentState, currentCountry);
 
   // Real coordinates for wherever the shipment's currentLocation actually points — an
   // admin-set facility or a live simulation tick, both now kept accurate (see the routing
@@ -788,7 +791,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
 
               <div className="last-recorded-checkpoint-box">
                 <span className="chk-label">LAST RECORDED CHECKPOINT</span>
-                <span className="chk-val">{currentCity}, {currentState} ({lastUpdated})</span>
+                <span className="chk-val">{currentLocationText} ({lastUpdated})</span>
               </div>
 
               {/* This used to unconditionally claim "On schedule" even while the shipment was

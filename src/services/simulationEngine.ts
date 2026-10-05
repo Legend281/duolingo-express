@@ -1,6 +1,6 @@
 import { Shipment, TrackingEvent, ShipmentStatus } from '../types/shipment';
 import { calculateRouteGeometry, calculateEstimatedPosition } from './routingEngine';
-import { resolveLocation, findNearestMetro } from './geocodingService';
+import { resolveLocation, findNearestMetro, domesticCountry } from './geocodingService';
 
 export type SimulationListener = (updatedShipment: Shipment) => void;
 
@@ -135,11 +135,13 @@ class SimulationEngine {
     };
     const routeGeom = calculateRouteGeometry(origin, dest);
     const pos = calculateEstimatedPosition(routeGeom.polyline, clamped);
+    const origCountry = (shipment.origin as any)?.country || 'United States';
+    const destCountry = (shipment.destination as any)?.country || 'United States';
     const nearestMetro = clamped >= 100
-      ? { city: destCity, state: destState }
+      ? { city: destCity, state: destState, country: destCountry }
       : clamped <= 0
-      ? { city: origCity, state: origState }
-      : findNearestMetro(pos.lat, pos.lng) || { city: origCity, state: origState };
+      ? { city: origCity, state: origState, country: origCountry }
+      : findNearestMetro(pos.lat, pos.lng, domesticCountry(origCountry, destCountry)) || { city: origCity, state: origState, country: origCountry };
 
     const updated: Shipment = {
       ...shipment,
@@ -154,7 +156,8 @@ class SimulationEngine {
         lat: pos.lat,
         lng: pos.lng,
         city: nearestMetro.city,
-        state: nearestMetro.state
+        state: nearestMetro.state,
+        country: nearestMetro.country
       } as any,
       simulationState: {
         manualScrub: true,
