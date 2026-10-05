@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { sendServerError } from '../http.js';
 import { db } from '../db.js';
 import { syncTimeBasedProgress } from '../progress.js';
 import { calculateRouteGeometry, calculateEstimatedPosition, nameTransitPosition } from '../../src/services/routingEngine.js';
@@ -160,7 +161,7 @@ shipmentsRouter.get('/', requireAdminAuth, (req: Request, res: Response) => {
     const shipments = rows.map(formatShipment);
     res.json({ success: true, count: shipments.length, data: shipments });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -180,7 +181,7 @@ shipmentsRouter.get('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
 
     res.json({ success: true, data: formatShipment(row) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -361,7 +362,7 @@ shipmentsRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
     const createdRow = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(trackingNumber);
     res.status(201).json({ success: true, data: formatShipment(createdRow) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -502,7 +503,7 @@ shipmentsRouter.patch('/:trackingNumber/status', requireAdminAuth, (req: Request
     const updatedRow = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(tracking);
     res.json({ success: true, data: formatShipment(updatedRow) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -565,7 +566,7 @@ shipmentsRouter.post('/:trackingNumber/events', requireAdminAuth, (req: Request,
     const updatedRow = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(tracking);
     res.status(201).json({ success: true, data: formatShipment(updatedRow) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -629,7 +630,7 @@ shipmentsRouter.patch('/:trackingNumber/events/:eventId', requireAdminAuth, (req
     const updatedRow = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(tracking);
     res.json({ success: true, data: formatShipment(updatedRow) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -800,7 +801,7 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
     const updatedRow = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(tracking);
     res.json({ success: true, data: formatShipment(updatedRow) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -821,7 +822,7 @@ shipmentsRouter.delete('/:trackingNumber', requireAdminAuth, (req: Request, res:
     db.prepare('UPDATE shipments SET deleted_at_ts = ? WHERE tracking_number = ?').run(Date.now(), tracking);
     res.json({ success: true, message: `Shipment ${tracking} moved to trash — restorable from Recently Deleted.` });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -837,7 +838,7 @@ shipmentsRouter.post('/:trackingNumber/restore', requireAdminAuth, (req: Request
     const restoredRow = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(tracking);
     res.json({ success: true, data: formatShipment(restoredRow) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -858,6 +859,6 @@ shipmentsRouter.delete('/:trackingNumber/permanent', requireAdminAuth, (req: Req
     db.prepare('DELETE FROM shipments WHERE tracking_number = ?').run(tracking);
     res.json({ success: true, message: `Shipment ${tracking} permanently deleted.` });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });

@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { sendServerError } from '../http.js';
 import { db } from '../db.js';
 import { syncTimeBasedProgress } from '../progress.js';
 import { splitEventTimestamp } from '../../src/utils/dates.js';
@@ -217,6 +218,6 @@ trackRouter.get('/:trackingNumber', (req: Request, res: Response) => {
 
     res.json({ success: true, data: publicShipment });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });

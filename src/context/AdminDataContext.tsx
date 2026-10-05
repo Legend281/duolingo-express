@@ -101,16 +101,28 @@ const normalizeShipment = (s: any): Shipment => {
   };
 };
 
+  // Whether this browser has an admin session. This provider wraps the WHOLE app, public pages
+  // included — it used to request the admin-only shipments/quotes/documents lists for every
+  // visitor, each failing with 401 and a console error. Admin data now loads (and refreshes)
+  // only after the session check says admin; logging in reloads the page, re-running this.
+  const [isAdminSession, setIsAdminSession] = useState(false);
+
   // Live initial load from persistent SQLite Backend
   useEffect(() => {
     let isMounted = true;
     const loadBackendData = async () => {
       try {
+        // Settings are public (company name, support phone, display toggles) — always load.
+        const settingsPromise = api.getSettings();
+        const isAdmin = await api.checkSession().catch(() => false);
+        if (isMounted) setIsAdminSession(isAdmin);
+        const notLoaded = Promise.reject(new Error('not an admin session'));
+        notLoaded.catch(() => {}); // handled via allSettled below
         const [liveShipments, liveQuotes, liveDocs, liveSettings] = await Promise.allSettled([
-          api.getShipments(),
-          api.getQuotes(),
-          api.getDocuments(),
-          api.getSettings()
+          isAdmin ? api.getShipments() : notLoaded,
+          isAdmin ? api.getQuotes() : notLoaded,
+          isAdmin ? api.getDocuments() : notLoaded,
+          settingsPromise
         ]);
 
         if (isMounted) {
@@ -155,6 +167,8 @@ const normalizeShipment = (s: any): Shipment => {
   // here would yank an in-flight simulation's progress back down to its last-known DB value,
   // reintroducing the exact "marker jumps backward" bug this same guard already fixed elsewhere.
   useEffect(() => {
+    // Admin sessions only (see isAdminSession above) — public visitors never poll.
+    if (!isAdminSession) return;
     const REFRESH_MS = 12000;
     // This provider wraps the ENTIRE app, public pages included — so this interval was
     // starting for every visitor, admin or not. For anyone without an admin session it 401'd
@@ -184,7 +198,7 @@ const normalizeShipment = (s: any): Shipment => {
       }
     }, REFRESH_MS);
     return () => { stopped = true; clearInterval(interval); };
-  }, []);
+  }, [isAdminSession]);
 
   // Subscribe to Live Simulation Engine
   useEffect(() => {

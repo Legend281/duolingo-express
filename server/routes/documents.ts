@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { sendServerError } from '../http.js';
 import { db } from '../db.js';
 import { requireAdminAuth } from '../middleware/auth.js';
 import { publicWriteLimiter } from '../middleware/rateLimit.js';
@@ -96,7 +97,7 @@ documentsRouter.get('/', requireAdminAuth, (req: Request, res: Response) => {
     const docs = rows.map(formatDoc);
     res.json({ success: true, count: docs.length, data: docs });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -109,7 +110,7 @@ documentsRouter.get('/:id', requireAdminAuth, (req: Request, res: Response) => {
     }
     res.json({ success: true, data: formatDoc(row) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -199,7 +200,7 @@ documentsRouter.post('/generate', publicWriteLimiter, (req: Request, res: Respon
     const created = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
     res.status(201).json({ success: true, data: formatDoc(created) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -285,7 +286,7 @@ documentsRouter.post('/:id/regenerate', requireAdminAuth, (req: Request, res: Re
     const updated = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
     res.json({ success: true, data: formatDoc(updated) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -299,7 +300,7 @@ documentsRouter.patch('/:id/status', requireAdminAuth, (req: Request, res: Respo
     const updated = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
     res.json({ success: true, data: formatDoc(updated) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -329,7 +330,7 @@ documentsRouter.patch('/:id/payment-status', requireAdminAuth, (req: Request, re
     const updated = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
     res.json({ success: true, data: formatDoc(updated) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -340,6 +341,6 @@ documentsRouter.delete('/:id', requireAdminAuth, (req: Request, res: Response) =
     db.prepare('DELETE FROM documents WHERE id = ?').run(id);
     res.json({ success: true, message: `Document ${id} deleted` });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });

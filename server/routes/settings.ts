@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { sendServerError } from '../http.js';
 import { db } from '../db.js';
 import { requireAdminAuth } from '../middleware/auth.js';
 
@@ -13,7 +14,7 @@ settingsRouter.get('/', (req: Request, res: Response) => {
     const settings = row ? JSON.parse(row.value_json) : {};
     res.json({ success: true, data: settings });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -28,6 +29,6 @@ settingsRouter.put('/', requireAdminAuth, (req: Request, res: Response) => {
     db.prepare('INSERT OR REPLACE INTO settings (key, value_json) VALUES (?, ?)').run('general', JSON.stringify(merged));
     res.json({ success: true, data: merged });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });

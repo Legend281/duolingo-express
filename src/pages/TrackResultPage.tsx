@@ -330,7 +330,9 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   const recipientName = shipment?.recipient?.name || 'Consignee';
   const recipientCompany = shipment?.recipient?.company;
   const recipientAddress = shipment?.recipient?.addressLine;
-  const recipientPhone = shipment?.recipient?.phone || '+1 (310) 555-0144';
+  // No fallback: a missing phone is simply not shown (this used to display a made-up
+  // "+1 (310) 555-0144" as a tappable call link for every shipment without one).
+  const recipientPhone = shipment?.recipient?.phone;
   const recipientEmail = shipment?.recipient?.email;
 
   const originGeo = resolveLocation([originCity, originState].filter(Boolean).join(', ')) || resolveLocation(originCity) || resolveLocation(originState) || { lat: 40.7128, lng: -74.0050 };

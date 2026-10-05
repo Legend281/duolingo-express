@@ -227,9 +227,15 @@
     font-size: 1rem;
   }
   .dxp-legal-content-wrap {
-    grid-template-columns: 1fr;
+    /* minmax(0, 1fr), not 1fr: a plain 1fr column grows to its widest content — the
+       one-row, nowrap tab strip below — so the page was ~1,000px wide on a 390px phone
+       instead of the strip scrolling inside itself. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 1.5rem;
     margin-top: 2rem;
+  }
+  .dxp-legal-content-wrap > * {
+    min-width: 0;
   }
   .legal-sidebar-card {
     position: static;

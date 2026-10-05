@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { sendServerError } from '../http.js';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 
@@ -47,7 +48,7 @@ authRouter.post('/login', loginLimiter, async (req: Request, res: Response) => {
     req.session.isAdmin = true;
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 

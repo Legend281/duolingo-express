@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { sendServerError } from '../http.js';
 import { db } from '../db.js';
 import { requireAdminAuth } from '../middleware/auth.js';
 import { publicWriteLimiter } from '../middleware/rateLimit.js';
@@ -78,7 +79,7 @@ quotesRouter.get('/', requireAdminAuth, (req: Request, res: Response) => {
     const quotes = rows.map(r => formatQuote(r));
     res.json({ success: true, count: quotes.length, data: quotes });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -94,7 +95,7 @@ quotesRouter.get('/:id', (req: Request, res: Response) => {
     }
     res.json({ success: true, data: formatQuote(row, false) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -159,7 +160,7 @@ quotesRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
     const created = db.prepare('SELECT * FROM quote_requests WHERE id = ?').get(id);
     res.status(201).json({ success: true, data: formatQuote(created) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -190,7 +191,7 @@ const publishHandler = (req: Request, res: Response) => {
     const updated = db.prepare('SELECT * FROM quote_requests WHERE id = ?').get(id);
     res.json({ success: true, data: formatQuote(updated) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 };
 quotesRouter.put('/:id/publish', requireAdminAuth, publishHandler);
@@ -241,7 +242,7 @@ quotesRouter.patch('/:id/status', (req: Request, res: Response) => {
     const updated = db.prepare('SELECT * FROM quote_requests WHERE id = ?').get(id);
     res.json({ success: true, data: formatQuote(updated) });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
 
@@ -406,6 +407,6 @@ quotesRouter.post('/:id/convert', requireAdminAuth, (req: Request, res: Response
     const createdShipment = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(trackingNumber);
     res.status(201).json({ success: true, trackingNumber, data: createdShipment });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });

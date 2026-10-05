@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { sendServerError } from '../http.js';
 import { db } from '../db.js';
 
 export const statsRouter = Router();
@@ -30,6 +31,6 @@ statsRouter.get('/', (req: Request, res: Response) => {
 
     res.json({ success: true, data: stats });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendServerError(req, res, err);
   }
 });
