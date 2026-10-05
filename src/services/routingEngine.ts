@@ -5,22 +5,139 @@
  * Strictly separates physical road driving hours from commercial customer service SLAs.
  */
 
-import { US_METRO_DATABASE, GeoLocationResult } from './geocodingService.js';
+import { US_METRO_DATABASE, GeoLocationResult, findNearestMetro } from './geocodingService.js';
+import { canonicalCountry, normalizePlace } from './worldCities.js';
 
 export interface LatLngPoint {
   lat: number;
   lng: number;
   name?: string;
+  /** Used to choose road vs air. Blank means United States (every legacy record). */
+  country?: string;
+  /** US state code — Hawaii/Alaska legs fly. */
+  state?: string;
 }
+
+export type TransportMode = 'ROAD' | 'AIR';
 
 export interface RouteGeometryResult {
   origin: LatLngPoint;
   destination: LatLngPoint;
   distanceMiles: number;
-  drivingDurationHours: number;
-  polyline: [number, number][]; // [lat, lng] points for Leaflet
+  drivingDurationHours: number; // for AIR: flight hours
+  polyline: [number, number][]; // [lat, lng] points for Leaflet (AIR: longitudes unwrapped across ±180)
   majorWaypoints: LatLngPoint[];
   isLiveRoadRoute?: boolean;
+  mode: TransportMode;
+}
+
+// Cross-border legs longer than this fly; shorter ones (US <-> Canada/Mexico, London -> Paris,
+// Lagos -> Cotonou) stay on the road.
+const AIR_FREIGHT_MIN_CROSS_BORDER_MILES = 1000;
+const AIR_CRUISE_MPH = 500;
+
+/**
+ * Road or air for a leg. Air when it crosses a border and is long (Nigeria -> UK, US -> Japan),
+ * or touches Hawaii/Alaska from elsewhere in the US; road otherwise. Shared by the map, the
+ * server's progress sync and shipment planning so they all agree on the same path.
+ */
+export function resolveTransportMode(origin: LatLngPoint, destination: LatLngPoint): TransportMode {
+  const oc = normalizePlace(canonicalCountry(origin.country) || 'United States');
+  const dc = normalizePlace(canonicalCountry(destination.country) || 'United States');
+  const miles = calculateHaversineDistanceMiles(origin.lat, origin.lng, destination.lat, destination.lng);
+  if (oc !== dc) {
+    return miles > AIR_FREIGHT_MIN_CROSS_BORDER_MILES ? 'AIR' : 'ROAD';
+  }
+  if (oc === normalizePlace('United States')) {
+    const os = (origin.state || '').trim().toUpperCase();
+    const ds = (destination.state || '').trim().toUpperCase();
+    // Anything touching Hawaii flies (including inter-island); Alaska flies to/from elsewhere.
+    if (os === 'HI' || ds === 'HI' || (os === 'AK') !== (ds === 'AK')) {
+      return 'AIR';
+    }
+  }
+  return 'ROAD';
+}
+
+/**
+ * Great-circle flight path. Longitudes are unwrapped point-to-point (may run past ±180) so a
+ * transpacific leg draws as one short arc over the ocean instead of a line back across the
+ * whole map.
+ */
+function calculateAirRoute(origin: LatLngPoint, destination: LatLngPoint): RouteGeometryResult {
+  const toRad = Math.PI / 180;
+  const toDeg = 180 / Math.PI;
+  const φ1 = origin.lat * toRad, λ1 = origin.lng * toRad;
+  const φ2 = destination.lat * toRad, λ2 = destination.lng * toRad;
+  const distanceMiles = Math.max(1, calculateHaversineDistanceMiles(origin.lat, origin.lng, destination.lat, destination.lng));
+  const δ = 2 * Math.asin(Math.sqrt(
+    Math.sin((φ2 - φ1) / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin((λ2 - λ1) / 2) ** 2
+  ));
+
+  const steps = Math.max(40, Math.min(200, Math.round(distanceMiles / 40)));
+  const polyline: [number, number][] = [];
+  let prevLng = origin.lng;
+  for (let i = 0; i <= steps; i++) {
+    const f = i / steps;
+    let lat: number;
+    let lng: number;
+    if (δ < 1e-9) {
+      lat = origin.lat;
+      lng = origin.lng;
+    } else {
+      const a = Math.sin((1 - f) * δ) / Math.sin(δ);
+      const b = Math.sin(f * δ) / Math.sin(δ);
+      const x = a * Math.cos(φ1) * Math.cos(λ1) + b * Math.cos(φ2) * Math.cos(λ2);
+      const y = a * Math.cos(φ1) * Math.sin(λ1) + b * Math.cos(φ2) * Math.sin(λ2);
+      const z = a * Math.sin(φ1) + b * Math.sin(φ2);
+      lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * toDeg;
+      lng = Math.atan2(y, x) * toDeg;
+    }
+    // Unwrap so consecutive points never jump by more than 180 degrees.
+    while (lng - prevLng > 180) lng -= 360;
+    while (lng - prevLng < -180) lng += 360;
+    prevLng = lng;
+    polyline.push([lat, lng]);
+  }
+
+  return {
+    origin,
+    destination,
+    distanceMiles,
+    // Cruise time plus ~1.5h for taxi, climb and descent.
+    drivingDurationHours: Math.round((distanceMiles / AIR_CRUISE_MPH + 1.5) * 10) / 10,
+    polyline,
+    majorWaypoints: [origin, destination],
+    isLiveRoadRoute: false,
+    mode: 'AIR',
+  };
+}
+
+export const IN_FLIGHT_LABEL = 'In Flight';
+// Beyond this, "near <city>" misleads (mid-Pacific is ~1,000+ mi from any table city).
+const IN_FLIGHT_NAMING_RADIUS_MILES = 300;
+
+/**
+ * Name for a moving shipment's estimated position: the nearest known city, or "In Flight"
+ * for an air leg that's far from any (over an ocean or a desert). Country is '' for
+ * "In Flight" so no country gets appended to it.
+ */
+export function nameTransitPosition(
+  lat: number,
+  lng: number,
+  route: Pick<RouteGeometryResult, 'mode'>,
+  withinCountry?: string
+): { city: string; state: string; country: string } | null {
+  const near = findNearestMetro(lat, lng, withinCountry);
+  if (route.mode === 'AIR' && (!near || near.distanceMiles > IN_FLIGHT_NAMING_RADIUS_MILES)) {
+    return { city: IN_FLIGHT_LABEL, state: '', country: '' };
+  }
+  return near ? { city: near.city, state: near.state, country: near.country } : null;
+}
+
+/** Longitude folded back into [-180, 180]. */
+function wrapLng(lng: number): number {
+  return ((((lng + 180) % 360) + 360) % 360) - 180;
 }
 
 export interface EstimatedPositionResult {
@@ -63,6 +180,11 @@ export async function fetchLiveRoadRoute(
   origin: LatLngPoint,
   destination: LatLngPoint
 ): Promise<RouteGeometryResult> {
+  // Air legs have no road to look up (OSRM can't cross an ocean) — the flight path is final.
+  if (resolveTransportMode(origin, destination) === 'AIR') {
+    return calculateRouteGeometry(origin, destination);
+  }
+
   const cacheKey = `${origin.lat.toFixed(3)},${origin.lng.toFixed(3)}_${destination.lat.toFixed(3)},${destination.lng.toFixed(3)}`;
   if (ROUTE_CACHE.has(cacheKey)) {
     return ROUTE_CACHE.get(cacheKey)!;
@@ -96,7 +218,8 @@ export async function fetchLiveRoadRoute(
           drivingDurationHours,
           polyline,
           majorWaypoints: [origin, destination],
-          isLiveRoadRoute: true
+          isLiveRoadRoute: true,
+          mode: 'ROAD'
         };
 
         ROUTE_CACHE.set(cacheKey, result);
@@ -119,6 +242,10 @@ export function calculateRouteGeometry(
   origin: LatLngPoint,
   destination: LatLngPoint
 ): RouteGeometryResult {
+  if (resolveTransportMode(origin, destination) === 'AIR') {
+    return calculateAirRoute(origin, destination);
+  }
+
   const directDistance = calculateHaversineDistanceMiles(
     origin.lat,
     origin.lng,
@@ -155,7 +282,8 @@ export function calculateRouteGeometry(
     drivingDurationHours,
     polyline,
     majorWaypoints: [origin, destination],
-    isLiveRoadRoute: false
+    isLiveRoadRoute: false,
+    mode: 'ROAD'
   };
 }
 
@@ -180,7 +308,8 @@ export function findNearestPointOnPolyline(
   let bestDistSq = Infinity;
   for (let i = 0; i < polyline.length; i++) {
     const [lat, lng] = polyline[i];
-    const distSq = (lat - targetLat) ** 2 + (lng - targetLng) ** 2;
+    const dLng = wrapLng(lng - targetLng);
+    const distSq = (lat - targetLat) ** 2 + dLng ** 2;
     if (distSq < bestDistSq) {
       bestDistSq = distSq;
       bestIndex = i;
@@ -224,7 +353,7 @@ export function calculateEstimatedPosition(
     const last = polyline[polyline.length - 1];
     return {
       lat: last[0],
-      lng: last[1],
+      lng: wrapLng(last[1]),
       progressPercent: 100,
       corridorDescription: 'Delivered to Consignee Destination',
       isCompleted: true
@@ -240,13 +369,15 @@ export function calculateEstimatedPosition(
   const p2 = polyline[upperIndex];
 
   const currentLat = p1[0] + (p2[0] - p1[0]) * fraction;
-  const currentLng = p1[1] + (p2[1] - p1[1]) * fraction;
+  // Folded back into [-180, 180]: an unwrapped air polyline can run past the antimeridian,
+  // but a stored/displayed coordinate must be a real longitude.
+  const currentLng = wrapLng(p1[1] + (p2[1] - p1[1]) * fraction);
 
   return {
     lat: currentLat,
     lng: currentLng,
     progressPercent: Math.round(clampedPercent),
-    corridorDescription: `Moving along scheduled interstate corridor (${Math.round(clampedPercent)}% complete)`,
+    corridorDescription: `Moving along scheduled route (${Math.round(clampedPercent)}% complete)`,
     isCompleted: false
   };
 }

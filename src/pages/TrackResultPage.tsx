@@ -197,7 +197,9 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   const pet = liveShipment?.petDetails;
   
   const originCity = liveShipment?.origin?.city || shipment?.origin?.city || 'New York';
-  const originState = liveShipment?.origin?.state || shipment?.origin?.state || 'NY';
+  // A real city with no state is normal outside the US; only invent one with no city at all.
+  const originState = liveShipment?.origin?.state || shipment?.origin?.state || ((liveShipment?.origin?.city || shipment?.origin?.city) ? '' : 'NY');
+  const originCountry = (liveShipment?.origin as any)?.country || (shipment?.origin as any)?.country || 'United States';
   // No fallback — ZIP is optional at booking (CreateShipmentView), and showing a fake one for
   // a shipment that genuinely doesn't have it on file is exactly the "shows a placeholder
   // for a field I left blank" problem this page shouldn't have. Reads sender/recipient's
@@ -206,7 +208,8 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   // to nothing; postalCode on the party record is what actually round-trips through the API.
   const originZip = (liveShipment?.sender as any)?.postalCode || (liveShipment?.origin as any)?.zip || (shipment?.sender as any)?.postalCode || (shipment?.origin as any)?.zip;
   const destCity = liveShipment?.destination?.city || shipment?.destination?.city || 'Los Angeles';
-  const destState = liveShipment?.destination?.state || shipment?.destination?.state || 'CA';
+  const destState = liveShipment?.destination?.state || shipment?.destination?.state || ((liveShipment?.destination?.city || shipment?.destination?.city) ? '' : 'CA');
+  const destCountry = (liveShipment?.destination as any)?.country || (shipment?.destination as any)?.country || 'United States';
   const destZip = (liveShipment?.recipient as any)?.postalCode || (liveShipment?.destination as any)?.zip || (shipment?.recipient as any)?.postalCode || (shipment?.destination as any)?.zip;
   const originFacility = (liveShipment?.origin as any)?.facilityName || (shipment?.origin as any)?.facilityName || `${originCity} Gateway Terminal`;
   const destFacility = (liveShipment?.destination as any)?.facilityName || (shipment?.destination as any)?.facilityName || `${destCity} Distribution Center`;
@@ -243,7 +246,10 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
     
   const currentState = typeof liveShipment?.currentLocation === 'string'
     ? liveShipment.currentLocation.split(',')[1]?.trim() || originState
-    : (typeof liveShipment?.currentLocation === 'object' && (liveShipment.currentLocation as any)?.state) || (typeof shipment?.currentLocation === 'object' && (shipment?.currentLocation as any)?.state) || 'IL';
+    : (typeof liveShipment?.currentLocation === 'object' && (liveShipment.currentLocation as any)?.state) || (typeof shipment?.currentLocation === 'object' && (shipment?.currentLocation as any)?.state)
+      // A stored place with no state ("In Flight", most non-US cities) stays blank — the demo
+      // default is only for a shipment with no current location at all.
+      || ((typeof liveShipment?.currentLocation === 'object' && (liveShipment.currentLocation as any)?.city) || (typeof shipment?.currentLocation === 'object' && (shipment?.currentLocation as any)?.city) ? '' : 'IL');
 
   const currentCountry = (typeof liveShipment?.currentLocation === 'object' && (liveShipment.currentLocation as any)?.country)
     || (typeof shipment?.currentLocation === 'object' && (shipment?.currentLocation as any)?.country)
@@ -332,6 +338,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
       id: 'pt-origin',
       name: originCity,
       state: originState,
+      country: originCountry,
       type: 'origin',
       statusLabel: 'Origin',
       dateLabel: 'Aug 19 · 9:00 AM ET',
@@ -352,6 +359,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
       id: 'pt-dest',
       name: destCity,
       state: destState,
+      country: destCountry,
       type: 'destination',
       statusLabel: 'Destination',
       dateLabel: `${estDeliveryDate} • ${estDeliveryTime}`,
@@ -466,8 +474,8 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
 
   // Automated routing & planned milestone calculations
   const routeGeom = calculateRouteGeometry(
-    { lat: (liveShipment?.origin as any)?.lat || (shipment?.origin as any)?.lat || originGeo.lat, lng: (liveShipment?.origin as any)?.lng || (shipment?.origin as any)?.lng || originGeo.lng, name: originCity },
-    { lat: (liveShipment?.destination as any)?.lat || (shipment?.destination as any)?.lat || destGeo.lat, lng: (liveShipment?.destination as any)?.lng || (shipment?.destination as any)?.lng || destGeo.lng, name: destCity }
+    { lat: (liveShipment?.origin as any)?.lat || (shipment?.origin as any)?.lat || originGeo.lat, lng: (liveShipment?.origin as any)?.lng || (shipment?.origin as any)?.lng || originGeo.lng, name: originCity, country: originCountry, state: originState },
+    { lat: (liveShipment?.destination as any)?.lat || (shipment?.destination as any)?.lat || destGeo.lat, lng: (liveShipment?.destination as any)?.lng || (shipment?.destination as any)?.lng || destGeo.lng, name: destCity, country: destCountry, state: destState }
   );
 
   const timeProgress = calculateDynamicTimeProgress(liveShipment || shipment, 48);
@@ -875,7 +883,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
             <div className="corridor-track-wrapper">
               <div className="corridor-meta-badges">
                 <span className="corridor-dist-badge">
-                  <span>{routeGeom.distanceMiles.toLocaleString()} Total Highway Miles</span>
+                  <span>{routeGeom.distanceMiles.toLocaleString()} {routeGeom.mode === 'AIR' ? 'Total Air Miles' : 'Total Highway Miles'}</span>
                 </span>
                 <span className="corridor-status-badge">
                   {status === 'DELIVERED' ? (

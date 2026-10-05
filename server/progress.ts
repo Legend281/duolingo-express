@@ -1,7 +1,7 @@
 import { db } from './db.js';
-import { calculateRouteGeometry, calculateEstimatedPosition } from '../src/services/routingEngine.js';
+import { calculateRouteGeometry, calculateEstimatedPosition, nameTransitPosition } from '../src/services/routingEngine.js';
 import { resolveProgressPaceHours } from '../src/services/planningEngine.js';
-import { findNearestMetro, domesticCountry, formatPlace } from '../src/services/geocodingService.js';
+import { domesticCountry, formatPlace } from '../src/services/geocodingService.js';
 
 /**
  * Advances a shipment's progress based on real elapsed time, server-side, so it moves
@@ -77,6 +77,8 @@ interface ProgressRow {
   current_location_country?: string;
   origin_country?: string;
   destination_country?: string;
+  origin_state?: string;
+  destination_state?: string;
 }
 
 
@@ -113,8 +115,9 @@ export function syncTimeBasedProgress(row: ProgressRow): number {
   // progress instead of drifting apart the moment a shipment moves unattended. Computed here
   // (rather than after the pace calc below) because getServiceCommitmentHours needs the real
   // route distance too.
-  const origin = { lat: row.origin_lat, lng: row.origin_lng };
-  const destination = { lat: row.destination_lat, lng: row.destination_lng };
+  // Country/state decide road vs air, so this path matches the one the map draws.
+  const origin = { lat: row.origin_lat, lng: row.origin_lng, country: row.origin_country, state: row.origin_state };
+  const destination = { lat: row.destination_lat, lng: row.destination_lng, country: row.destination_country, state: row.destination_state };
   const routeGeom = calculateRouteGeometry(origin, destination);
 
   const slaHours = resolveProgressPaceHours(row.service, routeGeom.distanceMiles, row.created_at_ts, row.estimated_delivery_date, row.estimated_delivery_time);
@@ -128,8 +131,9 @@ export function syncTimeBasedProgress(row: ProgressRow): number {
 
   const nextProgress = Math.max(0, Math.min(94, Math.round((row.progress_percent + advance) * 10) / 10));
   const pos = calculateEstimatedPosition(routeGeom.polyline, nextProgress);
-  // Named from US metros + world cities; kept inside the country for domestic shipments.
-  const nearestMetro = findNearestMetro(pos.lat, pos.lng, domesticCountry(row.origin_country, row.destination_country));
+  // Named from US metros + world cities (kept inside the country for domestic shipments),
+  // or "In Flight" for an air leg far from any city.
+  const nearestMetro = nameTransitPosition(pos.lat, pos.lng, routeGeom, domesticCountry(row.origin_country, row.destination_country));
 
   // Advance status alongside progress: once a pre-transit shipment has genuinely started
   // moving, it should read IN_TRANSIT rather than staying stuck on "Received"/"Processing"

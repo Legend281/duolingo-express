@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db.js';
 import { syncTimeBasedProgress } from '../progress.js';
-import { calculateRouteGeometry, calculateEstimatedPosition } from '../../src/services/routingEngine.js';
-import { findNearestMetro, domesticCountry } from '../../src/services/geocodingService.js';
+import { calculateRouteGeometry, calculateEstimatedPosition, nameTransitPosition } from '../../src/services/routingEngine.js';
+import { domesticCountry } from '../../src/services/geocodingService.js';
 import { requireAdminAuth } from '../middleware/auth.js';
 import { publicWriteLimiter } from '../middleware/rateLimit.js';
 
@@ -116,7 +116,7 @@ function formatShipment(row: any) {
     currentLocation: {
       city: row.current_location_city,
       state: row.current_location_state,
-      country: row.current_location_country || 'United States',
+      country: row.current_location_country ?? 'United States',
       lat: row.current_location_lat,
       lng: row.current_location_lng,
       facility: row.current_facility
@@ -662,10 +662,14 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
     const newOrigin = {
       lat: typeof s.origin?.lat === 'number' ? s.origin.lat : r.origin_lat,
       lng: typeof s.origin?.lng === 'number' ? s.origin.lng : r.origin_lng,
+      country: s.origin?.country || r.origin_country,
+      state: s.origin?.state ?? r.origin_state,
     };
     const newDest = {
       lat: typeof s.destination?.lat === 'number' ? s.destination.lat : r.destination_lat,
       lng: typeof s.destination?.lng === 'number' ? s.destination.lng : r.destination_lng,
+      country: s.destination?.country || r.destination_country,
+      state: s.destination?.state ?? r.destination_state,
     };
     const moved = (a: number, b: number) => Math.abs(a - b) > 1e-6;
     const routeChanged = moved(newOrigin.lat, r.origin_lat) || moved(newOrigin.lng, r.origin_lng)
@@ -673,7 +677,8 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
 
     if (routeChanged) {
       const progress = typeof s.progressPercent === 'number' ? s.progressPercent : (r.progress_percent ?? 0);
-      const pos = calculateEstimatedPosition(calculateRouteGeometry(newOrigin, newDest).polyline, progress);
+      const newRoute = calculateRouteGeometry(newOrigin, newDest);
+      const pos = calculateEstimatedPosition(newRoute.polyline, progress);
       curLat = pos.lat;
       curLng = pos.lng;
       if (progress <= 0) {
@@ -687,7 +692,7 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
         curCountry = s.destination?.country || r.destination_country;
         curFacility = s.destination?.facility || `${curCity} Sort Hub`;
       } else {
-        const nearest = findNearestMetro(pos.lat, pos.lng, domesticCountry(s.origin?.country || r.origin_country, s.destination?.country || r.destination_country));
+        const nearest = nameTransitPosition(pos.lat, pos.lng, newRoute, domesticCountry(s.origin?.country || r.origin_country, s.destination?.country || r.destination_country));
         curCity = nearest?.city ?? curCity;
         curState = nearest?.state ?? curState;
         if (nearest) curCountry = nearest.country;

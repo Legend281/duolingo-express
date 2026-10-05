@@ -367,8 +367,8 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
         || (recipientIsUS ? { city: recipientCity || 'Destination', state: recipientState || 'US', lat: 38.9072, lng: -77.0369, facilityName: `${recipientCity || 'Destination'} Facility` } : null);
       if (!originGeo || !destGeo) return null;
       const routePlan = calculateRouteGeometry(
-        { lat: originGeo.lat, lng: originGeo.lng, name: originGeo.city },
-        { lat: destGeo.lat, lng: destGeo.lng, name: destGeo.city }
+        { lat: originGeo.lat, lng: originGeo.lng, name: originGeo.city, country: senderCountry, state: originGeo.state },
+        { lat: destGeo.lat, lng: destGeo.lng, name: destGeo.city, country: recipientCountry, state: destGeo.state }
       );
       const plan = generateShipmentPlan(
         { city: originGeo.city, state: originGeo.state, facilityName: (originGeo as any).facilityName },
@@ -915,8 +915,8 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
       facilityName: `${recipientCity.trim() || 'Destination'} Facility`
     };
     const routePlan = calculateRouteGeometry(
-      { lat: originGeo.lat, lng: originGeo.lng, name: originGeo.city },
-      { lat: destGeo.lat, lng: destGeo.lng, name: destGeo.city }
+      { lat: originGeo.lat, lng: originGeo.lng, name: originGeo.city, country: senderCountry, state: originGeo.state },
+      { lat: destGeo.lat, lng: destGeo.lng, name: destGeo.city, country: recipientCountry, state: destGeo.state }
     );
     const shipmentPlan = generateShipmentPlan(
       { city: originGeo.city, state: originGeo.state, facilityName: originGeo.facilityName },

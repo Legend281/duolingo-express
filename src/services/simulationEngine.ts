@@ -1,6 +1,6 @@
 import { Shipment, TrackingEvent, ShipmentStatus } from '../types/shipment';
-import { calculateRouteGeometry, calculateEstimatedPosition } from './routingEngine';
-import { resolveLocation, findNearestMetro, domesticCountry } from './geocodingService';
+import { calculateRouteGeometry, calculateEstimatedPosition, nameTransitPosition } from './routingEngine';
+import { resolveLocation, domesticCountry } from './geocodingService';
 
 export type SimulationListener = (updatedShipment: Shipment) => void;
 
@@ -126,12 +126,16 @@ class SimulationEngine {
     const origin = {
       lat: shipment.origin?.lat || originResolved?.lat || 40.7128,
       lng: shipment.origin?.lng || originResolved?.lng || -74.0060,
-      name: `${origCity}, ${origState}`
+      name: `${origCity}, ${origState}`,
+      country: (shipment.origin as any)?.country,
+      state: origState
     };
     const dest = {
       lat: shipment.destination?.lat || destResolved?.lat || 34.0522,
       lng: shipment.destination?.lng || destResolved?.lng || -118.2437,
-      name: `${destCity}, ${destState}`
+      name: `${destCity}, ${destState}`,
+      country: (shipment.destination as any)?.country,
+      state: destState
     };
     const routeGeom = calculateRouteGeometry(origin, dest);
     const pos = calculateEstimatedPosition(routeGeom.polyline, clamped);
@@ -141,7 +145,7 @@ class SimulationEngine {
       ? { city: destCity, state: destState, country: destCountry }
       : clamped <= 0
       ? { city: origCity, state: origState, country: origCountry }
-      : findNearestMetro(pos.lat, pos.lng, domesticCountry(origCountry, destCountry)) || { city: origCity, state: origState, country: origCountry };
+      : nameTransitPosition(pos.lat, pos.lng, routeGeom, domesticCountry(origCountry, destCountry)) || { city: origCity, state: origState, country: origCountry };
 
     const updated: Shipment = {
       ...shipment,

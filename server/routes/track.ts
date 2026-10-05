@@ -179,7 +179,7 @@ trackRouter.get('/:trackingNumber', (req: Request, res: Response) => {
       currentLocation: {
         city: row.current_location_city,
         state: row.current_location_state,
-        country: row.current_location_country || 'United States',
+        country: row.current_location_country ?? 'United States',
         lat: row.current_location_lat,
         lng: row.current_location_lng,
         facility: row.current_facility

@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { RouteCheckpoint, ShipmentStatus } from '../types/shipment';
-import { calculateRouteGeometry, calculateEstimatedPosition, fetchLiveRoadRoute, findNearestPointOnPolyline } from '../services/routingEngine';
-import { Layers, ZoomIn, ZoomOut, Compass, ChevronDown, AlertTriangle, ShieldAlert, Pause, Truck, ArrowRight } from 'lucide-react';
+import { calculateRouteGeometry, calculateEstimatedPosition, fetchLiveRoadRoute, findNearestPointOnPolyline, resolveTransportMode } from '../services/routingEngine';
+import { Layers, ZoomIn, ZoomOut, Compass, ChevronDown, AlertTriangle, ShieldAlert, Pause, Truck, Plane, ArrowRight } from 'lucide-react';
+import { formatPlace } from '../services/geocodingService';
 import './USJourneyMap.css';
 
 // 1x1 transparent pixel — used as the errorTileUrl so a tile that fails to load
@@ -114,6 +115,11 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
     lng: -118.2437
   };
 
+  const originRoutePt = { lat: originPt.lat, lng: originPt.lng, name: originPt.name, country: originPt.country, state: originPt.state };
+  const destRoutePt = { lat: destPt.lat, lng: destPt.lng, name: destPt.name, country: destPt.country, state: destPt.state };
+  const transportMode = resolveTransportMode(originRoutePt, destRoutePt);
+  const isAir = transportMode === 'AIR';
+
   // Helper to create map pin icons
   const createCustomPin = (colorClass: string, label: string, role: string) => {
     const isCurrent = colorClass === 'pin-current';
@@ -136,7 +142,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
         <div class="map-pin-container ${colorClass} ${isActuallyMoving ? 'is-simulating' : ''}">
           ${isCurrent && !isDelivered ? `<div class="radar-glow-ring ${isActuallyMoving ? 'active-pulse' : ''}"></div>` : ''}
           <div class="pin-badge" style="background: ${bg};">
-            ${isCurrent ? '<div class="pin-inner-truck">📦</div>' : '<div class="pin-inner-white"></div>'}
+            ${isCurrent ? `<div class="pin-inner-truck">${isAir && !isDelivered ? '✈️' : '📦'}</div>` : '<div class="pin-inner-white"></div>'}
           </div>
           <div class="pin-info-callout">
             <strong>${label}</strong>
@@ -202,8 +208,8 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
     let map = mapInstanceRef.current;
     if (!map) {
       map = L.map(mapContainerRef.current, {
-        center: [39.8283, -98.5795],
-        zoom: 4,
+        center: [(originPt.lat + destPt.lat) / 2, (originPt.lng + destPt.lng) / 2],
+        zoom: 3,
         zoomControl: false,
         attributionControl: false,
         scrollWheelZoom: false,
@@ -220,10 +226,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
     }
 
     // Compute route geometry
-    const routePlan = calculateRouteGeometry(
-      { lat: originPt.lat, lng: originPt.lng, name: originPt.name },
-      { lat: destPt.lat, lng: destPt.lng, name: destPt.name }
-    );
+    const routePlan = calculateRouteGeometry(originRoutePt, destRoutePt);
     fullPolylineRef.current = routePlan.polyline;
     const fullPolyline = routePlan.polyline;
 
@@ -290,13 +293,15 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
         );
       }
 
-      // Create or update Destination Marker
+      // Create or update Destination Marker — at the line's own end point (see note above
+      // calculateAirRoute: transpacific lines use unwrapped longitudes).
+      const destDrawPt = fullPolyline[fullPolyline.length - 1];
       if (!destMarkerRef.current) {
-        destMarkerRef.current = L.marker([destPt.lat, destPt.lng], {
+        destMarkerRef.current = L.marker(destDrawPt, {
           icon: createCustomPin('pin-destination', destPt.name || 'Destination Hub', 'DESTINATION HUB')
         }).addTo(map);
       } else {
-        destMarkerRef.current.setLatLng([destPt.lat, destPt.lng]);
+        destMarkerRef.current.setLatLng(destDrawPt);
         destMarkerRef.current.setIcon(
           createCustomPin('pin-destination', destPt.name || 'Destination Hub', 'DESTINATION HUB')
         );
@@ -363,10 +368,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
 
     // Asynchronously upgrade to actual US Interstate Highway road geometry
     let isCancelled = false;
-    fetchLiveRoadRoute(
-      { lat: originPt.lat, lng: originPt.lng, name: originPt.name },
-      { lat: destPt.lat, lng: destPt.lng, name: destPt.name }
-    ).then(liveRoad => {
+    fetchLiveRoadRoute(originRoutePt, destRoutePt).then(liveRoad => {
       if (isCancelled || !mapInstanceRef.current || !liveRoad.polyline || liveRoad.polyline.length < 2) return;
       fullPolylineRef.current = liveRoad.polyline;
       const roadProgress = Math.max(0, Math.min(100, progressPercent ?? 0));
@@ -409,7 +411,11 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
     originPt.name,
     destPt.lat,
     destPt.lng,
-    destPt.name
+    destPt.name,
+    originPt.country,
+    originPt.state,
+    destPt.country,
+    destPt.state
   ]);
 
   // =========================================================================
@@ -516,13 +522,15 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
   const isHold = shipmentStatus === 'ON_HOLD';
   const isDelayed = shipmentStatus === 'DELAYED';
 
-  const originDisplay = originPt.name && (originPt.name.includes(',') || !originPt.state)
+  // A name that already carries its own qualifier ("Austin, TX") is shown as-is; otherwise
+  // the shared formatter adds region/country ("Tokyo, Japan", not "Tokyo, Tokyo").
+  const originDisplay = originPt.name && originPt.name.includes(',')
     ? originPt.name
-    : `${originPt.name}, ${originPt.state}`;
+    : formatPlace(originPt.name, originPt.state, originPt.country);
 
-  const destDisplay = destPt.name && (destPt.name.includes(',') || !destPt.state)
+  const destDisplay = destPt.name && destPt.name.includes(',')
     ? destPt.name
-    : `${destPt.name}, ${destPt.state}`;
+    : formatPlace(destPt.name, destPt.state, destPt.country);
 
   return (
     <div className={`dxp-journey-map-card ${className}`}>
@@ -541,9 +549,9 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
         {/* Center Transit Corridor Pill */}
         <div className="stage-transit-center">
           <div className="transit-status-pill">
-            <Truck size={14} className="text-blue" />
+            {isAir ? <Plane size={14} className="text-blue" /> : <Truck size={14} className="text-blue" />}
             <span>
-              {isHold ? 'TRANSIT PAUSED (HOLD)' : isDelayed ? 'TRANSIT DELAY ADVISORY' : 'ESTIMATED TRANSIT CORRIDOR'}
+              {isHold ? 'TRANSIT PAUSED (HOLD)' : isDelayed ? 'TRANSIT DELAY ADVISORY' : isAir ? 'ESTIMATED AIR FREIGHT ROUTE' : 'ESTIMATED TRANSIT CORRIDOR'}
             </span>
           </div>
           <div className="transit-metrics-row">
@@ -629,7 +637,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
         {!delayNotice?.hasDelay && isDelayed && (
           <div className="map-floating-alert delayed animate-fade-in">
             <AlertTriangle size={15} />
-            <span>Transit Delay: Highway linehaul schedule extended.</span>
+            <span>Transit Delay: {isAir ? 'Air freight schedule extended.' : 'Highway linehaul schedule extended.'}</span>
           </div>
         )}
       </div>
@@ -639,7 +647,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
         <div className="footer-status-left">
           <Compass size={16} className="text-blue" />
           <span>
-            <strong>Estimated Position (Schedule-based):</strong> {lastEventDescription || `Progressing along scheduled interstate corridor near ${currentLocationText}`}
+            <strong>Estimated Position (Schedule-based):</strong> {lastEventDescription || `Progressing along scheduled ${isAir ? 'air route' : 'interstate corridor'} near ${currentLocationText}`}
           </span>
         </div>
         {onScrollToTimeline && (
