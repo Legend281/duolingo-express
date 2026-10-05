@@ -11,7 +11,11 @@
     "build": "tsc && vite build && tsc -p tsconfig.server.json",
     "postinstall": "npm run build",
     "start": "node dist-server/server/index.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:api": "vitest run --project api",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -45,6 +49,7 @@
   },
   "devDependencies": {
     "concurrently": "^10.0.5",
-    "tsx": "^4.23.12"
+    "tsx": "^4.23.12",
+    "vitest": "^3.2.7"
   }
 }
