@@ -4,9 +4,11 @@ import dotenv from 'dotenv';
 import session from 'express-session';
 import helmet from 'helmet';
 import path from 'path';
-import fs from 'fs';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import { initDatabase } from './db.js';
+import { initDatabase, db } from './db.js';
+import { SqliteSessionStore } from './sessionStore.js';
+import { startBackupSchedule, ensurePersistenceMarker } from './backup.js';
+import { adminRouter } from './routes/admin.js';
 import { shipmentsRouter } from './routes/shipments.js';
 import { quotesRouter } from './routes/quotes.js';
 import { documentsRouter } from './routes/documents.js';
@@ -38,6 +40,9 @@ app.set('trust proxy', 1);
 if (!ADMIN_PROXY_TARGET) {
   // Initialize Persistent SQLite Database
   initDatabase();
+  // Deploy-wipe check marker + automatic backups (see server/backup.ts).
+  ensurePersistenceMarker();
+  startBackupSchedule();
 }
 
 // Middleware
@@ -92,6 +97,8 @@ if (ADMIN_PROXY_TARGET) {
   app.use(session({
     name: 'dxp.sid',
     secret: process.env.SESSION_SECRET || 'dev-only-insecure-fallback-secret',
+    // Sessions persist in SQLite so a restart/redeploy no longer logs every admin out.
+    store: new SqliteSessionStore(db),
     resave: false,
     saveUninitialized: false,
     // Tells express-session to trust the proxy-derived secure-ness (via trust proxy above)
@@ -118,42 +125,8 @@ if (ADMIN_PROXY_TARGET) {
     });
   });
 
-  // TEMPORARY diagnostic — answers "does this host wipe files that aren't tracked by git on
-  // redeploy?" directly, rather than guessing. On first request ever, writes a marker file
-  // (with its own creation time) next to the database. On every later request, reports that
-  // same original timestamp back. If a redeploy resets this to a brand-new timestamp, the
-  // host is wiping untracked files on every deploy — the same thing that would be silently
-  // destroying the database each time. If the timestamp survives a redeploy, it isn't. Safe
-  // to remove once that's confirmed one way or the other.
-  app.get('/api/diag/storage', (req, res) => {
-    try {
-      const dataDir = process.env.DB_PATH ? path.dirname(process.env.DB_PATH) : path.join(process.cwd(), 'data');
-      const markerPath = path.join(dataDir, '.persistence-check.json');
-      let marker: { firstSeen: string; checkedAt: string };
-      if (fs.existsSync(markerPath)) {
-        const existing = JSON.parse(fs.readFileSync(markerPath, 'utf-8'));
-        marker = { firstSeen: existing.firstSeen, checkedAt: new Date().toISOString() };
-      } else {
-        marker = { firstSeen: new Date().toISOString(), checkedAt: new Date().toISOString() };
-        fs.mkdirSync(dataDir, { recursive: true });
-        fs.writeFileSync(markerPath, JSON.stringify({ firstSeen: marker.firstSeen }));
-      }
-      const dbPath = process.env.DB_PATH || path.join(dataDir, 'duolingo_express.db');
-      const dbExists = fs.existsSync(dbPath);
-      const dbStat = dbExists ? fs.statSync(dbPath) : null;
-      res.json({
-        success: true,
-        dataDir,
-        markerFirstSeen: marker.firstSeen,
-        markerCheckedAt: marker.checkedAt,
-        databaseFileExists: dbExists,
-        databaseFileSizeBytes: dbStat?.size ?? null,
-        databaseFileModifiedAt: dbStat ? dbStat.mtime.toISOString() : null
-      });
-    } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
-    }
-  });
+  // (The former public /api/diag/storage deploy-wipe check now lives, admin-only and without
+  // exposing server paths, at /api/admin/storage — shown under Settings > Data & Backups.)
 
   // API Routes
   // login/logout/session-check are necessarily unauthenticated (that's the point of them);
@@ -177,6 +150,7 @@ if (ADMIN_PROXY_TARGET) {
   app.use('/api/settings', settingsRouter);
   app.use('/api/track', trackRouter);
   app.use('/api/stats', requireAdminAuth, statsRouter);
+  app.use('/api/admin', requireAdminAuth, adminRouter);
 
   // 404 for anything under /api that didn't match a route above.
   app.use('/api', (req: Request, res: Response) => {

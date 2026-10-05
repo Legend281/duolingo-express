@@ -12,7 +12,7 @@ import { seedDatabaseIfEmpty } from './seed.js';
 // that's confirmed and a genuinely persistent path is set here, every redeploy is a data-loss
 // risk. Falls back to the previous process.cwd()-relative location (dev, or any host where
 // that risk doesn't apply) when unset.
-const dataDir = process.env.DB_PATH
+export const dataDir = process.env.DB_PATH
   ? path.dirname(process.env.DB_PATH)
   : path.join(process.cwd(), 'data');
 
@@ -23,7 +23,7 @@ const dataDir = process.env.DB_PATH
 // skipping creation entirely) keeps `db`'s type real with zero disk footprint — no data/
 // directory or .db file gets created on that deployment, and in the unlikely event anything
 // ever did call a method on it, it'd hit a harmless empty DB rather than crashing.
-const dbPath = process.env.ADMIN_PROXY_TARGET
+export const dbPath = process.env.ADMIN_PROXY_TARGET
   ? ':memory:'
   : (process.env.DB_PATH || path.join(dataDir, 'duolingo_express.db'));
 

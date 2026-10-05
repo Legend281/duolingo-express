@@ -199,3 +199,23 @@ export interface AdminSettings {
   autoGenLabel?: boolean;
   autoGenReceipt?: boolean;
 }
+
+// Data & Backups (Settings > Data & Backups) — mirrors server/backup.ts storageStatus().
+export interface BackupInfo {
+  name: string;
+  sizeBytes: number;
+  createdAt: string;
+  kind: 'auto' | 'manual';
+}
+
+export interface StorageStatus {
+  customDatabasePath: boolean;
+  customBackupDir: boolean;
+  dataDirFirstSeen: string | null;
+  serverStartedAt: string;
+  databaseSizeBytes: number | null;
+  backupIntervalHours: number;
+  backupKeep: number;
+  lastBackupAt: string | null;
+  backups: BackupInfo[];
+}

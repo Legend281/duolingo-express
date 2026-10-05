@@ -19,9 +19,11 @@ import {
   Sparkles,
   Phone,
   Mail,
-  Truck
+  Truck,
+  Database
 } from 'lucide-react';
 import { useAdminData } from '../../context/AdminDataContext';
+import { BackupsPanel } from '../components/BackupsPanel';
 import './SettingsView.css';
 
 export const SettingsView: React.FC = () => {
@@ -93,7 +95,7 @@ export const SettingsView: React.FC = () => {
   };
 
   // Active Category Tab
-  const [activeTab, setActiveTab] = useState<'GENERAL' | 'PRIVACY' | 'TARIFF' | 'DOCUMENTS' | 'HUBS'>('GENERAL');
+  const [activeTab, setActiveTab] = useState<'GENERAL' | 'PRIVACY' | 'TARIFF' | 'DOCUMENTS' | 'HUBS' | 'DATA'>('GENERAL');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Handle Save
@@ -232,6 +234,14 @@ export const SettingsView: React.FC = () => {
         >
           <Server size={16} />
           <span>Gateway Hub Telemetry</span>
+        </button>
+
+        <button
+          className={`settings-tab-btn ${activeTab === 'DATA' ? 'active' : ''}`}
+          onClick={() => setActiveTab('DATA')}
+        >
+          <Database size={16} />
+          <span>Data & Backups</span>
         </button>
       </div>
 
@@ -674,7 +684,11 @@ export const SettingsView: React.FC = () => {
           </div>
         )}
 
+        {/* SECTION 6: DATA & BACKUPS — not a saved setting, so outside the save flow */}
+        {activeTab === 'DATA' && <BackupsPanel />}
+
         {/* Bottom Save Action Bar */}
+        {activeTab !== 'DATA' && (
         <div className="settings-footer-save-bar">
           <div className="save-bar-info">
             <Shield size={16} className="text-emerald" />
@@ -685,6 +699,7 @@ export const SettingsView: React.FC = () => {
             <span>Save All Settings</span>
           </button>
         </div>
+        )}
       </form>
     </div>
   );

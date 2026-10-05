@@ -1,5 +1,5 @@
 import { Shipment, ShipmentStatus, TrackingEvent } from '../types/shipment';
-import { QuoteRequest, QuoteRequestPricing, QuoteRequestStatus, AdminSettings, AdminDocument, DocumentStatus } from '../types/admin';
+import { QuoteRequest, QuoteRequestPricing, QuoteRequestStatus, AdminSettings, AdminDocument, DocumentStatus, StorageStatus, BackupInfo } from '../types/admin';
 
 const API_BASE = '/api';
 
@@ -286,6 +286,21 @@ export const api = {
   async getSettings(): Promise<AdminSettings> {
     const res = await fetch(`${API_BASE}/settings`);
     return handleResponse<AdminSettings>(res);
+  },
+
+  // Data & Backups (admin-only; see server/backup.ts)
+  async getStorageStatus(): Promise<StorageStatus> {
+    const res = await fetch(`${API_BASE}/admin/storage`);
+    return handleResponse<StorageStatus>(res);
+  },
+
+  async createBackupNow(): Promise<BackupInfo> {
+    const res = await fetch(`${API_BASE}/admin/backups`, { method: 'POST' });
+    return handleResponse<BackupInfo>(res);
+  },
+
+  backupDownloadUrl(name?: string): string {
+    return name ? `${API_BASE}/admin/backups/${encodeURIComponent(name)}` : `${API_BASE}/admin/backups/download`;
   },
 
   async updateSettings(settings: Partial<AdminSettings>): Promise<AdminSettings> {
