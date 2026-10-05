@@ -179,3 +179,9 @@ h1, h2, h3, h4, h5, h6 {
   background-color: var(--dxp-navy-950);
   transform: translateY(-1px);
 }
+
+/* Placeholder while a code-split page downloads (see App.tsx) — holds space so the footer
+   does not flash up into the viewport. */
+.dxp-page-loading {
+  min-height: 70vh;
+}

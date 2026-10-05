@@ -1,7 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import {
   FileText,
   Tag,
@@ -292,6 +290,8 @@ export const DocumentCenterView: React.FC<DocumentCenterViewProps> = ({
     await waitForImagesToLoad(paperEl);
 
     try {
+      // Loaded on first use: jsPDF + html2canvas are large and only needed for a PDF export.
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
       const canvas = await html2canvas(paperEl, {
         scale: 2,
         backgroundColor: '#ffffff',

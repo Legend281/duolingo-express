@@ -10,6 +10,18 @@ export default defineConfig({
   // couldn't find it at all, so none of these assets (including the logo) ever made it into
   // the production build.
   publicDir: 'Public',
+  build: {
+    rollupOptions: {
+      output: {
+        // Shared libraries in their own files: they change far less often than app code, so
+        // browsers keep them cached across deploys instead of re-downloading them each time.
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          leaflet: ['leaflet'],
+        },
+      },
+    },
+  },
   server: {
     host: true,
     port: 3000,

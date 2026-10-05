@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import {
   Package,
   Truck,
@@ -38,7 +38,9 @@ import {
   DollarSign
 } from 'lucide-react';
 import { Barcode } from '../components/Barcode';
-import { HomeNetworkMap } from '../components/HomeNetworkMap';
+// The map (and the Leaflet library behind it) loads on demand, so it isn't part of the site's
+// first download — the Home page is where most visitors land.
+const HomeNetworkMap = lazy(() => import('../components/HomeNetworkMap').then(m => ({ default: m.HomeNetworkMap })));
 import { CLIENT_LOGOS } from '../components/ClientLogos';
 import { useAdminData } from '../context/AdminDataContext';
 import './HomePage.css';
@@ -891,7 +893,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
             </div>
 
             {/* Interactive Leaflet Gateway Map */}
-            <HomeNetworkMap activeHub={activeHub} onSelectHub={(hub) => setActiveHub(hub)} />
+            <Suspense fallback={<div className="home-network-map-placeholder" aria-busy="true" />}>
+              <HomeNetworkMap activeHub={activeHub} onSelectHub={(hub) => setActiveHub(hub)} />
+            </Suspense>
           </div>
         </div>
       </section>

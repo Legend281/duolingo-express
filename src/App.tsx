@@ -1,20 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { HomePage } from './pages/HomePage';
-import { TrackPage } from './pages/TrackPage';
-import { TrackResultPage } from './pages/TrackResultPage';
-import { PublicQuoteResultPage } from './pages/PublicQuoteResultPage';
-import { ServicesPage } from './pages/ServicesPage';
-import { QuotePage } from './pages/QuotePage';
-import { ShipPage } from './pages/ShipPage';
-import { AboutPage } from './pages/AboutPage';
-import { ContactPage } from './pages/ContactPage';
-import { HelpPage } from './pages/HelpPage';
-import { LegalPage } from './pages/LegalPage';
-import { LocationsPage } from './pages/LocationsPage';
-import { AdminApp } from './admin/AdminApp';
-import { AdminLogin } from './admin/AdminLogin';
+
+// Code-split: only the Home page (where most visitors land) ships in the first download.
+// Every other page — and the whole admin console with its PDF tools — is fetched the first
+// time it's opened. All of it used to be one ~1.75 MB script every visitor downloaded.
+// Lazy-loads a NAMED export while keeping that component's own prop types.
+function named<M, K extends keyof M>(
+  loader: () => Promise<M>,
+  key: K
+): React.LazyExoticComponent<M[K] extends React.ComponentType<any> ? M[K] : never> {
+  return lazy(() => loader().then(m => ({ default: m[key] as any })));
+}
+const TrackPage = named(() => import('./pages/TrackPage'), 'TrackPage');
+const TrackResultPage = named(() => import('./pages/TrackResultPage'), 'TrackResultPage');
+const PublicQuoteResultPage = named(() => import('./pages/PublicQuoteResultPage'), 'PublicQuoteResultPage');
+const ServicesPage = named(() => import('./pages/ServicesPage'), 'ServicesPage');
+const QuotePage = named(() => import('./pages/QuotePage'), 'QuotePage');
+const ShipPage = named(() => import('./pages/ShipPage'), 'ShipPage');
+const AboutPage = named(() => import('./pages/AboutPage'), 'AboutPage');
+const ContactPage = named(() => import('./pages/ContactPage'), 'ContactPage');
+const HelpPage = named(() => import('./pages/HelpPage'), 'HelpPage');
+const LegalPage = named(() => import('./pages/LegalPage'), 'LegalPage');
+const LocationsPage = named(() => import('./pages/LocationsPage'), 'LocationsPage');
+const AdminApp = named(() => import('./admin/AdminApp'), 'AdminApp');
+const AdminLogin = named(() => import('./admin/AdminLogin'), 'AdminLogin');
+
+/** Shown for the moment a page's code is downloading; keeps the footer from jumping up. */
+const PageLoading: React.FC = () => <div className="dxp-page-loading" aria-busy="true" />;
 import { TrackingLoadingScreen } from './components/TrackingLoadingScreen';
 import { AdminDataProvider, useAdminData } from './context/AdminDataContext';
 import { PRIMARY_SHIPMENT, getShipmentByTrackingNumber } from './data/mockShipments';
@@ -332,13 +346,19 @@ function MainAppContent() {
       return <div className="admin-login-shell" />;
     }
     if (!isAdminAuthed) {
-      return <AdminLogin onNavigatePublic={handleNavigate} />;
+      return (
+        <Suspense fallback={<div className="admin-login-shell" />}>
+          <AdminLogin onNavigatePublic={handleNavigate} />
+        </Suspense>
+      );
     }
     return (
-      <AdminApp
-        onNavigatePublic={handleNavigate}
-        onViewPublicTracking={handleTrackShipment}
-      />
+      <Suspense fallback={<div className="admin-login-shell" />}>
+        <AdminApp
+          onNavigatePublic={handleNavigate}
+          onViewPublicTracking={handleTrackShipment}
+        />
+      </Suspense>
     );
   }
 
@@ -350,6 +370,7 @@ function MainAppContent() {
       />
 
       <main className="dxp-main-view">
+        <Suspense fallback={<PageLoading />}>
         {isTrackSearching ? (
           <TrackingLoadingScreen query={trackSearchQuery} />
         ) : (
@@ -418,6 +439,7 @@ function MainAppContent() {
         )}
           </>
         )}
+        </Suspense>
       </main>
 
       <Footer
