@@ -53,7 +53,7 @@ import { SupportModal } from '../components/SupportModal';
 import { calculateRouteGeometry } from '../services/routingEngine';
 import { simulationEngine } from '../services/simulationEngine';
 import { api } from '../services/api';
-import { generateShipmentPlan, calculateDynamicTimeProgress, getServiceCommitmentHours } from '../services/planningEngine';
+import { generateShipmentPlan, calculateDynamicTimeProgress, getServiceCommitmentHours, routeContext, formatCommitment } from '../services/planningEngine';
 import { resolveLocation, formatPlace } from '../services/geocodingService';
 import { applyForwardOnlyShipmentUpdate } from '../utils/shipmentSync';
 import { useAdminData } from '../context/AdminDataContext';
@@ -380,7 +380,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
       facility: `${originCity} Regional Processing Center`,
       city: originCity,
       state: originState,
-      description: `${isVehicle ? 'Vehicle' : 'Cargo'} processed and departed ${originCity} facility; is moving along verified interstate corridor toward ${destCity}.`,
+      description: `${isVehicle ? 'Vehicle' : 'Cargo'} processed and departed ${originCity} facility; is moving along its scheduled route toward ${destCity}.`,
       isCurrent: true,
       isCompleted: true
     },
@@ -504,15 +504,17 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   // from "right now" — otherwise the 6-stage timeline's own final "Delivered" milestone date
   // would silently drift out of sync with the ETA already shown in the header/summary cards,
   // the same class of self-contradicting-date bug this timeline replacement was meant to fix.
-  const slaHoursForPlan = getServiceCommitmentHours(service, routeGeom.distanceMiles);
+  // Road vs air and domestic vs cross-border (customs) for this shipment's SLA and milestones.
+  const shipmentRoute = routeContext(routeGeom.origin, routeGeom.destination);
+  const slaHoursForPlan = getServiceCommitmentHours(service, routeGeom.distanceMiles, shipmentRoute);
   const parsedEstDelivery = new Date(estDeliveryDate);
   const planPickupDateStr = !isNaN(parsedEstDelivery.getTime())
     ? new Date(parsedEstDelivery.getTime() - slaHoursForPlan * 3600 * 1000).toISOString()
     : undefined;
 
   const plan = generateShipmentPlan(
-    { city: originCity, state: originState },
-    { city: destCity, state: destState },
+    { city: originCity, state: originState, country: originCountry, lat: routeGeom.origin.lat, lng: routeGeom.origin.lng },
+    { city: destCity, state: destState, country: destCountry, lat: routeGeom.destination.lat, lng: routeGeom.destination.lng },
     service,
     routeGeom.distanceMiles,
     planPickupDateStr,
@@ -673,7 +675,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
               </div>
               <div className="hero-metric-text">
                 <span className="hero-metric-lbl">Service Level</span>
-                <strong className="hero-metric-val">{service} (24h)</strong>
+                <strong className="hero-metric-val">{service} ({formatCommitment(plan.serviceCommitmentHours)})</strong>
               </div>
             </div>
 
@@ -847,7 +849,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
               <div className="hero-specs-mini-table">
                 <div className="spec-item-row">
                   <span className="s-lbl">Service Level:</span>
-                  <span className="s-val">{service} (24h)</span>
+                  <span className="s-val">{service} ({formatCommitment(plan.serviceCommitmentHours)})</span>
                 </div>
                 <div className="spec-item-row">
                   <span className="s-lbl">Shipment Type:</span>
@@ -932,7 +934,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
             currentLng={currentLng}
             lastEventDescription={`${isVehicle ? 'Vehicle' : 'Shipment'} — ${timeProgress.activeMilestoneStage} toward ${destCity}.`}
             totalDistance={`${routeGeom.distanceMiles.toLocaleString()} miles`}
-            transitTime={`${plan.serviceCommitmentHours} Hours`}
+            transitTime={formatCommitment(plan.serviceCommitmentHours)}
             progressPercent={progressPercent}
             shipmentStatus={status}
             delayNotice={liveShipment.delayNotice}
@@ -1303,7 +1305,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
                   <Package size={18} className="dtl-icon text-blue" />
                   <div className="dtl-cell-content">
                     <small>Service Level</small>
-                    <strong>{service} (24h)</strong>
+                    <strong>{service} ({formatCommitment(plan.serviceCommitmentHours)})</strong>
                   </div>
                 </div>
 

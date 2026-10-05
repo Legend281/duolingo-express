@@ -371,8 +371,8 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
         { lat: destGeo.lat, lng: destGeo.lng, name: destGeo.city, country: recipientCountry, state: destGeo.state }
       );
       const plan = generateShipmentPlan(
-        { city: originGeo.city, state: originGeo.state, facilityName: (originGeo as any).facilityName },
-        { city: destGeo.city, state: destGeo.state, facilityName: (destGeo as any).facilityName },
+        { city: originGeo.city, state: originGeo.state, facilityName: (originGeo as any).facilityName, country: senderCountry, lat: originGeo.lat, lng: originGeo.lng },
+        { city: destGeo.city, state: destGeo.state, facilityName: (destGeo as any).facilityName, country: recipientCountry, lat: destGeo.lat, lng: destGeo.lng },
         service,
         routePlan.distanceMiles,
         pickupDate
@@ -919,8 +919,8 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
       { lat: destGeo.lat, lng: destGeo.lng, name: destGeo.city, country: recipientCountry, state: destGeo.state }
     );
     const shipmentPlan = generateShipmentPlan(
-      { city: originGeo.city, state: originGeo.state, facilityName: originGeo.facilityName },
-      { city: destGeo.city, state: destGeo.state, facilityName: destGeo.facilityName },
+      { city: originGeo.city, state: originGeo.state, facilityName: originGeo.facilityName, country: senderCountry, lat: originGeo.lat, lng: originGeo.lng },
+      { city: destGeo.city, state: destGeo.state, facilityName: destGeo.facilityName, country: recipientCountry, lat: destGeo.lat, lng: destGeo.lng },
       service,
       routePlan.distanceMiles,
       pickupDate

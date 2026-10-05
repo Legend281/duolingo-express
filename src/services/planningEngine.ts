@@ -13,8 +13,40 @@ import {
   ShipmentAuditEntry,
   ReturnJourneyLeg
 } from '../types/shipment.js';
-import { findIntermediateHub } from './routingEngine.js';
-import { resolveLocation } from './geocodingService.js';
+import { findIntermediateHub, resolveTransportMode, LatLngPoint, TransportMode } from './routingEngine.js';
+import { resolveLocation, formatPlace } from './geocodingService.js';
+import { canonicalCountry, normalizePlace } from './worldCities.js';
+
+/** How a shipment travels: road or air, and whether it crosses a border (customs). */
+export interface RouteContext {
+  mode?: TransportMode;
+  international?: boolean;
+}
+
+/** Route context for two endpoints (country blank = United States). */
+export function routeContext(origin: LatLngPoint, destination: LatLngPoint): RouteContext {
+  const oc = normalizePlace(canonicalCountry(origin.country) || 'United States');
+  const dc = normalizePlace(canonicalCountry(destination.country) || 'United States');
+  return { mode: resolveTransportMode(origin, destination), international: oc !== dc };
+}
+
+/** Route context straight from a shipment record, when it has stored coordinates. */
+function shipmentRouteContext(shipment: Shipment): RouteContext {
+  const o = shipment.origin as any;
+  const d = shipment.destination as any;
+  if (typeof o?.lat !== 'number' || typeof d?.lat !== 'number') return {};
+  return routeContext(
+    { lat: o.lat, lng: o.lng, country: o.country, state: o.state },
+    { lat: d.lat, lng: d.lng, country: d.country, state: d.state }
+  );
+}
+
+/** "48h" for short windows, "7 days" beyond two days. */
+export function formatCommitment(hours: number): string {
+  if (hours <= 48) return `${Math.round(hours)}h`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'}`;
+}
 
 /**
  * Shipment.currentLocation is typed as a string, but the simulation engine (in motion)
@@ -67,9 +99,29 @@ export interface ShipmentPlanResult {
 /**
  * Maps commercial service level to customer delivery SLA commitment (hours)
  * Strictly separated from physical driving duration.
+ *
+ * `route` (optional; omitted = domestic road, the original behavior):
+ *  - international air: Express 3 days, Priority 5, Standard 7, Freight 10 (+1 day past
+ *    6,000 mi) — includes export + import customs clearance;
+ *  - domestic air (Hawaii/Alaska): Express 2 days, Priority 3, Standard 5, Freight 7;
+ *  - cross-border road (e.g. US <-> Canada): the domestic window + 1 day for customs.
  */
-export function getServiceCommitmentHours(service: string, distanceMiles: number): number {
+export function getServiceCommitmentHours(service: string, distanceMiles: number, route: RouteContext = {}): number {
   const norm = String(service).toUpperCase();
+  const tier = norm.includes('EXPRESS') || norm.includes('AIR') ? 'EXPRESS'
+    : norm.includes('PRIORITY') ? 'PRIORITY'
+    : norm.includes('FREIGHT') || norm.includes('LTL') ? 'FREIGHT'
+    : 'STANDARD';
+  if (route.mode === 'AIR') {
+    const table = route.international
+      ? { EXPRESS: 72, PRIORITY: 120, STANDARD: 168, FREIGHT: 240 }
+      : { EXPRESS: 48, PRIORITY: 72, STANDARD: 120, FREIGHT: 168 };
+    return table[tier] + (route.international && distanceMiles > 6000 ? 24 : 0);
+  }
+  return domesticRoadCommitmentHours(norm, distanceMiles) + (route.international ? 24 : 0);
+}
+
+function domesticRoadCommitmentHours(norm: string, distanceMiles: number): number {
   if (norm.includes('EXPRESS') || norm.includes('AIR')) {
     return 24; // 24h Express Air Linehaul SLA
   }
@@ -132,7 +184,8 @@ export function resolveProgressPaceHours(
   distanceMiles: number,
   createdAtTs?: number | null,
   estimatedDeliveryDate?: string,
-  estimatedDeliveryTime?: string
+  estimatedDeliveryTime?: string,
+  route: RouteContext = {}
 ): number {
   if (createdAtTs && estimatedDeliveryDate) {
     const etaTs = parseEstimatedDeliveryTimestamp(estimatedDeliveryDate, estimatedDeliveryTime);
@@ -143,7 +196,7 @@ export function resolveProgressPaceHours(
       }
     }
   }
-  return getServiceCommitmentHours(service, distanceMiles);
+  return getServiceCommitmentHours(service, distanceMiles, route);
 }
 
 /**
@@ -169,8 +222,10 @@ export function formatDateTime(date: Date): { dateStr: string; timeStr: string }
  * Never automatically converts an estimated milestone into a confirmed actual scan.
  */
 export function generateShipmentPlan(
-  origin: { city: string; state: string; facilityName?: string },
-  destination: { city: string; state: string; facilityName?: string },
+  // lat/lng/country are optional for backward compatibility, but international shipments need
+  // them: without them the city/state is re-looked-up through the US-only offline table.
+  origin: { city: string; state: string; facilityName?: string; country?: string; lat?: number; lng?: number },
+  destination: { city: string; state: string; facilityName?: string; country?: string; lat?: number; lng?: number },
   service: string,
   distanceMiles: number,
   pickupDateStr?: string,
@@ -178,7 +233,23 @@ export function generateShipmentPlan(
   currentStatus?: ShipmentStatus,
   currentProgress?: number
 ): ShipmentPlanResult {
-  const slaHours = getServiceCommitmentHours(service, distanceMiles);
+  // Stored coordinates win; the US-only re-lookup is only a fallback for legacy callers.
+  const originGeo = typeof origin.lat === 'number' && typeof origin.lng === 'number'
+    ? { lat: origin.lat, lng: origin.lng }
+    : (resolveLocation(`${origin.city}, ${origin.state}`, origin.country) || { lat: 39.8283, lng: -98.5795 });
+  const destGeo = typeof destination.lat === 'number' && typeof destination.lng === 'number'
+    ? { lat: destination.lat, lng: destination.lng }
+    : (resolveLocation(`${destination.city}, ${destination.state}`, destination.country) || { lat: 38.9072, lng: -77.0369 });
+  const route = routeContext(
+    { ...originGeo, country: origin.country, state: origin.state },
+    { ...destGeo, country: destination.country, state: destination.state }
+  );
+  const isAir = route.mode === 'AIR';
+  const slaHours = getServiceCommitmentHours(service, distanceMiles, route);
+  const originPlace = formatPlace(origin.city, origin.state, origin.country);
+  const destPlace = formatPlace(destination.city, destination.state, destination.country);
+  const destCountryName = canonicalCountry(destination.country) || 'United States';
+  const originCountryName = canonicalCountry(origin.country) || 'United States';
 
   const startDate = pickupDateStr ? new Date(pickupDateStr) : new Date();
   if (isNaN(startDate.getTime())) {
@@ -194,67 +265,104 @@ export function generateShipmentPlan(
 
   const nowMs = Date.now();
 
-  // Dynamically identify realistic intermediate waypoint hub
-  const originGeo = resolveLocation(`${origin.city}, ${origin.state}`) || { lat: 39.8283, lng: -98.5795 };
-  const destGeo = resolveLocation(`${destination.city}, ${destination.state}`) || { lat: 38.9072, lng: -77.0369 };
-  const intermediateHub = findIntermediateHub(
+  // Intermediate road hub (US metros) — meaningless for a flight, and for cross-border road
+  // legs the US-only hub table can't name the other side's corridor, so neutral wording there.
+  const intermediateHub = isAir || route.international ? null : findIntermediateHub(
     { lat: originGeo.lat, lng: originGeo.lng, name: origin.city },
     { lat: destGeo.lat, lng: destGeo.lng, name: destination.city }
   );
 
-  const midStageName = intermediateHub
+  const midStageName = isAir
+    ? `In Flight to ${route.international ? destCountryName : destination.city}`
+    : intermediateHub
     ? `Corridor Transit Scan — ${intermediateHub.city}, ${intermediateHub.state}`
     : 'Intermediate Linehaul Corridor Scan';
-  const midLocation = intermediateHub ? `${intermediateHub.city}, ${intermediateHub.state}` : 'Interstate Transit Corridor';
-  const midFacility = intermediateHub ? intermediateHub.facility : 'Regional Linehaul Sort Center';
-  const midDescription = intermediateHub
+  const midLocation = isAir
+    ? 'In Flight'
+    : intermediateHub ? `${intermediateHub.city}, ${intermediateHub.state}` : (route.international ? 'Cross-Border Transit Corridor' : 'Interstate Transit Corridor');
+  const midFacility = isAir ? 'Air Freight Carrier' : intermediateHub ? intermediateHub.facility : 'Regional Linehaul Sort Center';
+  const midDescription = isAir
+    ? `Consignment airborne on scheduled air freight service toward ${destPlace}.`
+    : intermediateHub
     ? intermediateHub.description
-    : `Progressing through central interstate transit corridor toward ${destination.city}.`;
+    : `Progressing through ${route.international ? 'the cross-border' : 'central interstate'} transit corridor toward ${destination.city}.`;
+
+  // Cross-border shipments add export and import customs clearance; timings are fractions of
+  // the full commitment window.
+  const at = route.international
+    ? { depart: 0.2, mid: 0.45, arrive: 0.82, out: 0.93 }
+    : { depart: 0.25, mid: 0.65, arrive: 0.85, out: 0.95 };
+  const atTime = (fraction: number) => new Date(startDate.getTime() + Math.round(slaHours * fraction * 3600 * 1000));
+  const plannedAt = (d: Date) => { const { dateStr, timeStr } = formatDateTime(d); return `${dateStr} · ${timeStr}`; };
 
   // Milestone 1: Origin Intake
   const t0 = new Date(startDate.getTime());
   const { dateStr: d0, timeStr: tm0 } = formatDateTime(t0);
 
-  // Milestone 2: Linehaul Departure
-  const t1 = new Date(startDate.getTime() + Math.round(slaHours * 0.25 * 3600 * 1000));
+  // Milestone 2: Departure (road linehaul or air freight)
+  const t1 = atTime(at.depart);
   const { dateStr: d1, timeStr: tm1 } = formatDateTime(t1);
 
-  // Milestone 3: Intermediate Sorting Hub (Midpoint)
-  const t2 = new Date(startDate.getTime() + Math.round(slaHours * 0.65 * 3600 * 1000));
+  // Milestone 3: Intermediate hub (road) / in flight (air)
+  const t2 = atTime(at.mid);
   const { dateStr: d2, timeStr: tm2 } = formatDateTime(t2);
 
   // Milestone 4: Arrival at Destination Sorting Center
-  const t3 = new Date(startDate.getTime() + Math.round(slaHours * 0.85 * 3600 * 1000));
+  const t3 = atTime(at.arrive);
   const { dateStr: d3, timeStr: tm3 } = formatDateTime(t3);
 
   // Milestone 5: Out for Final Delivery
-  const t4 = new Date(startDate.getTime() + Math.round(slaHours * 0.95 * 3600 * 1000));
+  const t4 = atTime(at.out);
   const { dateStr: d4, timeStr: tm4 } = formatDateTime(t4);
 
   // Milestone 6: Final Delivery
   const t5 = new Date(startDate.getTime() + slaHours * 3600 * 1000);
   const { dateStr: d5, timeStr: tm5 } = formatDateTime(t5);
 
+  const exportCustoms = route.international ? [{
+    id: 'plan-export-customs',
+    stageName: `Export Customs Clearance — ${originCountryName}`,
+    location: originPlace,
+    facility: `${originFacility} Customs Bond`,
+    plannedDateTime: plannedAt(atTime(0.1)),
+    targetTimestamp: atTime(0.1).getTime(),
+    status: 'PROCESSING' as ShipmentStatus,
+    description: `Export declaration lodged and cleared with ${originCountryName} customs.`
+  }] : [];
+  const importCustoms = route.international ? [{
+    id: 'plan-import-customs',
+    stageName: `Import Customs Clearance — ${destCountryName}`,
+    location: destPlace,
+    facility: `${destination.city} ${isAir ? 'Air Cargo' : 'Border'} Customs`,
+    plannedDateTime: plannedAt(atTime(0.7)),
+    targetTimestamp: atTime(0.7).getTime(),
+    status: 'DESTINATION_PROCESSING' as ShipmentStatus,
+    description: `Import entry, duties and inspection processed by ${destCountryName} customs.`
+  }] : [];
+
   const rawMilestones = [
     {
       id: 'plan-orig-intake',
       stageName: 'Shipment Received at Origin Facility',
-      location: `${origin.city}, ${origin.state}`,
+      location: originPlace,
       facility: originFacility,
       plannedDateTime: `${d0} · ${tm0}`,
       targetTimestamp: t0.getTime(),
       status: 'RECEIVED' as ShipmentStatus,
       description: `Consignment tendered and registered at ${originFacility}.`
     },
+    ...exportCustoms,
     {
       id: 'plan-linehaul-depart',
-      stageName: 'Departed Origin Facility on Scheduled Linehaul',
-      location: `${origin.city}, ${origin.state}`,
-      facility: originFacility,
+      stageName: isAir ? 'Departed on Scheduled Air Freight' : 'Departed Origin Facility on Scheduled Linehaul',
+      location: originPlace,
+      facility: isAir ? `${origin.city} Air Cargo Terminal` : originFacility,
       plannedDateTime: `${d1} · ${tm1}`,
       targetTimestamp: t1.getTime(),
       status: 'IN_TRANSIT' as ShipmentStatus,
-      description: `Linehaul unit dispatched along verified corridor toward ${destination.city}.`
+      description: isAir
+        ? `Consignment loaded on scheduled air freight service toward ${destPlace}.`
+        : `Linehaul unit dispatched along verified corridor toward ${destination.city}.`
     },
     {
       id: 'plan-midpoint-sort',
@@ -266,10 +374,11 @@ export function generateShipmentPlan(
       status: 'IN_TRANSIT' as ShipmentStatus,
       description: midDescription
     },
+    ...importCustoms,
     {
       id: 'plan-dest-arrive',
       stageName: 'Arrived at Destination Facility',
-      location: `${destination.city}, ${destination.state}`,
+      location: destPlace,
       facility: destFacility,
       plannedDateTime: `${d3} · ${tm3}`,
       targetTimestamp: t3.getTime(),
@@ -279,7 +388,7 @@ export function generateShipmentPlan(
     {
       id: 'plan-out-delivery',
       stageName: 'Out for Final Delivery',
-      location: `${destination.city}, ${destination.state}`,
+      location: destPlace,
       facility: destFacility,
       plannedDateTime: `${d4} · ${tm4}`,
       targetTimestamp: t4.getTime(),
@@ -289,7 +398,7 @@ export function generateShipmentPlan(
     {
       id: 'plan-delivered',
       stageName: 'Estimated Delivery to Consignee',
-      location: `${destination.city}, ${destination.state}`,
+      location: destPlace,
       facility: 'Consignee Delivery Location',
       plannedDateTime: `${d5} · by ${tm5}`,
       targetTimestamp: t5.getTime(),
@@ -315,6 +424,15 @@ export function generateShipmentPlan(
       isMatchedConfirmed = confirmedEvents.some(e => 
         e.status === 'RECEIVED' || e.status === 'BOOKED' || e.title.toLowerCase().includes('received') || e.title.toLowerCase().includes('registered') || e.title.toLowerCase().includes('created') || e.title.toLowerCase().includes('picked up')
       ) || (currentStatus !== undefined && currentStatus !== 'CREATED' && currentStatus !== 'AWAITING_PICKUP');
+    } else if (m.id === 'plan-export-customs') {
+      // Cleared once the shipment has departed (or anything later), or an explicit scan says so.
+      isMatchedConfirmed = isOverallOutForDelivery || isOverallAtFacility || (currentProgress !== undefined && currentProgress >= 15) || confirmedEvents.some(e =>
+        e.title.toLowerCase().includes('export') || e.title.toLowerCase().includes('departed')
+      );
+    } else if (m.id === 'plan-import-customs') {
+      isMatchedConfirmed = isOverallOutForDelivery || (currentProgress !== undefined && currentProgress >= 75) || confirmedEvents.some(e =>
+        e.title.toLowerCase().includes('import') || e.title.toLowerCase().includes('customs cleared')
+      );
     } else if (m.id === 'plan-linehaul-depart') {
       isMatchedConfirmed = isOverallOutForDelivery || isOverallAtFacility || (isOverallDeparted && (confirmedEvents.some(e => 
         e.title.toLowerCase().includes('departed') || (e.status === 'IN_TRANSIT' && !e.title.toLowerCase().includes('corridor') && !e.title.toLowerCase().includes('intermediate'))
@@ -697,7 +815,8 @@ export function applyReturnToOrigin(
  */
 export function calculateDynamicTimeProgress(
   shipment: Shipment | null | undefined,
-  serviceCommitmentHours: number = 24
+  serviceCommitmentHours: number = 24,
+  route?: RouteContext
 ): {
   progressPercent: number;
   interpolatedLocation: string;
@@ -796,13 +915,15 @@ export function calculateDynamicTimeProgress(
   const originCity = shipment.origin?.city || 'Origin';
   const destCity = shipment.destination?.city || 'Destination';
 
-  let activeMilestoneStage = 'In Linehaul';
+  const ctx = route || shipmentRouteContext(shipment);
+  const isAir = ctx.mode === 'AIR';
+  let activeMilestoneStage = isAir ? 'Departed on Air Freight' : 'In Linehaul';
   if (dynamicProgress >= 90) {
     activeMilestoneStage = `Arrived at ${destCity} Gateway`;
   } else if (dynamicProgress >= 65) {
-    activeMilestoneStage = 'Approaching Regional Hub';
+    activeMilestoneStage = ctx.international ? 'Import Customs Clearance' : 'Approaching Regional Hub';
   } else if (dynamicProgress >= 35) {
-    activeMilestoneStage = 'Interstate Linehaul Corridor';
+    activeMilestoneStage = isAir ? 'In Flight' : ctx.international ? 'Cross-Border Linehaul' : 'Interstate Linehaul Corridor';
   }
 
   return {
