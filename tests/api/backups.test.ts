@@ -21,11 +21,13 @@ describe('backups & storage', () => {
     expect((await new ApiClient().get('/diag/storage')).status).toBe(404);
   });
 
-  it('took an automatic backup on startup and reports status without server paths', async () => {
+  it('took a backup on startup and reports status without server paths', async () => {
     const r = await admin.get('/admin/storage');
     expect(r.status).toBe(200);
     expect(r.json.data.backups.length).toBeGreaterThanOrEqual(1);
-    expect(r.json.data.backups.some((b: any) => b.kind === 'auto')).toBe(true);
+    // A fresh (seeded) database gets a pre-repair backup from the startup date repair, which
+    // is recent enough that the scheduled one is skipped; either counts.
+    expect(r.json.data.backups.some((b: any) => b.kind === 'auto' || b.kind === 'premigration')).toBe(true);
     expect(JSON.stringify(r.json)).not.toMatch(/dxp-api-test-|[A-Za-z]:\\\\|\/tmp\//);
   });
 

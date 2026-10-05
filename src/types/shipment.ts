@@ -28,6 +28,8 @@ export interface TrackingEvent {
   id: string;
   timestamp: string; // ISO 8601 UTC
   timezone?: string; // 'ET' | 'CT' | 'MT' | 'PT'
+  /** When it actually happened (ISO), from the server. `timestamp` is display text. */
+  occurredAt?: string;
   displayDate: string; // e.g. "August 17, 2026"
   displayTime: string; // e.g. "10:42 AM CT"
   title: string;

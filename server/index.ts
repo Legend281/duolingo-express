@@ -8,6 +8,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import { initDatabase, db } from './db.js';
 import { SqliteSessionStore } from './sessionStore.js';
 import { startBackupSchedule, ensurePersistenceMarker } from './backup.js';
+import { repairLegacyDates } from './dateRepair.js';
 import { adminRouter } from './routes/admin.js';
 import { shipmentsRouter } from './routes/shipments.js';
 import { quotesRouter } from './routes/quotes.js';
@@ -42,6 +43,9 @@ if (!ADMIN_PROXY_TARGET) {
   initDatabase();
   // Deploy-wipe check marker + automatic backups (see server/backup.ts).
   ensurePersistenceMarker();
+  // One-time repair of free-text dates from before timestamps were stored (backs up first;
+  // a no-op once the data is clean). See server/dateRepair.ts.
+  repairLegacyDates();
   startBackupSchedule();
 }
 

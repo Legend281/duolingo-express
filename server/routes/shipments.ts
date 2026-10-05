@@ -5,6 +5,8 @@ import { calculateRouteGeometry, calculateEstimatedPosition, nameTransitPosition
 import { domesticCountry } from '../../src/services/geocodingService.js';
 import { requireAdminAuth } from '../middleware/auth.js';
 import { publicWriteLimiter } from '../middleware/rateLimit.js';
+import { splitEventTimestamp } from '../../src/utils/dates.js';
+import { displayDate, eventDisplay, normalizeEta, eventTimeFromInput } from '../dates.js';
 
 export const shipmentsRouter = Router();
 
@@ -15,28 +17,8 @@ function splitLocation(location: string): { city: string; state: string } {
   return { city: parts[0] || '', state: parts[1] || '' };
 }
 
-// Tracking events store a single pre-formatted "timestamp" string (e.g.
-// "August 20, 2026 · 4:35 PM CT" or "Aug 19, 2026 4:35 PM") rather than separate date/time
-// columns. The frontend timeline renders `displayDate` / `displayTime` directly and has no
-// fallback for them — leaving them undefined rendered every persisted event's timestamp as a
-// blank "—". This splits the stored string back into those fields instead.
-function splitEventTimestamp(raw: string): { displayDate: string; displayTime: string; timezone?: string } {
-  const str = (raw || '').trim();
-  if (!str) return { displayDate: '', displayTime: '' };
-
-  const tzMatch = str.match(/\b(ET|CT|MT|PT|UTC|GMT)\b\s*$/);
-  const timezone = tzMatch ? tzMatch[1] : undefined;
-
-  const timeMatch = str.match(/\d{1,2}:\d{2}\s*[AaPp][Mm]/);
-  if (timeMatch) {
-    const timeIdx = str.indexOf(timeMatch[0]);
-    const displayDate = str.slice(0, timeIdx).replace(/[·\-–—]+\s*$/, '').trim() || str;
-    const displayTime = str.slice(timeIdx).trim();
-    return { displayDate, displayTime, timezone };
-  }
-
-  return { displayDate: str, displayTime: '', timezone };
-}
+// Event display strings are split back into displayDate/displayTime by the shared
+// splitEventTimestamp (src/utils/dates.ts); occurred_at_ts is the real time, used for ordering.
 
 // Helper to format shipment row from DB to JSON model
 function formatShipment(row: any) {
@@ -59,7 +41,7 @@ function formatShipment(row: any) {
     dimensions: JSON.parse(p.dimensions_json || '{}')
   }));
 
-  const eventsStmt = db.prepare('SELECT * FROM tracking_events WHERE shipment_tracking = ? ORDER BY sort_order ASC, timestamp ASC');
+  const eventsStmt = db.prepare('SELECT * FROM tracking_events WHERE shipment_tracking = ? ORDER BY sort_order ASC, occurred_at_ts ASC');
   const events = eventsStmt.all(row.tracking_number).map((e: any) => ({
     id: e.id,
     status: e.status,
@@ -70,6 +52,7 @@ function formatShipment(row: any) {
     ...splitEventTimestamp(e.timestamp),
     facility: e.facility,
     timestamp: e.timestamp,
+    occurredAt: e.occurred_at_ts ? new Date(e.occurred_at_ts).toISOString() : undefined,
     description: e.description,
     operatorNotes: e.operator_notes,
     internalNote: e.operator_notes || undefined,
@@ -91,7 +74,9 @@ function formatShipment(row: any) {
     createdAtTs: row.created_at_ts || undefined,
     estimatedDelivery: {
       date: row.estimated_delivery_date,
-      timeWindow: row.estimated_delivery_time
+      timeWindow: row.estimated_delivery_time,
+      // The deadline as a real instant — use this for any date math, not `date` (display text).
+      timestamp: row.estimated_delivery_ts ? new Date(row.estimated_delivery_ts).toISOString() : undefined
     },
     service: row.service,
     shipmentType: row.shipment_type,
@@ -221,8 +206,18 @@ shipmentsRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
       trackingNumber = `DXP-2026-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     }
     const barcodeCode = `*${trackingNumber}*`;
-    const createdAt = s.createdAt || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const lastUpdated = 'Just now';
+    // Server-authoritative dates: a client-sent createdAt ("Today") used to be stored verbatim.
+    const nowMs = Date.now();
+    const createdAt = displayDate(nowMs);
+    const lastUpdated = eventDisplay(nowMs);
+    // Delivery date normalized to a full date with a year + its real deadline. With none sent,
+    // default to 3 days out (this used to be a fixed "August 24, 2026" for everyone).
+    const etaWindow = s.estimatedDelivery?.timeWindow || s.estimatedDeliveryDetail || 'by 5:00 PM';
+    const eta = normalizeEta(
+      (typeof s.estimatedDelivery === 'string' ? s.estimatedDelivery : s.estimatedDelivery?.date) || displayDate(nowMs + 3 * 86400000),
+      etaWindow,
+      nowMs
+    );
 
     const insertShipment = db.prepare(`
       INSERT INTO shipments (
@@ -237,9 +232,10 @@ shipmentsRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
         references_json, cargo_category, photos_json,
         handling_requirements_json, pickup_window, internal_pricing_note,
         progress_updated_at_ts, created_at_ts,
-        origin_country, destination_country, current_location_country
+        origin_country, destination_country, current_location_country,
+        estimated_delivery_ts
       ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       )
     `);
 
@@ -251,8 +247,8 @@ shipmentsRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
       s.progressPercent || 15,
       lastUpdated,
       createdAt,
-      s.estimatedDelivery?.date || s.estimatedDelivery || 'August 24, 2026',
-      s.estimatedDelivery?.timeWindow || s.estimatedDeliveryDetail || 'by 5:00 PM',
+      eta.date,
+      etaWindow,
       s.service || 'Standard',
       s.shipmentType || 'Parcel',
       s.cargoDescription || 'Consignment Cargo',
@@ -293,10 +289,11 @@ shipmentsRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
       // created_at_ts: always server-authoritative (never trust a client-supplied value —
       // that's exactly how "Today" as a literal string ended up in the display column and
       // broke sorting) so newest-first ordering is always reliably correct.
-      Date.now(),
+      nowMs,
       s.origin?.country || 'United States',
       s.destination?.country || 'United States',
-      s.currentLocation?.country || s.origin?.country || 'United States'
+      s.currentLocation?.country || s.origin?.country || 'United States',
+      eta.ts
     );
 
     // Insert Pieces
@@ -342,8 +339,9 @@ shipmentsRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
     const insertEvent = db.prepare(`
       INSERT INTO tracking_events (
         id, shipment_tracking, status, title, location, facility,
-        timestamp, description, operator_notes, delay_flag, completed, current_flag, sort_order
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        timestamp, description, operator_notes, delay_flag, completed, current_flag, sort_order,
+        occurred_at_ts
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     insertEvent.run(
@@ -353,10 +351,11 @@ shipmentsRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
       'Consignment Registered & Barcode Issued',
       (s.origin?.city ? [s.origin.city, s.origin.state].filter(Boolean).join(', ') : 'New York, NY'),
       s.currentLocation?.facility || 'Intake Gateway',
-      `${createdAt} ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+      eventDisplay(nowMs),
       'Shipment received into the Duolingo Express national sort network. Linear Code 128 barcode assigned.',
       'Initial entry scan.',
-      0, 1, 1, 1
+      0, 1, 1, 1,
+      nowMs
     );
 
     const createdRow = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(trackingNumber);
@@ -426,12 +425,17 @@ shipmentsRouter.patch('/:trackingNumber/status', requireAdminAuth, (req: Request
     // reached the public tracking page at all.
     const hasEstDeliveryDate = typeof estimatedDeliveryDate === 'string' && estimatedDeliveryDate.trim();
     const hasEstDeliveryTime = typeof estimatedDeliveryTime === 'string' && estimatedDeliveryTime.trim();
+    // Normalized (full date with a year) + real deadline, anchored to the shipment's creation.
+    const statusEta = hasEstDeliveryDate
+      ? normalizeEta(estimatedDeliveryDate, hasEstDeliveryTime ? estimatedDeliveryTime : (row as any).estimated_delivery_time, (row as any).created_at_ts || Date.now())
+      : null;
+    const statusNowMs = Date.now();
     db.prepare(`
       UPDATE shipments SET
         status = ?,
         status_text = ?,
         progress_percent = ?,
-        last_updated = 'Just now',
+        last_updated = ?,
         current_location_city = COALESCE(?, current_location_city),
         current_location_state = COALESCE(?, current_location_state),
         current_location_country = COALESCE(?, current_location_country),
@@ -440,17 +444,20 @@ shipmentsRouter.patch('/:trackingNumber/status', requireAdminAuth, (req: Request
         current_facility = COALESCE(?, current_facility),
         estimated_delivery_date = COALESCE(?, estimated_delivery_date),
         estimated_delivery_time = COALESCE(?, estimated_delivery_time),
+        estimated_delivery_ts = CASE WHEN ? = 1 THEN ? ELSE estimated_delivery_ts END,
         progress_updated_at_ts = ?
       WHERE tracking_number = ?
     `).run(
       newStatus, statusText, progress,
+      eventDisplay(statusNowMs),
       city || null, state || null,
       typeof country === 'string' && country.trim() ? country.trim() : null,
       hasCoords ? lat : null, hasCoords ? lng : null,
       facility || null,
-      hasEstDeliveryDate ? estimatedDeliveryDate.trim() : null,
+      statusEta ? statusEta.date : null,
       hasEstDeliveryTime ? estimatedDeliveryTime.trim() : null,
-      Date.now(), tracking
+      statusEta ? 1 : 0, statusEta ? statusEta.ts : null,
+      statusNowMs, tracking
     );
 
     // Some callers (e.g. Tracking Events' "Record Event" form) already persisted a real,
@@ -473,20 +480,22 @@ shipmentsRouter.patch('/:trackingNumber/status', requireAdminAuth, (req: Request
       db.prepare(`
         INSERT INTO tracking_events (
           id, shipment_tracking, status, title, location, facility,
-          timestamp, description, operator_notes, delay_flag, completed, current_flag, sort_order
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          timestamp, description, operator_notes, delay_flag, completed, current_flag, sort_order,
+          occurred_at_ts
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        `e-${Date.now()}`,
+        `e-${statusNowMs}`,
         tracking,
         newStatus,
         eventTitle || statusText,
         location || 'Regional Transit Gateway',
         facility || 'Duolingo Express Facility',
-        `${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+        eventDisplay(statusNowMs),
         notes || `Status transitioned to ${newStatus}.`,
         notes || null,
         newStatus === 'EXCEPTION' ? 1 : 0,
-        1, 1, eventCount + 1
+        1, 1, eventCount + 1,
+        statusNowMs
       );
     }
 
@@ -512,15 +521,10 @@ shipmentsRouter.post('/:trackingNumber/events', requireAdminAuth, (req: Request,
 
     const eventCount = (db.prepare('SELECT COUNT(*) as count FROM tracking_events WHERE shipment_tracking = ?').get(tracking) as any).count;
 
-    // Prefer the caller's own displayDate/displayTime (e.g. TrackingEventsView's Add Event
-    // form, which lets the admin pick an exact date/time) recombined into the single stored
-    // display string, over a raw e.timestamp — which is sometimes an ISO string that would
-    // otherwise get stored verbatim and fail to split back into a readable date/time on read.
-    const storedTimestamp = (e.displayDate && e.displayTime)
-      ? `${e.displayDate} · ${e.displayTime}`
-      : (e.timestamp && !/^\d{4}-\d{2}-\d{2}T/.test(e.timestamp)
-          ? e.timestamp
-          : `${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`);
+    // The admin's own date/time (+ zone label) when given, else an ISO timestamp, else now —
+    // always stored as one consistent display string with a year, plus the real instant.
+    const when = eventTimeFromInput({ displayDate: e.displayDate, displayTime: e.displayTime, timezone: e.timezone, timestamp: e.timestamp });
+    const storedTimestamp = when.display;
 
     const eventLocation = e.location || (e.city && e.state ? `${e.city}, ${e.state}` : (e.city || 'Sorting Facility'));
 
@@ -528,8 +532,8 @@ shipmentsRouter.post('/:trackingNumber/events', requireAdminAuth, (req: Request,
       INSERT INTO tracking_events (
         id, shipment_tracking, status, title, location, facility,
         timestamp, description, operator_notes, delay_flag, completed, current_flag, sort_order,
-        recorded_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        recorded_by, occurred_at_ts
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       e.id || `e-${Date.now()}`,
       tracking,
@@ -542,7 +546,8 @@ shipmentsRouter.post('/:trackingNumber/events', requireAdminAuth, (req: Request,
       e.internalNote || e.operatorNotes || null,
       e.delayFlag ? 1 : 0,
       1, 1, eventCount + 1,
-      e.recordedBy || null
+      e.recordedBy || null,
+      when.ts
     );
 
     // Also update shipment status if provided
@@ -551,10 +556,10 @@ shipmentsRouter.post('/:trackingNumber/events', requireAdminAuth, (req: Request,
         UPDATE shipments SET
           status = ?,
           status_text = ?,
-          last_updated = 'Just now',
+          last_updated = ?,
           current_facility = COALESCE(?, current_facility)
         WHERE tracking_number = ?
-      `).run(e.status, e.title || e.status, e.facility || null, tracking);
+      `).run(e.status, e.title || e.status, storedTimestamp, e.facility || null, tracking);
     }
 
     const updatedRow = db.prepare('SELECT * FROM shipments WHERE tracking_number = ?').get(tracking);
@@ -583,20 +588,24 @@ shipmentsRouter.patch('/:trackingNumber/events/:eventId', requireAdminAuth, (req
     const newLocation = (e.city || e.state)
       ? `${e.city || eventRow.location.split(',')[0]?.trim() || ''}, ${e.state || eventRow.location.split(',')[1]?.trim() || ''}`
       : eventRow.location;
-    const newTimestamp = (e.displayDate && e.displayTime)
-      ? `${e.displayDate} · ${e.displayTime}`
-      : eventRow.timestamp;
+    // A corrected date/time is re-read (with its zone label) into the one stored shape + instant.
+    const corrected = (e.displayDate && e.displayTime)
+      ? eventTimeFromInput({ displayDate: e.displayDate, displayTime: e.displayTime, timezone: e.timezone }, eventRow.occurred_at_ts || Date.now())
+      : null;
+    const newTimestamp = corrected ? corrected.display : eventRow.timestamp;
 
     db.prepare(`
       UPDATE tracking_events SET
         location = ?,
         timestamp = ?,
+        occurred_at_ts = COALESCE(?, occurred_at_ts),
         description = COALESCE(?, description),
         correction_audit_json = ?
       WHERE id = ? AND shipment_tracking = ?
     `).run(
       newLocation,
       newTimestamp,
+      corrected ? corrected.ts : null,
       e.description || null,
       e.correctionAudit ? JSON.stringify(e.correctionAudit) : eventRow.correction_audit_json,
       eventId,
@@ -644,6 +653,11 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
     const estDeliveryTime = typeof s.estimatedDelivery === 'object'
       ? (s.estimatedDelivery?.timeWindow ?? null)
       : (s.estimatedDeliveryDetail ?? null);
+    // Normalized to a full date with a year + its real deadline (anchored to creation, so a
+    // year-less date from an old record lands in the right year).
+    const putEta = estDeliveryDate
+      ? normalizeEta(estDeliveryDate, estDeliveryTime ?? (row as any).estimated_delivery_time, (row as any).created_at_ts || Date.now())
+      : null;
 
     // Current location as sent by the client. The Edit Shipment modal spreads the whole
     // existing shipment into its payload, so this is normally the OLD position — which,
@@ -712,6 +726,7 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
         total_pieces = COALESCE(?, total_pieces),
         estimated_delivery_date = COALESCE(?, estimated_delivery_date),
         estimated_delivery_time = COALESCE(?, estimated_delivery_time),
+        estimated_delivery_ts = CASE WHEN ? = 1 THEN ? ELSE estimated_delivery_ts END,
         origin_city = COALESCE(?, origin_city),
         origin_state = COALESCE(?, origin_state),
         origin_lat = COALESCE(?, origin_lat),
@@ -724,7 +739,7 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
         destination_country = COALESCE(?, destination_country),
         sender_json = COALESCE(?, sender_json),
         recipient_json = COALESCE(?, recipient_json),
-        last_updated = 'Just now',
+        last_updated = ?,
         current_location_city = COALESCE(?, current_location_city),
         current_location_state = COALESCE(?, current_location_state),
         current_location_country = COALESCE(?, current_location_country),
@@ -748,8 +763,9 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
       s.cargoDescription || null,
       s.totalWeightLbs !== undefined ? s.totalWeightLbs : null,
       s.totalPieces !== undefined ? s.totalPieces : null,
-      estDeliveryDate,
+      putEta ? putEta.date : null,
       estDeliveryTime,
+      putEta ? 1 : 0, putEta ? putEta.ts : null,
       typeof s.origin === 'object' ? (s.origin?.city ?? null) : null,
       typeof s.origin === 'object' ? (s.origin?.state ?? null) : null,
       typeof s.origin === 'object' ? (s.origin?.lat ?? null) : null,
@@ -762,6 +778,7 @@ shipmentsRouter.put('/:trackingNumber', requireAdminAuth, (req: Request, res: Re
       typeof s.destination === 'object' ? (s.destination?.country || null) : null,
       s.sender ? JSON.stringify(s.sender) : null,
       s.recipient ? JSON.stringify(s.recipient) : null,
+      eventDisplay(),
       curCity ?? null,
       curState ?? null,
       curCountry,

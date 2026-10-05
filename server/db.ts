@@ -40,6 +40,9 @@ export const db = new DatabaseSync(dbPath, { enableForeignKeyConstraints: true }
 
 // Enable WAL mode for high concurrency
 db.exec('PRAGMA journal_mode = WAL;');
+// Wait (up to 5s) for a lock held by another connection instead of failing at once with
+// SQLITE_BUSY — e.g. while a backup or a second process is briefly writing.
+db.exec('PRAGMA busy_timeout = 5000;');
 
 export function initDatabase() {
   // 1. Shipments Table
@@ -267,6 +270,10 @@ export function initDatabase() {
   try { db.exec(`ALTER TABLE shipments ADD COLUMN current_location_country TEXT NOT NULL DEFAULT 'United States';`); } catch (e) {}
   try { db.exec(`ALTER TABLE documents ADD COLUMN sender_country TEXT NOT NULL DEFAULT 'United States';`); } catch (e) {}
   try { db.exec(`ALTER TABLE documents ADD COLUMN recipient_country TEXT NOT NULL DEFAULT 'United States';`); } catch (e) {}
+  // Real timestamps (epoch ms) next to the display text — see src/utils/dates.ts and
+  // server/dateRepair.ts, which fills these in for rows written before they existed.
+  try { db.exec(`ALTER TABLE shipments ADD COLUMN estimated_delivery_ts INTEGER;`); } catch (e) {}
+  try { db.exec(`ALTER TABLE tracking_events ADD COLUMN occurred_at_ts INTEGER;`); } catch (e) {}
 
   // Backfill existing rows so they don't all collapse to "unknown, sort last": preserve
   // today's best-effort relative order (by rowid, which reflects insertion order) as a

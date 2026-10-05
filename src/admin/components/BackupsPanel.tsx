@@ -119,7 +119,7 @@ export const BackupsPanel: React.FC = () => {
           {status?.backups.map(b => (
             <div className="backup-row" key={b.name}>
               <span className="backup-row-when">{formatWhen(b.createdAt)}</span>
-              <span className={`backup-kind backup-kind-${b.kind}`}>{b.kind === 'auto' ? 'Automatic' : 'Manual'}</span>
+              <span className={`backup-kind backup-kind-${b.kind}`}>{b.kind === 'auto' ? 'Automatic' : b.kind === 'premigration' ? 'Before repair' : 'Manual'}</span>
               <span className="backup-row-size font-mono">{formatBytes(b.sizeBytes)}</span>
               <a className="backup-row-dl" href={api.backupDownloadUrl(b.name)} download>
                 <Download size={14} /> Download

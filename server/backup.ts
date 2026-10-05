@@ -26,14 +26,17 @@ const keepCount = Math.max(1, Number(process.env.BACKUP_KEEP) || 14);
 
 const FILE_PREFIX = 'duolingo_express-';
 // Only names this module itself produces are ever listed or served (no path traversal).
-const BACKUP_NAME_RE = /^duolingo_express-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z-(auto|manual)\.db$/;
+const BACKUP_NAME_RE = /^duolingo_express-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z-(auto|manual|premigration)\.db$/;
 
 export interface BackupInfo {
   name: string;
   sizeBytes: number;
   createdAt: string;
-  kind: 'auto' | 'manual';
+  kind: BackupKind;
 }
+
+/** 'premigration' = taken automatically right before a data repair (server/dateRepair.ts). */
+export type BackupKind = 'auto' | 'manual' | 'premigration';
 
 /** Copies the live database to `target`, then removes login sessions from the copy. */
 function snapshotTo(target: string): void {
@@ -62,7 +65,7 @@ export function listBackups(): BackupInfo[] {
         name,
         sizeBytes: stat.size,
         createdAt: stat.mtime.toISOString(),
-        kind: (name.endsWith('-manual.db') ? 'manual' : 'auto') as 'auto' | 'manual',
+        kind: (name.match(/-(auto|manual|premigration)\.db$/)?.[1] || 'auto') as BackupKind,
       };
     })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -74,7 +77,7 @@ function prune(): void {
   }
 }
 
-export function createBackup(kind: 'auto' | 'manual'): BackupInfo {
+export function createBackup(kind: BackupKind): BackupInfo {
   fs.mkdirSync(backupDir, { recursive: true });
   const stamp = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z').replace(/:/g, '-');
   const name = `${FILE_PREFIX}${stamp}-${kind}.db`;

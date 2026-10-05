@@ -16,6 +16,7 @@ import {
 import { findIntermediateHub, resolveTransportMode, LatLngPoint, TransportMode } from './routingEngine.js';
 import { resolveLocation, formatPlace } from './geocodingService.js';
 import { canonicalCountry, normalizePlace } from './worldCities.js';
+import { etaTimestamp } from '../utils/dates.js';
 
 /** How a shipment travels: road or air, and whether it crosses a border (customs). */
 export interface RouteContext {
@@ -148,22 +149,13 @@ function domesticRoadCommitmentHours(norm: string, distanceMiles: number): numbe
  * defaults to the END of that day (23:59:59), not the start — "delivery by September 24" means
  * sometime up through that day, not literally at its first instant.
  */
-function parseEstimatedDeliveryTimestamp(dateStr: string, timeStr?: string): number | null {
-  const baseDate = new Date(dateStr);
-  if (isNaN(baseDate.getTime())) return null;
-
-  const timeMatch = timeStr?.match(/(\d{1,2}):(\d{2})\s*([AaPp][Mm])/);
-  if (timeMatch) {
-    let hours = parseInt(timeMatch[1], 10);
-    const minutes = parseInt(timeMatch[2], 10);
-    const isPM = timeMatch[3].toUpperCase() === 'PM';
-    if (isPM && hours !== 12) hours += 12;
-    if (!isPM && hours === 12) hours = 0;
-    baseDate.setHours(hours, minutes, 0, 0);
-  } else {
-    baseDate.setHours(23, 59, 59, 999);
-  }
-  return baseDate.getTime();
+function parseEstimatedDeliveryTimestamp(dateStr: string, timeStr?: string, referenceMs: number = Date.now()): number | null {
+  // Shared reader (src/utils/dates.ts): `new Date("Wednesday, August 22")` alone parses to the
+  // year 2001, so a year-less date is anchored to the shipment's own creation time instead.
+  return etaTimestamp(dateStr, timeStr, {
+    referenceMs,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+  });
 }
 
 /**
@@ -185,10 +177,12 @@ export function resolveProgressPaceHours(
   createdAtTs?: number | null,
   estimatedDeliveryDate?: string,
   estimatedDeliveryTime?: string,
-  route: RouteContext = {}
+  route: RouteContext = {},
+  /** The stored deadline (shipments.estimated_delivery_ts) — preferred over parsing the text. */
+  estimatedDeliveryTs?: number | null
 ): number {
-  if (createdAtTs && estimatedDeliveryDate) {
-    const etaTs = parseEstimatedDeliveryTimestamp(estimatedDeliveryDate, estimatedDeliveryTime);
+  if (createdAtTs && (estimatedDeliveryTs || estimatedDeliveryDate)) {
+    const etaTs = estimatedDeliveryTs || parseEstimatedDeliveryTimestamp(estimatedDeliveryDate!, estimatedDeliveryTime, createdAtTs);
     if (etaTs !== null) {
       const realWindowHours = (etaTs - createdAtTs) / (1000 * 60 * 60);
       if (realWindowHours > 0.5) {
@@ -875,17 +869,16 @@ export function calculateDynamicTimeProgress(
   // Determine start timestamp: earliest event timestamp, shipment createdAt, or pickupDate
   let startMs = Date.now() - 4 * 3600 * 1000; // default 4 hours ago
   const events = shipment.timeline || shipment.events || [];
-  if (events.length > 0) {
-    let oldest = new Date(events[0].timestamp).getTime();
-    for (const ev of events) {
-      const t = new Date(ev.timestamp).getTime();
-      if (!isNaN(t) && t < oldest) {
-        oldest = t;
-      }
-    }
-    if (!isNaN(oldest) && oldest > 0) {
-      startMs = oldest;
-    }
+  // Real event instants (occurredAt) first; the display text is only a fallback. This used to
+  // parse only the display text and seed `oldest` from the first event, so one unreadable
+  // first entry ("Today 12:14 AM") made it ignore every other event too.
+  const eventTimes = events
+    .map(ev => new Date((ev as any).occurredAt || ev.timestamp).getTime())
+    .filter(t => !isNaN(t) && t > 0);
+  if (eventTimes.length > 0) {
+    startMs = Math.min(...eventTimes);
+  } else if ((shipment as any).createdAtTs) {
+    startMs = (shipment as any).createdAtTs;
   } else if ((shipment as any).createdAt) {
     const parsed = new Date((shipment as any).createdAt).getTime();
     if (!isNaN(parsed) && parsed > 0) {

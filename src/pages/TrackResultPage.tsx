@@ -55,6 +55,7 @@ import { simulationEngine } from '../services/simulationEngine';
 import { api } from '../services/api';
 import { generateShipmentPlan, calculateDynamicTimeProgress, getServiceCommitmentHours, routeContext, formatCommitment } from '../services/planningEngine';
 import { resolveLocation, formatPlace } from '../services/geocodingService';
+import { etaTimestamp } from '../utils/dates';
 import { applyForwardOnlyShipmentUpdate } from '../utils/shipmentSync';
 import { useAdminData } from '../context/AdminDataContext';
 import './TrackResultPage.css';
@@ -510,9 +511,19 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   // Road vs air and domestic vs cross-border (customs) for this shipment's SLA and milestones.
   const shipmentRoute = routeContext(routeGeom.origin, routeGeom.destination);
   const slaHoursForPlan = getServiceCommitmentHours(service, routeGeom.distanceMiles, shipmentRoute);
-  const parsedEstDelivery = new Date(estDeliveryDate);
-  const planPickupDateStr = !isNaN(parsedEstDelivery.getTime())
-    ? new Date(parsedEstDelivery.getTime() - slaHoursForPlan * 3600 * 1000).toISOString()
+  // The stored deadline instant when the API provides it; `new Date(displayText)` read a
+  // year-less date like "Wednesday, August 22" as the year 2001.
+  // Data without that timestamp (e.g. the built-in demo shipment shown before the first
+  // refresh) is read with the shared parser, anchored to the shipment's creation time.
+  const etaIso = (typeof liveShipment?.estimatedDelivery === 'object' && (liveShipment.estimatedDelivery as any)?.timestamp) || undefined;
+  const etaMs = etaIso
+    ? new Date(etaIso).getTime()
+    : etaTimestamp(estDeliveryDate, estDeliveryTime, {
+        referenceMs: (liveShipment as any)?.createdAtTs || Date.now(),
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      });
+  const planPickupDateStr = etaMs != null && !isNaN(etaMs)
+    ? new Date(etaMs - slaHoursForPlan * 3600 * 1000).toISOString()
     : undefined;
 
   const plan = generateShipmentPlan(

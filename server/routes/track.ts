@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db.js';
 import { syncTimeBasedProgress } from '../progress.js';
+import { splitEventTimestamp } from '../../src/utils/dates.js';
 
 export const trackRouter = Router();
 
@@ -11,27 +12,8 @@ function splitLocation(location: string): { city: string; state: string } {
   return { city: parts[0] || '', state: parts[1] || '' };
 }
 
-// Tracking events store a single pre-formatted "timestamp" string (e.g.
-// "August 20, 2026 · 4:35 PM CT") rather than separate date/time columns. The public
-// tracking page renders `displayDate` / `displayTime` directly with no fallback for them,
-// so leaving them undefined rendered every event's timestamp as a blank "—" to customers.
-function splitEventTimestamp(raw: string): { displayDate: string; displayTime: string; timezone?: string } {
-  const str = (raw || '').trim();
-  if (!str) return { displayDate: '', displayTime: '' };
-
-  const tzMatch = str.match(/\b(ET|CT|MT|PT|UTC|GMT)\b\s*$/);
-  const timezone = tzMatch ? tzMatch[1] : undefined;
-
-  const timeMatch = str.match(/\d{1,2}:\d{2}\s*[AaPp][Mm]/);
-  if (timeMatch) {
-    const timeIdx = str.indexOf(timeMatch[0]);
-    const displayDate = str.slice(0, timeIdx).replace(/[·\-–—]+\s*$/, '').trim() || str;
-    const displayTime = str.slice(timeIdx).trim();
-    return { displayDate, displayTime, timezone };
-  }
-
-  return { displayDate: str, displayTime: '', timezone };
-}
+// Event display strings are split into displayDate/displayTime by the shared
+// splitEventTimestamp (src/utils/dates.ts); occurred_at_ts is the real time, used for ordering.
 
 // Helper to mask name (e.g. "Daniel" -> "D*****")
 function maskName(name: string): string {
@@ -92,7 +74,7 @@ trackRouter.get('/:trackingNumber', (req: Request, res: Response) => {
       dimensions: JSON.parse(p.dimensions_json || '{}')
     }));
 
-    const eventsStmt = db.prepare('SELECT * FROM tracking_events WHERE shipment_tracking = ? ORDER BY sort_order ASC, timestamp ASC');
+    const eventsStmt = db.prepare('SELECT * FROM tracking_events WHERE shipment_tracking = ? ORDER BY sort_order ASC, occurred_at_ts ASC');
     const events = eventsStmt.all(tracking).map((e: any) => ({
       id: e.id,
       status: e.status,
@@ -102,6 +84,7 @@ trackRouter.get('/:trackingNumber', (req: Request, res: Response) => {
       ...splitEventTimestamp(e.timestamp),
       facility: e.facility,
       timestamp: e.timestamp,
+      occurredAt: e.occurred_at_ts ? new Date(e.occurred_at_ts).toISOString() : undefined,
       description: e.description,
       // Cloak internal operator notes if enabled
       operatorNotes: settings.cloakInternalNotes ? undefined : e.operator_notes,
@@ -146,7 +129,8 @@ trackRouter.get('/:trackingNumber', (req: Request, res: Response) => {
       createdAtTs: row.created_at_ts || undefined,
       estimatedDelivery: {
         date: row.estimated_delivery_date,
-        timeWindow: settings.showEstimatedTime ? row.estimated_delivery_time : 'End of Day'
+        timeWindow: settings.showEstimatedTime ? row.estimated_delivery_time : 'End of Day',
+        timestamp: row.estimated_delivery_ts ? new Date(row.estimated_delivery_ts).toISOString() : undefined
       },
       service: row.service,
       shipmentType: row.shipment_type,

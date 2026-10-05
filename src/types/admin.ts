@@ -205,7 +205,7 @@ export interface BackupInfo {
   name: string;
   sizeBytes: number;
   createdAt: string;
-  kind: 'auto' | 'manual';
+  kind: 'auto' | 'manual' | 'premigration';
 }
 
 export interface StorageStatus {

@@ -733,3 +733,5 @@ a.btn-reset-settings {
   .backup-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .backup-row { grid-template-columns: 1fr auto; row-gap: 0.3rem; }
 }
+
+.backup-kind-premigration { background: #f5f3ff; color: #6d28d9; }
