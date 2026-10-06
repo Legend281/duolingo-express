@@ -20,7 +20,8 @@ import {
   createAuditLogEntry
 } from '../../services/planningEngine';
 import { simulationEngine } from '../../services/simulationEngine';
-import { resolveLocation } from '../../services/geocodingService';
+import { resolveLocation, domesticCountry } from '../../services/geocodingService';
+import { calculateRouteGeometry, calculateEstimatedPosition, nameTransitPosition } from '../../services/routingEngine';
 import './ShipmentControlModal.css';
 
 interface ShipmentControlModalProps {
@@ -126,29 +127,50 @@ export const ShipmentControlModal: React.FC<ShipmentControlModalProps> = ({
         const res = applyResumeState(updated, 'Super Admin');
         updated = res.updatedShipment;
       } else {
+        // The slider is the source of truth: 0% puts the shipment back at its origin, any
+        // other value at that point along the same route the tracking map draws. (This used
+        // to force at least 25% and keep the old coordinates, so moving the slider back to 0
+        // and pressing Update did nothing.) Capped at 94% — the last stretch is Out for
+        // Delivery / Delivered, which have their own buttons.
+        const target = Math.max(0, Math.min(94, Math.round(scrubValue)));
+        const o: any = shipment.origin || {};
+        const d: any = shipment.destination || {};
+        const route = calculateRouteGeometry(
+          { lat: o.lat, lng: o.lng, name: originCity, country: o.country, state: originState },
+          { lat: d.lat, lng: d.lng, name: destCity, country: d.country, state: destState }
+        );
+        const pos = target === 0 ? { lat: o.lat, lng: o.lng } : calculateEstimatedPosition(route.polyline, target);
+        const named = target === 0
+          ? { city: originCity, state: originState, country: o.country || '' }
+          : nameTransitPosition(pos.lat, pos.lng, route, domesticCountry(o.country, d.country)) || { city: originCity, state: originState, country: o.country || '' };
+        const atOrigin = target === 0;
+        const wasMoving = shipment.status === 'IN_TRANSIT';
         const event: TrackingEvent = {
           id: `ev-${Date.now()}`,
           status: 'IN_TRANSIT',
           milestoneState: 'CONFIRMED',
-          title: 'Departed Facility in Transit',
-          location: `${originCity}, ${originState}`,
-          facility: `${originCity} Terminal`,
-          city: originCity,
-          state: originState,
+          title: atOrigin ? 'Staged at Origin Facility' : wasMoving ? `In Transit near ${named.city}` : 'Departed Facility in Transit',
+          location: [named.city, named.state].filter(Boolean).join(', '),
+          facility: atOrigin ? `${originCity} Terminal` : 'Linehaul Corridor',
+          city: named.city,
+          state: named.state,
           timestamp: timestampStr,
           displayDate: timestampStr.split(' · ')[0],
           displayTime: timestampStr.split(' · ')[1],
-          description: 'Shipment has departed the origin facility and is in linehaul transit.',
+          description: atOrigin
+            ? 'Shipment is staged at the origin facility for linehaul departure.'
+            : 'Shipment is in linehaul transit toward its destination.',
           isCompleted: true,
           isCurrent: true,
           recordedBy: 'Super Admin'
         };
-        const auditEntry = createAuditLogEntry('Super Admin', 'START_TRANSIT', 'Linehaul departure confirmed.');
+        const auditEntry = createAuditLogEntry('Super Admin', 'START_TRANSIT', `Transit position set to ${target}%.`);
         updated = {
           ...updated,
           status: 'IN_TRANSIT',
-          statusText: 'In Linehaul Transit',
-          progressPercent: Math.max(25, updated.progressPercent || 25),
+          statusText: atOrigin ? 'Staged at Origin Terminal' : `In Linehaul Transit (${target}% Completed)`,
+          progressPercent: target,
+          currentLocation: { city: named.city, state: named.state, lat: pos.lat, lng: pos.lng } as any,
           timeline: [event, ...(updated.timeline || []).map(t => ({ ...t, isCurrent: false }))],
           auditLog: [auditEntry, ...(updated.auditLog || [])],
           lastUpdated: 'Just now'
