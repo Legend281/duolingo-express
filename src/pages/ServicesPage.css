@@ -792,45 +792,59 @@
   margin: 0;
 }
 
+/* A connected rail of four stages rather than four separate boxes */
 .lifecycle-steps-grid {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+.lifecycle-steps-grid::before {
+  content: '';
+  position: absolute;
+  top: 26px;
+  left: 26px;
+  right: 26px;
+  height: 2px;
+  background: linear-gradient(90deg, #f97316, #fdba74 70%, #e2e8f0);
 }
 
 .lifecycle-step-card {
-  background: #f8fafc;
-  border: 1.5px solid var(--dxp-slate-200);
-  border-radius: var(--dxp-radius-xl);
-  padding: 2rem 1.5rem;
+  position: relative;
   display: flex;
   flex-direction: column;
-  transition: var(--dxp-transition);
 }
 
-.lifecycle-step-card:hover {
-  background: var(--dxp-white);
-  border-color: var(--dxp-orange-400);
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(234, 88, 12, 0.08);
+.lifecycle-step-card .step-num {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.4rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #ffffff;
+  background: var(--dxp-navy-900);
+  box-shadow: 0 0 0 6px #ffffff, 0 12px 24px -10px rgba(11, 25, 44, 0.6);
+  transition: background 0.2s ease;
 }
 
-.step-num {
-  font-size: 1.5rem;
-  font-weight: 900;
-  color: var(--dxp-orange-600);
-  margin-bottom: 1rem;
+.lifecycle-step-card:hover .step-num {
+  background: linear-gradient(135deg, #f97316, #ea580c);
 }
 
 .lifecycle-step-card h4 {
-  font-size: 1.0625rem;
+  font-size: 1.15rem;
   font-weight: 800;
   color: var(--dxp-navy-900);
   margin-bottom: 0.5rem;
 }
 
 .lifecycle-step-card p {
-  font-size: 0.8125rem;
+  font-size: 0.9rem;
   color: var(--dxp-slate-600);
   line-height: 1.5;
   margin: 0;
@@ -879,8 +893,11 @@
     gap: 1.25rem;
   }
   .lifecycle-steps-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.25rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2.5rem 2rem;
+  }
+  .lifecycle-steps-grid::before {
+    display: none;
   }
 }
 
@@ -1032,9 +1049,34 @@
     grid-template-columns: 1fr;
     gap: 1rem;
   }
+  /* Phone: vertical rail, number on the left */
   .lifecycle-steps-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .lifecycle-step-card {
+    padding: 0 0 2rem 4.25rem;
+    min-height: 54px;
+  }
+  .lifecycle-step-card:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 26px;
+    top: 54px;
+    bottom: 0;
+    width: 2px;
+    background: #fdba74;
+  }
+  .lifecycle-step-card .step-num {
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0;
+    width: 54px;
+    height: 54px;
+  }
+  .lifecycle-step-card h4 {
+    margin-top: 0.85rem;
   }
 
   /* Bottom CTA */

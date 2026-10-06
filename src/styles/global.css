@@ -185,3 +185,66 @@ h1, h2, h3, h4, h5, h6 {
 .dxp-page-loading {
   min-height: 70vh;
 }
+
+/* ============================================================
+   UTILITY CLASSES
+   Several components use these Tailwind-style names, but Tailwind isn't installed, so
+   they did nothing: star ratings stacked vertically, card headers lost their layout, etc.
+   Loaded first, so any page stylesheet rule of the same strength still wins.
+   ============================================================ */
+.flex { display: flex; }
+.inline-flex { display: inline-flex; }
+.flex-col { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-1 { gap: 0.25rem; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.mt-1 { margin-top: 0.25rem; }
+.mt-4 { margin-top: 1rem; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-xs { font-size: 0.75rem; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+.font-mono { font-family: var(--dxp-font-mono); }
+.uppercase { text-transform: uppercase; }
+.tracking-wider { letter-spacing: 0.05em; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.text-white { color: #ffffff; }
+.text-orange { color: #ea580c; }
+.text-blue { color: #2563eb; }
+.text-emerald { color: #059669; }
+.text-amber { color: #d97706; }
+.text-sky { color: #0284c7; }
+.text-slate-300 { color: #cbd5e1; }
+.text-slate-400 { color: #94a3b8; }
+.text-slate-500 { color: #64748b; }
+
+/* Shared form field (Quote, Contact, Ship, support dialog). It used to be defined only in
+   ShipPage.css / SupportModal.css, so with pages loading separately, Quote and Contact
+   showed bare browser inputs unless one of those pages had been opened first. */
+.dxp-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 1.5px solid var(--dxp-slate-200);
+  border-radius: var(--dxp-radius-md);
+  font-family: inherit;
+  font-size: 0.9375rem;
+  color: var(--dxp-navy-900);
+  background: #f8fafc;
+  outline: none;
+  transition: var(--dxp-transition);
+}
+
+.dxp-input::placeholder {
+  font-family: inherit;
+  color: #94a3b8;
+}
+
+.dxp-input:focus {
+  border-color: var(--dxp-orange-500);
+  background: var(--dxp-white);
+  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.12);
+}

@@ -55,7 +55,7 @@ export const HomeNetworkMap: React.FC<HomeNetworkMapProps> = ({ activeHub, onSel
       errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7'
     }).addTo(map);
 
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.control.zoom({ position: 'topright' }).addTo(map);
 
     // Draw connecting corridor routes
     const routes: [number, number][][] = [

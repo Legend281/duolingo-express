@@ -6,7 +6,6 @@ import {
   ShieldCheck,
   Clock,
   MapPin,
-  Truck,
   Send,
   FileText,
   Lock,

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Package,
   Calendar,
-  Truck,
   Plane,
   Building2,
   MapPin,

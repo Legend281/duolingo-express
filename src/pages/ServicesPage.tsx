@@ -4,7 +4,6 @@ import {
   Warehouse,
   Globe,
   Layers,
-  Truck,
   ShieldCheck,
   ArrowRight,
   Zap,
@@ -306,7 +305,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate }) => {
 
                   <div className="time-box-item">
                     <div className="time-icon-box emerald">
-                      <Truck size={20} />
+                      <Package size={20} />
                     </div>
                     <div>
                       <small>PRIMARY TRANSPORT ASSET</small>
@@ -331,7 +330,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate }) => {
                     className="btn-corp-primary"
                     onClick={() => onNavigate('quote')}
                   >
-                    <span>Request Rate for {activeService.name}</span>
+                    <span>Get a rate for this service</span>
                     <ArrowRight size={16} />
                   </button>
                   <button
@@ -559,7 +558,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate }) => {
                     className="btn-corp-primary"
                     onClick={() => onNavigate('quote')}
                   >
-                    <span>Request Rate for {activeIndustry.title}</span>
+                    <span>Get a rate for this industry</span>
                     <ArrowRight size={15} />
                   </button>
                 </div>

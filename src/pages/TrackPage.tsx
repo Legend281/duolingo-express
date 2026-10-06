@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Package,
   Search,
   Lock,
   ArrowRight,
-  Truck,
   FileText,
   AlertTriangle,
   Copy,
@@ -174,7 +174,7 @@ export const TrackPage: React.FC<TrackPageProps> = ({ onTrack, onNavigate, notFo
                 onClick={() => setActiveTab('single')}
               >
                 <Search size={16} />
-                <span>Single Tracking Number</span>
+                <span>Single number</span>
               </button>
 
               <button
@@ -183,7 +183,7 @@ export const TrackPage: React.FC<TrackPageProps> = ({ onTrack, onNavigate, notFo
                 onClick={() => setActiveTab('batch')}
               >
                 <Layers size={16} />
-                <span>Batch Multi-Tracking</span>
+                <span>Batch tracking</span>
               </button>
             </div>
 
@@ -194,7 +194,7 @@ export const TrackPage: React.FC<TrackPageProps> = ({ onTrack, onNavigate, notFo
                   <Search size={22} className="terminal-search-icon" />
                   <input
                     type="text"
-                    placeholder="Enter tracking number (e.g. DXP-2026-7K2M9QRX or QR-2026-88752)"
+                    placeholder="Tracking number, e.g. DXP-2026-7K2M9QRX"
                     value={trackingNumber}
                     onChange={(e) => setTrackingNumber(e.target.value)}
                     className="terminal-input font-mono"
@@ -315,7 +315,7 @@ export const TrackPage: React.FC<TrackPageProps> = ({ onTrack, onNavigate, notFo
 
             <div className="reference-card">
               <div className="ref-icon-box emerald">
-                <Truck size={24} />
+                <Package size={24} />
               </div>
               <h3>Agency Bill of Lading (BOL)</h3>
               <p>
@@ -347,7 +347,7 @@ export const TrackPage: React.FC<TrackPageProps> = ({ onTrack, onNavigate, notFo
             <div className="batch-modal-header">
               <div>
                 <div className="batch-header-title">
-                  <Truck size={20} className="text-orange" />
+                  <Package size={20} className="text-orange" />
                   <h3>Batch Multi-Shipment Fleet Monitor</h3>
                 </div>
                 <p>Real-time consolidated status across {batchShipments.length} queried trade corridor consignments.</p>
@@ -429,7 +429,7 @@ export const TrackPage: React.FC<TrackPageProps> = ({ onTrack, onNavigate, notFo
                           </div>
 
                           <div className="batch-route-arrow">
-                            <Truck size={14} />
+                            <Package size={14} />
                             <ArrowRight size={14} />
                           </div>
 

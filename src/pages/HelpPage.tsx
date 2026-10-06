@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
+  Package,
   Search,
   HelpCircle,
   ChevronDown,
@@ -10,7 +11,6 @@ import {
   Phone,
   Mail,
   FileText,
-  Truck,
   AlertTriangle,
   CheckCircle2,
   ArrowRight,
@@ -244,7 +244,7 @@ export const HelpPage: React.FC<HelpPageProps> = ({ onNavigate }) => {
           </div>
 
           <div className="help-pillar-card" onClick={() => onNavigate('ship')}>
-            <div className="pillar-icon icon-emerald"><Truck size={24} /></div>
+            <div className="pillar-icon icon-emerald"><Package size={24} /></div>
             <h3>Book & Tender Pickup</h3>
             <p>Schedule time-definite courier pickups or generate a consignment barcode for gateway hub drop-off.</p>
             <span className="pillar-action-link">Schedule Tender <ArrowRight size={15} /></span>

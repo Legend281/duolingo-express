@@ -1,7 +1,6 @@
 import React, { useState, lazy, Suspense } from 'react';
 import {
   Package,
-  Truck,
   Calculator,
   MapPin,
   Calendar,
@@ -275,7 +274,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
             {/* Card 2 */}
             <div className="why-card">
               <div className="why-icon-bubble">
-                <Truck size={24} />
+                <Package size={24} />
               </div>
               <h3>Door-to-Door Scheduled Linehaul</h3>
               <p>
@@ -387,7 +386,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
                     <div className="node-ring-pulse" />
                   </div>
                   <div className="node-icon-bubble">
-                    <Truck size={22} className="text-orange" />
+                    <Package size={22} className="text-orange" />
                   </div>
                 </div>
                 <div className="node-body">
@@ -426,30 +425,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div className="how-it-works-action-strip">
-            <div className="flex items-center gap-3">
-              <Sparkles size={20} className="text-orange" />
-              <span>Ready to experience transparent express delivery, nationwide and worldwide?</span>
-            </div>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                className="btn-corp-primary"
-                onClick={() => onNavigate('ship')}
-              >
-                <span>Ship With Us</span>
-                <ArrowRight size={16} />
-              </button>
-              <button
-                type="button"
-                className="btn-corp-ghost-dark"
-                onClick={() => onNavigate('quote')}
-              >
-                <span>Get a Rate Quote</span>
-              </button>
             </div>
           </div>
         </div>

@@ -4,7 +4,6 @@ import {
   Eye,
   Clock,
   ArrowRight,
-  Truck,
   Package,
   CheckCircle2,
   Lock,
@@ -226,7 +225,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
             {/* Division 2 */}
             <div className="division-card">
               <div className="division-icon-wrap emerald">
-                <Truck size={26} />
+                <Package size={26} />
               </div>
               <h3>Scheduled Commercial Linehaul</h3>
               <p>
@@ -310,7 +309,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
               <div className="timeline-card">
                 <div className="timeline-year-badge font-mono">2021</div>
                 <div className="timeline-icon-bubble emerald">
-                  <Truck size={22} />
+                  <Package size={22} />
                 </div>
                 <span className="timeline-stage-tag font-mono">EXPANSION</span>
                 <h3>Nationwide Linehaul Relays</h3>
@@ -368,7 +367,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
               {REACH_REGIONS.map((region) => (
                 <div key={region.name} className={`reach-region ${region.home ? 'home' : ''}`}>
                   <span className="reach-region-icon">
-                    {region.home ? <Truck size={18} /> : <Globe size={18} />}
+                    {region.home ? <Package size={18} /> : <Globe size={18} />}
                   </span>
                   <div>
                     <strong>{region.name}</strong>

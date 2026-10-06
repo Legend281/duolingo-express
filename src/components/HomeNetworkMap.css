@@ -106,8 +106,9 @@
   font-size: 0.6875rem;
   font-weight: 700;
   padding: 0.4rem 0.75rem;
-  border-radius: var(--dxp-radius-sm);
+  border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: calc(100% - 2rem);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -125,5 +126,10 @@
 @media (max-width: 768px) {
   .home-network-map-wrapper {
     height: 300px;
+  }
+  .map-overlay-badge {
+    bottom: 0.6rem;
+    left: 0.6rem;
+    font-size: 0.625rem;
   }
 }

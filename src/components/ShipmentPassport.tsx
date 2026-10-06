@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, Truck, MapPin, Navigation, CheckCircle2 } from 'lucide-react';
+import { Package, MapPin, Navigation, CheckCircle2 } from 'lucide-react';
 import { ShipmentPassportStage } from '../types/shipment';
 import './ShipmentPassport.css';
 
@@ -14,7 +14,7 @@ export const ShipmentPassport: React.FC<ShipmentPassportProps> = ({
 }) => {
   const getIcon = (id: string, status: string) => {
     if (id === 'created') return <Package size={18} />;
-    if (id === 'in-transit') return <Truck size={18} />;
+    if (id === 'in-transit') return <Package size={18} />;
     if (id === 'current') return <MapPin size={18} />;
     if (id === 'next') return <Navigation size={18} />;
     if (id === 'delivery') return <CheckCircle2 size={18} />;

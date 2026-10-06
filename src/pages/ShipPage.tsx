@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Package,
-  Truck,
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
@@ -723,7 +722,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
                         className={`tender-card ${pickupType === 'pickup' ? 'selected' : ''}`}
                         onClick={() => setPickupType('pickup')}
                       >
-                        <Truck size={22} className="text-orange" />
+                        <Package size={22} className="text-orange" />
                         <div>
                           <strong>Schedule Courier Pickup</strong>
                           <p>Driver dispatches to your dock, office, or facility</p>
@@ -1030,7 +1029,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
               {currentStep === 4 && (
                 <div className="form-section-card animate-fade-in">
                   <div className="sec-header">
-                    <div className="sec-icon"><Truck size={20} /></div>
+                    <div className="sec-icon"><Package size={20} /></div>
                     <div>
                       <h3>Step 4: Service Tier & Special Handling</h3>
                       <p>Select your required transit tier across our 4 authentic courier services.</p>
@@ -1058,7 +1057,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
                     >
                       <span className="pop-badge">RECOMMENDED</span>
                       <div className="serv-head">
-                        <Truck size={20} className="text-orange" />
+                        <Package size={20} className="text-orange" />
                         <strong>Scheduled Commercial Linehaul</strong>
                       </div>
                       <div className="serv-transit">2 - 3 Business Days</div>

@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Clock,
   MapPin,
-  Truck,
   ArrowRight,
   ShieldCheck,
   Printer,
@@ -267,7 +266,7 @@ export const PublicQuoteResultPage: React.FC<PublicQuoteResultPageProps> = ({
               {/* 2. ROUTE & CARGO SPECIFICATIONS */}
               <div className="quote-specs-card">
                 <h3 className="section-head-title">
-                  <Truck size={17} className="text-blue" /> Consignment Parameters
+                  <Package size={17} className="text-blue" /> Consignment Parameters
                 </h3>
 
                 {/* Route banner */}
