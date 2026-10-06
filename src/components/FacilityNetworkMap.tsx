@@ -3,6 +3,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Building, MapPin, Phone, Clock, ShieldCheck, ZoomIn, ZoomOut, Compass, Radio } from 'lucide-react';
 import './FacilityNetworkMap.css';
+import { useAdminData } from '../context/AdminDataContext';
+import { DEFAULT_SUPPORT_PHONE } from '../utils/phone';
 
 export interface FacilityNode {
   id: string;
@@ -32,7 +34,7 @@ export const NETWORK_FACILITIES: FacilityNode[] = [
     zip: '11430',
     coordinates: [40.6413, -73.7781],
     hours: '24/7 Continuous Sortation Operations',
-    phone: '1-800-555-0199 (Ext 102)',
+    phone: 'Ext 102',
     status: '24/7 ACTIVE',
     services: ['Priority Express Courier', 'Scheduled Commercial Linehaul', 'Time-Critical Secure Vault']
   },
@@ -47,7 +49,7 @@ export const NETWORK_FACILITIES: FacilityNode[] = [
     zip: '10001',
     coordinates: [40.7138, -74.0132],
     hours: 'Mon - Fri: 7:00 AM - 9:00 PM ET',
-    phone: '1-800-555-0199 (Ext 101)',
+    phone: 'Ext 101',
     status: 'INTAKE OPEN',
     services: ['Priority Express Courier', 'Counter Drop-Off & Client Intake']
   },
@@ -62,7 +64,7 @@ export const NETWORK_FACILITIES: FacilityNode[] = [
     zip: '60607',
     coordinates: [41.8748, -87.6401],
     hours: '24/7 Continuous Linehaul Operations',
-    phone: '1-800-555-0199 (Ext 103)',
+    phone: 'Ext 103',
     status: '24/7 ACTIVE',
     services: ['Priority Express Courier', 'Scheduled Commercial Linehaul', 'Auto Transport Hub']
   },
@@ -77,7 +79,7 @@ export const NETWORK_FACILITIES: FacilityNode[] = [
     zip: '75261',
     coordinates: [32.8998, -97.0403],
     hours: '24/7 Continuous Sortation Operations',
-    phone: '1-800-555-0199 (Ext 104)',
+    phone: 'Ext 104',
     status: '24/7 ACTIVE',
     services: ['Commercial Linehaul', 'Auto & Vehicle Transport', 'Secure Vault']
   },
@@ -92,7 +94,7 @@ export const NETWORK_FACILITIES: FacilityNode[] = [
     zip: '90021',
     coordinates: [34.0505, -118.2598],
     hours: 'Mon - Sat: 6:00 AM - 10:00 PM PT',
-    phone: '1-800-555-0199 (Ext 105)',
+    phone: 'Ext 105',
     status: 'INTAKE OPEN',
     services: ['Priority Express Courier', 'Scheduled Commercial Linehaul', 'Auto & Vehicle Transport']
   },
@@ -107,7 +109,7 @@ export const NETWORK_FACILITIES: FacilityNode[] = [
     zip: '30320',
     coordinates: [33.6407, -84.4277],
     hours: 'Mon - Fri: 6:00 AM - 11:00 PM ET',
-    phone: '1-800-555-0199 (Ext 106)',
+    phone: 'Ext 106',
     status: 'INTAKE OPEN',
     services: ['Scheduled Commercial Linehaul', 'Priority Express Courier']
   }
@@ -130,6 +132,9 @@ const LINEHAUL_CORRIDORS: [ [number, number], [number, number] ][] = [
 ];
 
 export const FacilityNetworkMap: React.FC = () => {
+  // Office lines = the support number from Settings + each office's extension.
+  const { settings } = useAdminData();
+  const supportPhone = settings.supportPhone || DEFAULT_SUPPORT_PHONE;
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<{ [id: string]: L.Marker }>({});
@@ -211,7 +216,7 @@ export const FacilityNetworkMap: React.FC = () => {
             <div class="popup-status-pill">
               <span class="status-dot"></span> ${fac.status}
             </div>
-            <div class="popup-phone font-mono">${fac.phone}</div>
+            <div class="popup-phone font-mono">${supportPhone} (${fac.phone})</div>
           </div>
         `;
         marker.bindPopup(popupContent, { offset: [0, -16], closeButton: false });
@@ -229,6 +234,18 @@ export const FacilityNetworkMap: React.FC = () => {
       }
     };
   }, []);
+
+  // The pop-ups are built once when the map is created, usually before Settings have loaded —
+  // refresh their phone line whenever the support number arrives or changes.
+  useEffect(() => {
+    for (const fac of NETWORK_FACILITIES) {
+      const popup = markersRef.current[fac.id]?.getPopup();
+      const html = popup?.getContent();
+      if (typeof html === 'string') {
+        popup!.setContent(html.replace(/(<div class="popup-phone font-mono">)[^<]*(<\/div>)/, `$1${supportPhone} (${fac.phone})$2`));
+      }
+    }
+  }, [supportPhone]);
 
   const handleSelectFacility = (fac: FacilityNode) => {
     setSelectedFacility(fac);
@@ -329,7 +346,7 @@ export const FacilityNetworkMap: React.FC = () => {
             </div>
             <div className="spotlight-phone-box">
               <small>Direct Dispatch Connection</small>
-              <strong>{selectedFacility.phone}</strong>
+              <strong>{supportPhone} ({selectedFacility.phone})</strong>
             </div>
           </div>
 

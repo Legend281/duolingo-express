@@ -14,6 +14,8 @@ import {
   Youtube,
 } from 'lucide-react';
 import './Footer.css';
+import { useAdminData } from '../context/AdminDataContext';
+import { toDialNumber, DEFAULT_SUPPORT_PHONE, DEFAULT_DISPATCH_EMAIL } from '../utils/phone';
 
 interface FooterProps {
   onNavigate?: (page: string, param?: string) => void;
@@ -63,6 +65,11 @@ export const Footer: React.FC<FooterProps> = ({
   onNavigate = () => {},
   onTrackShipment,
 }) => {
+  // Contact details always come from admin Settings (they used to be typed in here, so a
+  // change saved in Settings never reached the footer).
+  const { settings } = useAdminData();
+  const supportPhone = settings.supportPhone || DEFAULT_SUPPORT_PHONE;
+  const dispatchEmail = settings.dispatchEmail || DEFAULT_DISPATCH_EMAIL;
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [trackQuery, setTrackQuery] = useState('');
@@ -149,8 +156,8 @@ export const Footer: React.FC<FooterProps> = ({
               Reliable shipping. Real-time tracking. Nationwide and international delivery. Duolingo Express connects people, businesses, and opportunities across the country and around the world.
             </p>
             <div className="ft-contact">
-              <button type="button" onClick={() => onNavigate('contact')}><Phone size={15} /> (800) 555-DUO-EXP</button>
-              <a href="mailto:dispatch@duolingoexpress.com"><Mail size={15} /> dispatch@duolingoexpress.com</a>
+              <a href={`tel:${toDialNumber(supportPhone)}`}><Phone size={15} /> {supportPhone}</a>
+              <a href={`mailto:${dispatchEmail}`}><Mail size={15} /> {dispatchEmail}</a>
             </div>
             <div className="ft-socials">
               <a href="#facebook" aria-label="Facebook"><Facebook size={16} /></a>

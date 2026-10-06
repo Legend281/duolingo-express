@@ -96,7 +96,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   onSearchChange,
   children
 }) => {
-  const { notifications, markNotificationRead, quoteRequests, shipments } = useAdminData();
+  const { notifications, markNotificationRead, quoteRequests, shipments, settings } = useAdminData();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -391,7 +391,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 <div className="user-menu-popover animate-scale-in">
                   <div className="menu-popover-header">
                     <strong>Super Admin (Console)</strong>
-                    <small>dispatch@duolingoexpress.com</small>
+                    <small>{settings.dispatchEmail || 'dispatch@duolingoexpress.com'}</small>
                   </div>
                   <div className="menu-popover-links">
                     <button onClick={() => { onSelectView('settings'); setShowUserMenu(false); }}>

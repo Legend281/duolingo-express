@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAdminData } from '../context/AdminDataContext';
 import './Header.css';
+import { toDialNumber } from '../utils/phone';
 
 // Phone menu order mirrors the desktop nav, plus the pages that only live in the footer there.
 const MOBILE_LINKS: { page: string; label: string }[] = [
@@ -24,17 +25,6 @@ const MOBILE_LINKS: { page: string; label: string }[] = [
   { page: 'help', label: 'Help Center' },
   { page: 'contact', label: 'Contact' },
 ];
-
-// Turns a vanity number such as "(800) 555-DUO-EXP" into dialable digits (keypad letters,
-// US numbers capped at 11 digits as vanity numbers conventionally are).
-const KEYPAD: Record<string, string> = { A: '2', B: '2', C: '2', D: '3', E: '3', F: '3', G: '4', H: '4', I: '4', J: '5', K: '5', L: '5', M: '6', N: '6', O: '6', P: '7', Q: '7', R: '7', S: '7', T: '8', U: '8', V: '8', W: '9', X: '9', Y: '9', Z: '9' };
-const toDialNumber = (phone: string) => {
-  let digits = phone.toUpperCase().replace(/[A-Z]/g, (c) => KEYPAD[c]).replace(/[^0-9]/g, '');
-  if (digits.length === 10) digits = '1' + digits;
-  if (digits.length > 11 && digits.startsWith('1')) digits = digits.slice(0, 11);
-  else if (digits.length > 10 && !digits.startsWith('1')) digits = '1' + digits.slice(0, 10);
-  return '+' + digits;
-};
 
 interface HeaderProps {
   activePage?: string;

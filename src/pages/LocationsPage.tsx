@@ -3,6 +3,7 @@ import { MapPin, Building, Phone, Clock, ShieldCheck, ArrowRight } from 'lucide-
 import { FacilityNetworkMap } from '../components/FacilityNetworkMap';
 import { useAdminData } from '../context/AdminDataContext';
 import './LocationsPage.css';
+import { DEFAULT_SUPPORT_PHONE } from '../utils/phone';
 
 interface LocationsPageProps {
   onNavigate?: (page: string) => void;
@@ -10,6 +11,8 @@ interface LocationsPageProps {
 
 export const LocationsPage: React.FC<LocationsPageProps> = ({ onNavigate }) => {
   const { settings } = useAdminData();
+  // Each office line is the support number from Settings plus that office's extension.
+  const supportPhone = settings.supportPhone || DEFAULT_SUPPORT_PHONE;
   const dotNumber = settings.dotNumber || 'USDOT #3894210 · MC-892401';
   const facilities = [
     {
@@ -17,42 +20,42 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({ onNavigate }) => {
       city: '140 West Street, New York, NY 10001',
       type: 'Primary Urban Intake & Regional Dispatch',
       hours: 'Mon - Fri: 7:00 AM - 9:00 PM ET',
-      phone: '1-800-555-0199 (Ext 101)',
+      phone: 'Ext 101',
     },
     {
       name: 'JFK Regional Sortation Gateway',
       city: 'JFK Cargo Area B, Jamaica, NY 11430',
       type: 'Northeast Express Sortation & Vault Intake',
       hours: '24/7 Continuous Sortation Operations',
-      phone: '1-800-555-0199 (Ext 102)',
+      phone: 'Ext 102',
     },
     {
       name: 'Chicago Midwest Distribution Center',
       city: '500 W Harrison St, Chicago, IL 60607',
       type: 'Midwest Express Linehaul Gateway Hub',
       hours: '24/7 Continuous Linehaul Operations',
-      phone: '1-800-555-0199 (Ext 103)',
+      phone: 'Ext 103',
     },
     {
       name: 'Dallas Southern Gateway Logistics Hub',
       city: 'DFW Airport Logistics Center, Dallas, TX 75261',
       type: 'Southern Corridor Express & Vehicle Dispatch',
       hours: '24/7 Continuous Operations',
-      phone: '1-800-555-0199 (Ext 104)',
+      phone: 'Ext 104',
     },
     {
       name: 'Los Angeles Pacific Gateway Terminal',
       city: '900 Wilshire Blvd, Los Angeles, CA 90021',
       type: 'West Coast Destination Hub & Fleet Dispatch',
       hours: 'Mon - Sat: 6:00 AM - 10:00 PM PT',
-      phone: '1-800-555-0199 (Ext 105)',
+      phone: 'Ext 105',
     },
     {
       name: 'Atlanta Southeast Regional Depot',
       city: 'Hartsfield Logistics Way, Atlanta, GA 30320',
       type: 'Southeast Linehaul Sortation & Intake',
       hours: 'Mon - Fri: 6:00 AM - 11:00 PM ET',
-      phone: '1-800-555-0199 (Ext 106)',
+      phone: 'Ext 106',
     },
   ];
 
@@ -113,7 +116,7 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({ onNavigate }) => {
                 </div>
                 <div className="fac-meta-row">
                   <Phone size={14} className="text-orange" />
-                  <span>{fac.phone}</span>
+                  <span>{supportPhone} ({fac.phone})</span>
                 </div>
               </div>
             </div>
