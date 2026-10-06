@@ -30,6 +30,8 @@ const PORT = process.env.PORT || 5000;
 // exactly one SQLite file and one source of truth, never two copies of the data quietly
 // diverging between the public site and the admin console. See the branch below.
 const ADMIN_PROXY_TARGET = process.env.ADMIN_PROXY_TARGET;
+// Origin (scheme://host[:port]) of the main site, when this process is the admin host.
+const APP_ORIGIN = ADMIN_PROXY_TARGET ? new URL(ADMIN_PROXY_TARGET).origin : undefined;
 
 // Hostinger (like virtually all shared/PaaS hosting) terminates HTTPS at a reverse proxy in
 // front of this process, which itself only ever sees plain HTTP. Without this, Express has no
@@ -61,10 +63,13 @@ if (!ADMIN_PROXY_TARGET) {
 app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: false,
-    directives: cspDirectives(process.env.NODE_ENV === 'production'),
+    directives: cspDirectives(process.env.NODE_ENV === 'production', APP_ORIGIN),
     reportOnly: process.env.CSP_REPORT_ONLY === 'true',
   },
   crossOriginEmbedderPolicy: false,
+  // 'same-site' (not the default 'same-origin'): the admin host (dr.) loads this site's
+  // scripts/styles directly, and dr. is the same site, so it must be allowed to.
+  crossOriginResourcePolicy: { policy: 'same-site' },
 }));
 
 // credentials:true + a specific origin (not '*', which browsers reject alongside
@@ -193,6 +198,28 @@ if (ADMIN_PROXY_TARGET) {
   // so an already-shipped fix was still missing on the admin host. Falls back to the local
   // build only if the main site can't be reached.
   const localDist = express.static(path.join(process.cwd(), 'dist'));
+
+  // The page itself: the main site's index.html, rewritten so every script/style loads
+  // straight from the main site and the app sends its API calls there too. The edge in front
+  // of this admin host was measured delivering some files with an EMPTY body — an empty code
+  // file broke the whole admin ("does not provide an export named 'C'", React error #306),
+  // and empty API replies broke saves. Only this one small page now travels through it.
+  app.get(['/', '/index.html'], async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const upstream = await fetch(`${APP_ORIGIN}/`, { headers: { 'Accept': 'text/html' } });
+      const html = await upstream.text();
+      if (!upstream.ok || !html.includes('<div id="root">')) throw new Error(`upstream ${upstream.status}`);
+      const rewritten = html
+        .replace(/(src|href)="\/(?!\/)([^"]*)"/g, `$1="${APP_ORIGIN}/$2"`)
+        .replace('<head>', `<head>\n    <meta name="dxp-api-origin" content="${APP_ORIGIN}">`);
+      res.set('Cache-Control', 'no-store');
+      res.type('html').send(rewritten);
+    } catch (err) {
+      console.error('[admin-host] Could not load the main site page, serving the local build:', err);
+      next();
+    }
+  });
+
   app.use(createProxyMiddleware({
     target: ADMIN_PROXY_TARGET,
     changeOrigin: true,

@@ -10,6 +10,16 @@ export default defineConfig({
   // couldn't find it at all, so none of these assets (including the logo) ever made it into
   // the production build.
   publicDir: 'Public',
+  // Files a script asks for (lazy page chunks and their preloads) are addressed relative to
+  // that script, not the page's host. On the admin host (dr.) the page comes from dr. but its
+  // scripts come from the main site; with host-based URLs the chunk preloads went back through
+  // dr.'s edge, which can deliver a file empty — and an empty module breaks the admin
+  // ("does not provide an export named ..."). No effect on the main site.
+  experimental: {
+    renderBuiltUrl(_filename, { hostType }) {
+      return hostType === 'js' ? { relative: true } : undefined;
+    },
+  },
   build: {
     rollupOptions: {
       output: {

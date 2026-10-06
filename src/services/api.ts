@@ -1,7 +1,12 @@
 import { Shipment, ShipmentStatus, TrackingEvent } from '../types/shipment';
 import { QuoteRequest, QuoteRequestPricing, QuoteRequestStatus, AdminSettings, AdminDocument, DocumentStatus, StorageStatus, BackupInfo } from '../types/admin';
 
-const API_BASE = '/api';
+// On the admin host the page names the main site to talk to (server/index.ts adds this meta
+// tag): API calls go straight there instead of through the admin host's unreliable edge.
+const API_ORIGIN = typeof document !== 'undefined'
+  ? document.querySelector('meta[name="dxp-api-origin"]')?.getAttribute('content') || ''
+  : '';
+const API_BASE = `${API_ORIGIN}/api`;
 
 /** Marks a reply whose body never arrived (see apiFetch). */
 const EMPTY_REPLY_HEADER = 'x-dxp-empty-reply';
@@ -23,8 +28,10 @@ async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
   const attempts = method === 'GET' ? 3 : 1;
   let res: Response | null = null;
   let text = '';
+  // Always send the session cookie — needed once calls go to the main site from the admin host.
+  const withCookies: RequestInit = { ...init, credentials: 'include' };
   for (let i = 0; i < attempts; i++) {
-    res = await fetch(input, init);
+    res = await fetch(input, withCookies);
     text = await res.text();
     if (text.trim() || res.status === 204) break;
   }

@@ -14,7 +14,11 @@
  * otherwise browsers will block it. Set CSP_REPORT_ONLY=true to have browsers only report
  * violations (in the console) without blocking — a safe way to trial a change on the live site.
  */
-export function cspDirectives(isProduction: boolean): Record<string, string[]> {
+/**
+ * `appOrigin`: on the admin host, the main site the page loads its code and API from
+ * (https://duolingoexpresslogistics.com) — allowed alongside 'self'.
+ */
+export function cspDirectives(isProduction: boolean, appOrigin?: string): Record<string, string[]> {
   const directives: Record<string, string[]> = {
     'default-src': ["'self'"],
     'script-src': ["'self'"],
@@ -39,6 +43,9 @@ export function cspDirectives(isProduction: boolean): Record<string, string[]> {
   };
   // Upgrading http:// subresources to https:// only makes sense behind HTTPS (production);
   // locally it would break plain-http development.
+  if (appOrigin) {
+    for (const d of ['script-src', 'style-src', 'font-src', 'img-src', 'connect-src', 'manifest-src']) directives[d].push(appOrigin);
+  }
   if (isProduction) directives['upgrade-insecure-requests'] = [];
   return directives;
 }
