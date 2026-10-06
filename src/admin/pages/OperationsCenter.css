@@ -946,3 +946,32 @@
     margin-bottom: 0.2rem;
   }
 }
+
+/* Shared status tones (see src/admin/shipmentStatus.ts) */
+.ops-status-chip.waiting {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+.chip-dot.amber { background: #f59e0b; }
+.chip-dot.teal { background: #14b8a6; }
+
+.ops-eta-date.overdue {
+  color: #b91c1c;
+}
+
+.ops-overdue-tag {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.ops-route-warning {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #b91c1c;
+}

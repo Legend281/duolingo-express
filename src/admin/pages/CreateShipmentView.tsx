@@ -889,11 +889,12 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
     const preciseOrigin = await resolveLocationPrecise(originQuery, senderCountry);
     const preciseDest = await resolveLocationPrecise(destQuery, recipientCountry);
 
-    // Outside the US there's no safe guess to fall back to (the defaults below are US
-    // coordinates), so an unrecognized city stops here instead of being plotted somewhere wrong.
+    // No guessing anywhere: an unrecognized place (US included) stops here. It used to fall
+    // back to a fixed point in Texas / Washington DC, so the tracking map showed a completely
+    // different location from the one typed.
     const notFound = [
-      !senderIsUS && !preciseOrigin ? `pickup city "${originQuery || '(blank)'}" in ${senderCountry}` : null,
-      !recipientIsUS && !preciseDest ? `delivery city "${destQuery || '(blank)'}" in ${recipientCountry}` : null,
+      !preciseOrigin ? `pickup city "${originQuery || '(blank)'}" in ${senderCountry}` : null,
+      !preciseDest ? `delivery city "${destQuery || '(blank)'}" in ${recipientCountry}` : null,
     ].filter(Boolean);
     if (notFound.length > 0) {
       setCreateError(`Couldn't find the ${notFound.join(' or the ')}. Check the spelling (try the nearest larger city), then register again.`);
@@ -902,27 +903,8 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
     }
     setCreateError(null);
 
-    const originGeo = preciseOrigin || {
-      city: senderCity.trim() || 'Origin City',
-      state: senderState.trim() || 'US',
-      stateFull: 'United States',
-      zip: senderZip.trim() || '75201',
-      lat: 31.9686,
-      lng: -99.9018,
-      timezone: 'CT',
-      facilityName: `${senderCity.trim() || 'Origin'} Hub`
-    };
-
-    const destGeo = preciseDest || {
-      city: recipientCity.trim() || 'Destination City',
-      state: recipientState.trim() || 'US',
-      stateFull: 'United States',
-      zip: recipientZip.trim() || '20001',
-      lat: 38.9072,
-      lng: -77.0369,
-      timezone: 'ET',
-      facilityName: `${recipientCity.trim() || 'Destination'} Facility`
-    };
+    const originGeo = preciseOrigin!;
+    const destGeo = preciseDest!;
     const routePlan = calculateRouteGeometry(
       { lat: originGeo.lat, lng: originGeo.lng, name: originGeo.city, country: senderCountry, state: originGeo.state },
       { lat: destGeo.lat, lng: destGeo.lng, name: destGeo.city, country: recipientCountry, state: destGeo.state }

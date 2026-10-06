@@ -36,6 +36,7 @@ import { Shipment, ShipmentStatus, TrackingEvent } from '../../types/shipment';
 import { AdminViewType } from '../AdminLayout';
 import { resolveLocation, resolveLocationPrecise, formatPlace } from '../../services/geocodingService';
 import './TrackingEventsView.css';
+import { isMoving, isHoldOrException } from '../shipmentStatus';
 
 // Pre-defined structured standard network locations
 const NETWORK_LOCATIONS = [
@@ -169,16 +170,12 @@ export const TrackingEventsView: React.FC<TrackingEventsViewProps> = ({ onSelect
 
   // Snapshot KPIs — gives this page the same at-a-glance stat row as the other admin
   // screens, using metrics relevant to scanning/logging tracking events specifically.
-  const inTransitCount = shipments.filter(s =>
-    s.status === 'IN_TRANSIT' || s.status === 'OUT_FOR_DELIVERY'
-  ).length;
+  const inTransitCount = shipments.filter(s => isMoving(s.status)).length;
   const totalEventsLogged = shipments.reduce((acc, s) => {
     const events = s.timeline || (s as any).events || [];
     return acc + events.length;
   }, 0);
-  const delayedCount = shipments.filter(s =>
-    s.status === 'HELD' || s.status === 'EXCEPTION' || s.status === 'ON_HOLD' || s.status === 'DELAYED' || Boolean(s.delayNotice?.hasDelay)
-  ).length;
+  const delayedCount = shipments.filter(s => isHoldOrException(s)).length;
 
   // Auto-update message template when status changes in Add modal
   const handleStatusChange = (newStatus: string) => {

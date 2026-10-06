@@ -241,6 +241,8 @@ export interface Shipment {
   createdAtTs?: number;
   estimatedDelivery: string;
   estimatedDeliveryDetail: string;
+  /** ISO deadline kept by the admin data layer (estimatedDelivery is flattened to display text there). */
+  estimatedDeliveryTs?: string;
   currentLocation: string;
   currentFacility: string;
   lastUpdated: string;

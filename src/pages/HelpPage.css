@@ -298,7 +298,7 @@
   gap: 0.375rem;
   font-size: 0.8125rem;
   font-weight: 800;
-  color: var(--dxp-orange-600);
+  color: #c2410c;
   transition: var(--dxp-transition);
 }
 

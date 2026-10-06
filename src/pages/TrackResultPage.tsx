@@ -329,9 +329,9 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   const recipientPhone = shipment?.recipient?.phone;
   const recipientEmail = shipment?.recipient?.email;
 
-  const originGeo = resolveLocation([originCity, originState].filter(Boolean).join(', ')) || resolveLocation(originCity) || resolveLocation(originState) || { lat: 40.7128, lng: -74.0050 };
+  const originGeo = resolveLocation([originCity, originState].filter(Boolean).join(', '), originCountry) || resolveLocation(originCity, originCountry) || { lat: 40.7128, lng: -74.0050 };
   const currentGeo = resolveLocation([currentCity, currentState].filter(Boolean).join(', ')) || resolveLocation(currentCity) || resolveLocation(currentState) || { lat: 41.8781, lng: -87.6298 };
-  const destGeo = resolveLocation([destCity, destState].filter(Boolean).join(', ')) || resolveLocation(destCity) || resolveLocation(destState) || { lat: 34.0522, lng: -118.2437 };
+  const destGeo = resolveLocation([destCity, destState].filter(Boolean).join(', '), destCountry) || resolveLocation(destCity, destCountry) || { lat: 34.0522, lng: -118.2437 };
 
   const routeCheckpoints: RouteCheckpoint[] = [
     {
@@ -827,7 +827,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
             delayNotice={liveShipment.delayNotice}
           />
           <div className="trk-map-caption">
-            <span><strong>{routeGeom.distanceMiles.toLocaleString()} mi</strong> {routeGeom.mode === 'AIR' ? 'by air' : 'by road'}</span>
+            <span><strong>{routeGeom.distanceMiles.toLocaleString()} mi</strong> total distance</span>
             <span className="trk-map-sep" />
             <span><strong>{heroProgress}%</strong> of the route complete</span>
             <span className="trk-map-sep" />

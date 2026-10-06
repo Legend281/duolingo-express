@@ -251,11 +251,11 @@
 }
 
 .nav-badge-amber {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 800;
   padding: 0.15rem 0.55rem;
   border-radius: 9999px;
-  background: #ea580c;
+  background: #c2410c;
   color: #ffffff;
   margin-left: auto;
   letter-spacing: 0.04em;
@@ -511,9 +511,9 @@
   right: 0.65rem;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  color: #94a3b8;
+  color: #64748b;
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
   padding: 0.1rem 0.35rem;
@@ -975,5 +975,33 @@
   .user-menu-popover {
     right: -0.85rem;
     width: min(320px, calc(100vw - 1.5rem));
+  }
+}
+
+@media (max-width: 760px) {
+  .search-shortcut-badge {
+    display: none;
+  }
+}
+
+/* Phone: comfortable tap targets for the small admin controls (were 24–30px tall) */
+@media (max-width: 760px) {
+  .filter-tab-btn,
+  .tab-btn,
+  .preset-pill,
+  .btn-review-row,
+  .btn-view-doc-primary,
+  .ops-control-btn,
+  .ops-btn-secondary,
+  .back-link-btn {
+    min-height: 40px;
+  }
+  .btn-dots-menu,
+  .event-action-icon-btn,
+  .copy-waybill-btn,
+  .action-icon-btn,
+  .btn-preview-close {
+    min-width: 40px;
+    min-height: 40px;
   }
 }

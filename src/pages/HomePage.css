@@ -292,7 +292,7 @@
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.08em;
-  color: var(--dxp-orange-600);
+  color: #c2410c;
   text-transform: uppercase;
   display: block;
   margin-bottom: 0.5rem;
@@ -550,10 +550,10 @@
 }
 
 .node-eyebrow {
-  font-size: 0.6875rem;
+  font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.08em;
-  color: var(--dxp-orange-600);
+  color: #c2410c;
 }
 
 .node-body h3 {
@@ -2044,4 +2044,10 @@
 
 .faq-question-toggle svg {
   flex-shrink: 0;
+}
+
+/* Eyebrows on dark sections keep a light orange (the darker one is for white backgrounds) */
+.section-center-header.light .section-eyebrow,
+.corp-hubs-map-section .section-eyebrow {
+  color: #fb923c;
 }

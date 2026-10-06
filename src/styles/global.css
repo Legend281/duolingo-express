@@ -248,3 +248,13 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--dxp-white);
   box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.12);
 }
+
+/* Phone: small text links / chips get a 40px tap area */
+@media (max-width: 760px) {
+  .btn-why-readmore,
+  .prio-btn,
+  .btn-national-view,
+  .pillar-action-link {
+    min-height: 40px;
+  }
+}

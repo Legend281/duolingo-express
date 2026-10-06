@@ -93,6 +93,8 @@ const normalizeShipment = (s: any): Shipment => {
     events,
     timeline: events,
     estimatedDelivery: etaDate,
+    // Kept alongside the display text: the real deadline, for overdue checks and sorting.
+    estimatedDeliveryTs: (typeof s.estimatedDelivery === 'object' && s.estimatedDelivery?.timestamp) || s.estimatedDeliveryTs,
     estimatedDeliveryDetail: etaWindow || s.estimatedDeliveryDetail,
     sender: typeof s.sender === 'object' && s.sender ? s.sender : { name: String(s.sender || 'Shipper') },
     recipient: typeof s.recipient === 'object' && s.recipient ? s.recipient : { name: String(s.recipient || 'Consignee') },
@@ -564,20 +566,21 @@ const normalizeShipment = (s: any): Shipment => {
     // resolveLocationPrecise: instant for major metros/world cities, falls through to live
     // geocoding for smaller towns. US quotes may look up by ZIP; elsewhere by city + region in
     // the quote's country.
-    const lookup = (city: string, state: string, zip: string, country: string) =>
-      resolveLocationPrecise(isUnitedStates(country) && zip ? zip : [city, state].filter(Boolean).join(', '), country);
+    const lookup = async (city: string, state: string, zip: string, country: string) =>
+      (isUnitedStates(country) && zip ? await resolveLocationPrecise(zip, country) : null)
+      || resolveLocationPrecise([city, state].filter(Boolean).join(', '), country);
     const originGeo = await lookup(originCity, originState, originZip, originCountry);
     const destGeo = await lookup(destCity, destState, destZip, destCountry);
     // No US coordinate is a safe stand-in for a city abroad — stop before creating anything.
     const notFound = [
-      !originGeo && !isUnitedStates(originCountry) ? `"${originCity}" in ${originCountry}` : null,
-      !destGeo && !isUnitedStates(destCountry) ? `"${destCity}" in ${destCountry}` : null,
+      !originGeo ? `"${originCity}" in ${originCountry}` : null,
+      !destGeo ? `"${destCity}" in ${destCountry}` : null,
     ].filter(Boolean);
     if (notFound.length > 0) {
       throw new Error(`Couldn't locate ${notFound.join(' or ')}. Correct the quote's city spelling, then convert again.`);
     }
-    const originPt = { lat: originGeo?.lat || 40.7128, lng: originGeo?.lng || -74.0060 };
-    const destPt = { lat: destGeo?.lat || 34.0522, lng: destGeo?.lng || -118.2437 };
+    const originPt = { lat: originGeo!.lat, lng: originGeo!.lng };
+    const destPt = { lat: destGeo!.lat, lng: destGeo!.lng };
     const originPlace = formatPlace(originCity, originState, originCountry);
 
     // Real ETA from today's date and the route (it used to be a fixed "Aug 25, 2026").

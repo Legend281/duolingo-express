@@ -173,9 +173,8 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
       return { changed: false, geo: { lat: stored.lat, lng: stored.lng, facilityName: stored.facility || stored.facilityName, city: stored.city, state: stored.state } };
     }
     const query = [city.trim(), state.trim()].filter(Boolean).join(', ');
-    const geo = (await resolveLocationPrecise(query, country))
-      || resolveLocation(city.trim(), country)
-      || (isUnitedStates(country) ? resolveLocation(state.trim()) : null);
+    // No centroid / same-name guesses: a place that can't be found is reported, not plotted.
+    const geo = await resolveLocationPrecise(query, country);
     return { changed: true, geo };
   };
 
@@ -189,11 +188,11 @@ export const EditShipmentModal: React.FC<EditShipmentModalProps> = ({
       geocodeIfChanged(senderCity, senderState, senderCountry, initialSenderCity, initialSenderState, initialSenderCountry, shipment.origin),
       geocodeIfChanged(recipientCity, recipientState, recipientCountry, initialRecipientCity, initialRecipientState, initialRecipientCountry, shipment.destination),
     ]);
-    // A changed non-US location that can't be found must not keep the OLD coordinates under
-    // a new name — stop and ask, the same way the Create form does.
+    // A changed location that can't be found must not keep the OLD coordinates under a new
+    // name — stop and ask, the same way the Create form does.
     const notFound = [
-      originLookup.changed && !originLookup.geo && !senderIsUS ? `"${senderCity.trim()}" in ${senderCountry}` : null,
-      destLookup.changed && !destLookup.geo && !recipientIsUS ? `"${recipientCity.trim()}" in ${recipientCountry}` : null,
+      originLookup.changed && !originLookup.geo ? `"${senderCity.trim()}" in ${senderCountry}` : null,
+      destLookup.changed && !destLookup.geo ? `"${recipientCity.trim()}" in ${recipientCountry}` : null,
     ].filter(Boolean);
     if (notFound.length > 0) {
       setSaveError(`Couldn't find ${notFound.join(' or ')}. Check the spelling (try the nearest larger city).`);

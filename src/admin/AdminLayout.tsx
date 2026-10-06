@@ -29,6 +29,9 @@ import { useAdminData } from '../context/AdminDataContext';
 import { api } from '../services/api';
 import './AdminLayout.css';
 
+// Shortcut hint shows the key that actually works on this computer.
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
 export type AdminViewType =
   | 'operations-center'
   | 'all-shipments'
@@ -307,8 +310,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                   <X size={13} />
                 </button>
               ) : (
-                <span className="search-shortcut-badge font-mono" title="Keyboard shortcut: Ctrl+K or ⌘K">
-                  ⌘K
+                <span className="search-shortcut-badge font-mono" title={`Keyboard shortcut: ${IS_MAC ? '⌘K' : 'Ctrl+K'}`}>
+                  {IS_MAC ? '⌘K' : 'Ctrl K'}
                 </span>
               )}
             </div>

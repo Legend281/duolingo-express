@@ -762,7 +762,7 @@ export const DocumentCenterView: React.FC<DocumentCenterViewProps> = ({
                             <span className="party-name recipient">{doc.recipientName}</span>
                           </div>
                           <div className="route-sub">
-                            {doc.senderCity}, {doc.senderState} → {doc.recipientCity}, {doc.recipientState}
+                            {[doc.senderCity, doc.senderState].filter(Boolean).join(', ')} → {[doc.recipientCity, doc.recipientState].filter(Boolean).join(', ')}
                           </div>
                         </div>
                       </td>

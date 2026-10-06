@@ -21,6 +21,7 @@ import { useAdminData } from '../../context/AdminDataContext';
 import { AdminViewType } from '../AdminLayout';
 import { Shipment } from '../../types/shipment';
 import './OperationsCenter.css';
+import { statusInfo, chipStyle, isMoving, isHoldOrException, isOpen, isOverdue, hasPlaceholderLocation } from '../shipmentStatus';
 
 interface OperationsCenterProps {
   onSelectView: (view: AdminViewType) => void;
@@ -40,17 +41,11 @@ export const OperationsCenter: React.FC<OperationsCenterProps> = ({
 
   // Metrics calculation
   const totalShipmentsCount = shipments.length;
-  const inTransitShipments = shipments.filter(s =>
-    s.status === 'IN_TRANSIT' ||
-    s.status === 'OUT_FOR_DELIVERY'
-  );
+  const inTransitShipments = shipments.filter(s => isMoving(s.status));
   const inTransitCount = inTransitShipments.length;
   const deliveredCount = shipments.filter(s => s.status === 'DELIVERED').length;
-  const exceptionCount = shipments.filter(s =>
-    s.status === 'HELD' ||
-    s.status === 'EXCEPTION' ||
-    Boolean(s.delayNotice?.hasDelay)
-  ).length;
+  const exceptionCount = shipments.filter(s => isHoldOrException(s)).length;
+  const openCount = shipments.filter(s => isOpen(s.status)).length;
 
   const totalPieces = shipments.reduce((acc, s) => {
     const piecesCount = Array.isArray(s.pieces) && s.pieces.length > 0 ? s.pieces.length : (s.totalPieces || 1);
@@ -69,13 +64,11 @@ export const OperationsCenter: React.FC<OperationsCenterProps> = ({
   const filteredShipments = shipments.filter(s => {
     // Status tab filter
     if (tableFilter === 'IN_TRANSIT') {
-      const isTransit = s.status === 'IN_TRANSIT' || s.status === 'OUT_FOR_DELIVERY';
-      if (!isTransit) return false;
+      if (!isMoving(s.status)) return false;
     } else if (tableFilter === 'DELIVERED') {
       if (s.status !== 'DELIVERED') return false;
     } else if (tableFilter === 'HELD') {
-      const isHeld = s.status === 'HELD' || s.status === 'EXCEPTION' || Boolean(s.delayNotice?.hasDelay);
-      if (!isHeld) return false;
+      if (!isHoldOrException(s)) return false;
     }
 
     // Search query filter
@@ -322,7 +315,7 @@ export const OperationsCenter: React.FC<OperationsCenterProps> = ({
           <div className="table-title-group">
             <div className="table-title-row">
               <h2 className="ops-section-title">Recent Shipments</h2>
-              <span className="ops-shipment-count-pill">{filteredShipments.length} Active</span>
+              <span className="ops-shipment-count-pill">{openCount} Active</span>
             </div>
           </div>
 
@@ -481,6 +474,11 @@ export const OperationsCenter: React.FC<OperationsCenterProps> = ({
                           <span className="ops-route-origin">{senderCity}{senderState ? `, ${senderState}` : ''}</span>
                           <span className="ops-route-arrow">→</span>
                           <span className="ops-route-dest">{destCity}{destState ? `, ${destState}` : ''}</span>
+                          {hasPlaceholderLocation(shipment) && (
+                            <span className="ops-route-warning" title="Saved before city lookups were fixed. Edit the shipment and re-enter the cities so the map shows the right places.">
+                              Location not found, edit to fix
+                            </span>
+                          )}
                           <span className="ops-cargo-desc truncate" title={shipment.cargoDescription || shipment.shipmentType || 'Commercial Freight'}>
                             {shipment.cargoDescription || shipment.shipmentType || 'Commercial Freight'}
                           </span>
@@ -497,30 +495,24 @@ export const OperationsCenter: React.FC<OperationsCenterProps> = ({
 
                       {/* 5. STATUS */}
                       <td>
-                        {shipment.status === 'IN_TRANSIT' || shipment.status === 'OUT_FOR_DELIVERY' ? (
-                          <span className="ops-status-chip in-transit">
-                            <span className="chip-dot blue" /> In Transit
-                          </span>
-                        ) : shipment.status === 'DELIVERED' ? (
-                          <span className="ops-status-chip delivered">
-                            <span className="chip-dot green" /> Delivered
-                          </span>
-                        ) : shipment.status === 'HELD' || shipment.status === 'EXCEPTION' ? (
-                          <span className="ops-status-chip delayed">
-                            <span className="chip-dot red" /> On Hold
-                          </span>
-                        ) : (
-                          <span className="ops-status-chip arrived">
-                            <span className="chip-dot slate" /> Received
-                          </span>
-                        )}
+                        {(() => {
+                          const info = statusInfo(shipment.status);
+                          const st = chipStyle(info.tone);
+                          return (
+                            <span className={`ops-status-chip ${st.chip}`}>
+                              <span className={`chip-dot ${st.dot}`} /> {info.label}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* 6. EST. DELIVERY */}
                       <td>
                         <div className="ops-eta-cell">
-                          <strong className="ops-eta-date">{eta.date}</strong>
-                          <span className="ops-eta-subtext">{eta.time || 'Just now'}</span>
+                          <strong className={`ops-eta-date ${isOverdue(shipment) ? 'overdue' : ''}`}>{eta.date}</strong>
+                          <span className="ops-eta-subtext">
+                            {isOverdue(shipment) ? <span className="ops-overdue-tag">Overdue</span> : (eta.time || 'Just now')}
+                          </span>
                         </div>
                       </td>
 

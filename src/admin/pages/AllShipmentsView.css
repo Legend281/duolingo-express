@@ -668,7 +668,7 @@
 
 .eta-subtext {
   font-size: 0.72rem;
-  color: #94a3b8;
+  color: #64748b;
   font-weight: 500;
   /* "Oct 6, 2026 · 10:19 AM EDT" is wider than the column; wrap rather than run under the action buttons */
   white-space: normal;
@@ -1043,9 +1043,9 @@
 }
 
 .m-label {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 800;
-  color: #94a3b8;
+  color: #64748b;
   letter-spacing: 0.05em;
 }
 
@@ -1389,3 +1389,20 @@
     padding: 3rem 0.5rem !important;
   }
 }
+
+/* Shared status tones (see src/admin/shipmentStatus.ts) */
+.ship-status-chip.waiting { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+.ship-status-chip.out-delivery { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+.chip-dot.amber { background: #f59e0b; }
+.chip-dot.teal { background: #14b8a6; }
+.eta-date.overdue { color: #b91c1c; }
+.eta-overdue-tag {
+  align-self: flex-start;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #b91c1c;
+  background: #fee2e2;
+}
+.route-warning { font-size: 0.72rem; font-weight: 700; color: #b91c1c; }

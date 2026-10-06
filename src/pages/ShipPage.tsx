@@ -190,16 +190,16 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
     const destGeo = await resolveLocationPrecise([recipientCity.trim(), recipientState.trim()].filter(Boolean).join(', '), recipientCountry);
     // No US coordinate is a safe stand-in for a city abroad — ask instead of booking it wrong.
     const notFound = [
-      !originGeo && !senderIsUS ? `pickup city "${senderCity.trim()}" in ${senderCountry}` : null,
-      !destGeo && !recipientIsUS ? `delivery city "${recipientCity.trim()}" in ${recipientCountry}` : null,
+      !originGeo ? `pickup city "${senderCity.trim()}" in ${senderCountry}` : null,
+      !destGeo ? `delivery city "${recipientCity.trim()}" in ${recipientCountry}` : null,
     ].filter(Boolean);
     if (notFound.length > 0) {
       setFormError(`We couldn't find the ${notFound.join(' or the ')}. Please check the spelling (or use the nearest larger city) and try again.`);
       setIsSubmitting(false);
       return;
     }
-    const originPt = { lat: originGeo?.lat || 31.9686, lng: originGeo?.lng || -99.9018 };
-    const destPt = { lat: destGeo?.lat || 38.9072, lng: destGeo?.lng || -77.0369 };
+    const originPt = { lat: originGeo!.lat, lng: originGeo!.lng };
+    const destPt = { lat: destGeo!.lat, lng: destGeo!.lng };
     const originPlace = formatPlace(senderCity, senderState, senderCountry);
     // Real ETA from today and the route (it used to be the text "2-3 Business Days" for every
     // booking, which no date logic downstream could read).

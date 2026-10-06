@@ -177,13 +177,13 @@
 /* ==========================================================================
    2. QUICK SCENARIO SELECTOR PILLS
    ========================================================================== */
+/* Wraps onto more lines instead of running off the edge with a hidden scrollbar */
 .shipment-quick-pills-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-  overflow-x: auto;
   padding-bottom: 0.25rem;
-  scrollbar-width: none;
 }
 
 .shipment-quick-pills-bar::-webkit-scrollbar {
@@ -339,9 +339,9 @@
 }
 
 .m-label {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 800;
-  color: #94a3b8;
+  color: #64748b;
   letter-spacing: 0.05em;
 }
 

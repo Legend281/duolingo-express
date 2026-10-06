@@ -79,7 +79,8 @@
 
 @media (max-width: 640px) {
   .qr-kpi-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
   }
   /* The search box + both filter dropdowns tried to fit on one flex row with no wrap — on a
      phone that meant the "Service" filter (and part of "Status") got pushed off-screen with
@@ -328,8 +329,9 @@
 }
 
 .quote-id-txt {
-  color: #ea580c;
+  color: #c2410c;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .flagship-pill {
@@ -370,14 +372,20 @@
 
 .route-cell {
   display: flex;
-  align-items: center;
-  gap: 0.35rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
   font-weight: 600;
   color: #334155;
 }
 
+.route-cell span {
+  white-space: nowrap;
+}
+
 .route-arr {
   color: #94a3b8;
+  transform: rotate(90deg);
 }
 
 .specs-cell {

@@ -169,6 +169,8 @@
   gap: 0.5rem;
   border-bottom: 1px solid #e2e8f0;
   padding-bottom: 0.25rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .doc-nav-tab {
@@ -182,6 +184,8 @@
   font-size: 0.85rem;
   font-weight: 700;
   color: #64748b;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -424,12 +428,13 @@
 .tracking-text {
   font-weight: 700;
   color: #0f172a;
+  white-space: nowrap;
 }
 
 .cargo-sub {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: #64748b;
-  font-family: inherit;
+  font-family: var(--dxp-font-sans);
 }
 
 .parties-route-cell {
@@ -440,10 +445,15 @@
 
 .parties-line {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.1rem 0.35rem;
   font-weight: 700;
   color: #0f172a;
+}
+
+.parties-line .party-name {
+  white-space: nowrap;
 }
 
 .party-arrow {
@@ -468,7 +478,7 @@
 
 .file-size-sub {
   font-size: 0.7rem;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 /* Status Badges */

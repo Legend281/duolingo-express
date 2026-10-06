@@ -411,6 +411,13 @@ async function geocodeOpenMeteo(query: string, countryName: string, internationa
   if (!resp.ok) return null;
   const data = await resp.json();
   let results: any[] = Array.isArray(data?.results) ? data.results : [];
+  // Populated places only (GeoNames feature codes PPL, PPLA, PPLC, PPLX...). Without this a
+  // misspelled town matched any feature with a similar name: "Huston, TX" became a dam 492
+  // miles from Houston. Boroughs/districts (ADM*) are allowed only as an exact name match.
+  results = results.filter(r => {
+    const fc = String(r.feature_code || '');
+    return fc.startsWith('PPL') || (fc.startsWith('ADM') && normalizePlace(r.name || '').includes(normalizePlace(name)));
+  });
   if (!code) {
     results = results.filter(r => normalizePlace(canonicalCountry(r.country)) === normalizePlace(countryName));
   }
@@ -477,15 +484,32 @@ async function geocodeOpenMeteo(query: string, countryName: string, internationa
  */
 async function geocodeNominatim(query: string, countryName: string, localMatch: GeoLocationResult | null): Promise<GeoLocationResult | null> {
   const encoded = encodeURIComponent(`${query}, ${countryName}`);
+  const isoCode = isUnitedStates(countryName) ? 'us' : (countryCodeFor(countryName) || '').toLowerCase();
   const resp = await fetchWithTimeout(
-    `https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&addressdetails=1&limit=1&accept-language=en`,
+    `https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&addressdetails=1&limit=5&accept-language=en${isoCode ? `&countrycodes=${isoCode}` : ''}`,
     4000
   );
   if (!resp.ok) return null;
   const data = await resp.json();
   if (!Array.isArray(data) || data.length === 0) return null;
 
-  const item = data[0];
+  // Settlements only — not a dam, park or street that happens to share the name.
+  const SETTLEMENT_TYPES = new Set(['city', 'town', 'village', 'hamlet', 'suburb', 'borough', 'municipality', 'quarter', 'neighbourhood', 'administrative']);
+  const looksLikeAddress = /\d/.test(query.split(',')[0]);
+  const stateHint = query.split(',').slice(1).map(p => p.trim()).filter(Boolean).pop() || '';
+  const hintCode = stateHint.length === 2 ? stateHint.toUpperCase() : Object.entries(STATE_NAMES).find(([, full]) => normalizePlace(full) === normalizePlace(stateHint))?.[0];
+  const item = data.find((d: any) => {
+    const kind = String(d.addresstype || d.type || '');
+    // A full street address ("4727 Brushwood Blvd SW, Grandville, MI") may resolve to the
+    // building or road itself; a bare name must be a settlement.
+    if (!SETTLEMENT_TYPES.has(kind) && !looksLikeAddress) return false;
+    if (hintCode && isoCode === 'us') {
+      const code = String(d.address?.['ISO3166-2-lvl4'] || '').replace('US-', '');
+      return code === hintCode;
+    }
+    return true;
+  });
+  if (!item) return null;
   const addr = item.address || {};
   const countryCode = String(addr.country_code || '').toUpperCase();
   const isUS = countryCode === 'US';
@@ -587,12 +611,29 @@ export async function resolveLocationPrecise(input: string, country?: string): P
   if (local?.isExactCoordinate) {
     return local;
   }
-  // Local match was only a state-centroid guess (or there was no match at all) — worth the
-  // network round-trip to get the real town. geocodeAddressLive() already falls back to the
-  // same local result on failure/timeout, so this never regresses below what resolveLocation
-  // alone would have given.
-  const live = await geocodeAddressLive(input, country);
-  return live || local;
+  // Just a state ("Texas", "TX"): its centre is what was asked for. The live search would
+  // otherwise return some unrelated place with that name ("Texas" -> Colfax, West Virginia).
+  const bare = normalizePlace(input);
+  const isBareState = isUnitedStates(country) && !!bare && (
+    !!STATE_NAMES[input.trim().toUpperCase()] || Object.values(STATE_NAMES).some(full => normalizePlace(full) === bare)
+  );
+  if (isBareState && local) return local;
+  // A town's live lookup failing must not quietly fall back to its state's centre (up to a
+  // few hundred miles off): return nothing so the form asks the user instead.
+  const liveOnly = await geocodeAddressLive(input, country);
+  if (liveOnly && liveOnly.isExactCoordinate) return liveOnly;
+  // A street address typed into the city box ("4727 Brushwood Blvd SW Grandville, MI"):
+  // try the town at the end of it ("Grandville, MI"), then the last two/three words.
+  const [first, ...rest] = input.split(',').map(p => p.trim());
+  if (/\d/.test(first || '')) {
+    const words = first.split(/\s+/).filter(w => !/\d/.test(w));
+    for (let n = 1; n <= Math.min(3, words.length); n++) {
+      const town = words.slice(-n).join(' ');
+      const guess = await resolveLocationPrecise([town, ...rest].filter(Boolean).join(', '), country);
+      if (guess) return guess;
+    }
+  }
+  return null;
 }
 
 /**
