@@ -244,7 +244,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
       statusText: 'Consignment Tender Registered · Awaiting Intake Scan',
       statusMessage: 'Consignment registered in Duolingo Express intake system. Linear Code 128 piece barcodes assigned.',
       health: 'ON_TRACK',
-      progressPercent: 10,
+      progressPercent: 0,
       lastUpdated: 'Just now',
       createdAt: 'Today',
       service: getServiceName(),

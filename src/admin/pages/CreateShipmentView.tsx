@@ -982,7 +982,8 @@ export const CreateShipmentView: React.FC<CreateShipmentViewProps> = ({
         : `Consignment provisioned. ${totalPieces} package(s) totalling ${totalWeight.toFixed(1)} lbs.`,
       health: 'ON_TRACK',
       healthExplanation: 'Consignment created on schedule with verified physical barcodes.',
-      progressPercent: initialLocationMode === 'NOT_RECEIVED' ? 0 : 5,
+      // Every new shipment starts at 0% and climbs from there.
+      progressPercent: 0,
       shipmentType: shipmentType === 'Multi-piece' ? 'Parcel' : shipmentType,
       cargoCategory,
       cargoDescription: shipmentDescription,

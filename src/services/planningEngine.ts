@@ -859,7 +859,7 @@ export function calculateDynamicTimeProgress(
 
   if (status === 'RECEIVED') {
     return {
-      progressPercent: 5,
+      progressPercent: 0,
       interpolatedLocation: `${shipment.origin?.city || 'Origin'}, ${shipment.origin?.state || ''}`,
       isCompletedTime: false,
       activeMilestoneStage: 'Received at Origin Terminal'

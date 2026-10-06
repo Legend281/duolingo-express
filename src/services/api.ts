@@ -5,6 +5,8 @@ const API_BASE = '/api';
 
 /** Marks a reply whose body never arrived (see apiFetch). */
 const EMPTY_REPLY_HEADER = 'x-dxp-empty-reply';
+/** Fired when a write succeeded but its reply body was lost — data screens should reload. */
+export const REPLY_LOST_EVENT = 'dxp:reply-lost';
 
 /**
  * fetch() for our own API that survives a reply losing its body on the way.
@@ -31,10 +33,15 @@ async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
     const headers = new Headers(r.headers);
     headers.set(EMPTY_REPLY_HEADER, '1');
     headers.set('content-type', 'application/json');
-    const message = r.ok
-      ? 'The server accepted the request, but its reply was lost on the way. Refresh the page to see the result before trying again.'
-      : 'The connection dropped the reply from the server. Please try again.';
-    return new Response(JSON.stringify({ success: false, error: message }), { status: r.status, statusText: r.statusText, headers });
+    if (r.ok) {
+      // A 2xx means the server did the work — only its reply went missing. Report success
+      // and ask the admin screens to reload from the server so they show the saved result.
+      // (Treating this as a failure made the admin roll its own screen back even though
+      // the change was saved, e.g. a status update that the tracking page already showed.)
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event(REPLY_LOST_EVENT));
+      return new Response(JSON.stringify({ success: true }), { status: r.status, statusText: r.statusText, headers });
+    }
+    return new Response(JSON.stringify({ success: false, error: 'The connection dropped the reply from the server. Please try again.' }), { status: r.status, statusText: r.statusText, headers });
   }
   return new Response(text, { status: r.status, statusText: r.statusText, headers: r.headers });
 }

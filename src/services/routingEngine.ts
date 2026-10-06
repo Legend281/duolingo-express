@@ -180,8 +180,11 @@ export async function fetchLiveRoadRoute(
   origin: LatLngPoint,
   destination: LatLngPoint
 ): Promise<RouteGeometryResult> {
-  // Air legs have no road to look up (OSRM can't cross an ocean) — the flight path is final.
-  if (resolveTransportMode(origin, destination) === 'AIR') {
+  // Only a shipment inside one country follows real roads. Air legs have no road to look up,
+  // and an international shipment is drawn as a direct line too (even a short cross-border
+  // road leg) — tracing a foreign road network suggests a precision the route doesn't have.
+  const sameCountry = normalizePlace(canonicalCountry(origin.country) || 'United States') === normalizePlace(canonicalCountry(destination.country) || 'United States');
+  if (!sameCountry || resolveTransportMode(origin, destination) === 'AIR') {
     return calculateRouteGeometry(origin, destination);
   }
 

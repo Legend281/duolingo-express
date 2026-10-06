@@ -245,7 +245,7 @@ shipmentsRouter.post('/', publicWriteLimiter, (req: Request, res: Response) => {
       barcodeCode,
       s.status || 'RECEIVED',
       s.statusText || 'Consignment Registered',
-      s.progressPercent || 15,
+      typeof s.progressPercent === 'number' ? s.progressPercent : 0,
       lastUpdated,
       createdAt,
       eta.date,
@@ -382,7 +382,8 @@ shipmentsRouter.patch('/:trackingNumber/status', requireAdminAuth, (req: Request
     // know a better value. The Operations Control modal computes a richer statusText
     // (with hold/delay reason, hub name, etc.) and its own progress via planningEngine.ts —
     // when it sends those, honor them instead of clobbering them with these generic defaults.
-    let progress = 15;
+    // Statuses without their own default keep the progress they already have (was a flat 15%).
+    let progress = typeof (row as any).progress_percent === 'number' ? (row as any).progress_percent : 0;
     let statusText = 'Consignment Registered';
     if (newStatus === 'PROCESSED') { progress = 35; statusText = 'Processed at Sorting Gateway'; }
     else if (newStatus === 'IN_TRANSIT') { progress = 60; statusText = 'In Transit — Linehaul Route'; }
@@ -393,7 +394,7 @@ shipmentsRouter.patch('/:trackingNumber/status', requireAdminAuth, (req: Request
     else if (newStatus === 'DELAYED') { statusText = 'Transit Delayed'; progress = (row as any).progress_percent; }
     else if (newStatus === 'EXCEPTION') { progress = 50; statusText = 'Transit Exception / Delay'; }
     else if (newStatus === 'DEPARTED_FACILITY') { progress = 45; statusText = 'Departed Facility'; }
-    else if (newStatus === 'CREATED') { progress = 5; statusText = 'Shipment Created'; }
+    else if (newStatus === 'CREATED') { progress = 0; statusText = 'Shipment Created'; }
 
     if (typeof progressPercent === 'number' && !isNaN(progressPercent)) {
       progress = Math.max(0, Math.min(100, progressPercent));

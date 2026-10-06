@@ -187,7 +187,25 @@ if (ADMIN_PROXY_TARGET) {
 // #/track/...), so the browser only ever requests the bare "/" from the server no matter which
 // in-app page is open (everything after "#" stays client-side) — express.static's default
 // index.html-for-"/" behavior is enough, no separate SPA catch-all route is needed.
-app.use(express.static(path.join(process.cwd(), 'dist')));
+if (ADMIN_PROXY_TARGET) {
+  // Admin host: serve the main site's current pages too, not this app's own build. This app
+  // is redeployed separately and was seen running a build one release behind the main site,
+  // so an already-shipped fix was still missing on the admin host. Falls back to the local
+  // build only if the main site can't be reached.
+  const localDist = express.static(path.join(process.cwd(), 'dist'));
+  app.use(createProxyMiddleware({
+    target: ADMIN_PROXY_TARGET,
+    changeOrigin: true,
+    on: {
+      error: (_err, req, res) => {
+        const r = res as Response;
+        if ('headersSent' in r && !r.headersSent) localDist(req as Request, r, () => r.status(502).end());
+      },
+    },
+  }));
+} else {
+  app.use(express.static(path.join(process.cwd(), 'dist')));
+}
 
 // Last-resort error handler — catches anything that bypassed every route's own try/catch
 // (a malformed JSON body from express.json(), a thrown error in middleware, etc.). Express's

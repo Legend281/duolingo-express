@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Shipment, ShipmentStatus, TrackingEvent } from '../types/shipment';
 import { QuoteRequest, QuoteRequestStatus, QuoteRequestPricing, AdminNotification, AdminSettings, AdminDocument, DocumentStatus, DocumentVersion } from '../types/admin';
-import { api } from '../services/api';
+import { api, REPLY_LOST_EVENT } from '../services/api';
 import { simulationEngine } from '../services/simulationEngine';
 import { resolveLocation, resolveLocationPrecise, formatPlace } from '../services/geocodingService';
 import { isUnitedStates, pickerCountryName } from '../services/worldCities';
@@ -202,6 +202,25 @@ const normalizeShipment = (s: any): Shipment => {
     return () => { stopped = true; clearInterval(interval); };
   }, [isAdminSession]);
 
+  // A save went through but its reply was lost on the way (see apiFetch): reload everything
+  // from the server so the screens show what was actually saved. A straight replace, not the
+  // forward-only merge — the admin may have just moved a shipment backwards on purpose.
+  useEffect(() => {
+    if (!isAdminSession) return;
+    let timer: number | undefined;
+    const reload = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(async () => {
+        const [fresh, quotes, docs] = await Promise.allSettled([api.getShipments(), api.getQuotes(), api.getDocuments()]);
+        if (fresh.status === 'fulfilled' && Array.isArray(fresh.value)) setShipments(fresh.value.map(normalizeShipment));
+        if (quotes.status === 'fulfilled' && Array.isArray(quotes.value)) setQuoteRequests(quotes.value);
+        if (docs.status === 'fulfilled' && Array.isArray(docs.value)) setDocuments(docs.value);
+      }, 600);
+    };
+    window.addEventListener(REPLY_LOST_EVENT, reload);
+    return () => { window.removeEventListener(REPLY_LOST_EVENT, reload); window.clearTimeout(timer); };
+  }, [isAdminSession]);
+
   // Subscribe to Live Simulation Engine
   useEffect(() => {
     const unsubscribe = simulationEngine.subscribe((simUpdated) => {
@@ -236,8 +255,8 @@ const normalizeShipment = (s: any): Shipment => {
   // caller can tell the admin, instead of showing a success toast for an edit that a refresh
   // would silently undo.
   const updateShipmentFull = async (updated: Shipment): Promise<void> => {
-    const saved = await api.updateShipment(updated.trackingNumber, updated);
-    updateShipmentDirect({ ...updated, ...saved });
+    const saved: any = await api.updateShipment(updated.trackingNumber, updated);
+    updateShipmentDirect(saved && saved.trackingNumber ? { ...updated, ...saved } : updated);
   };
 
   const deleteShipment = async (trackingNumber: string): Promise<{ success: boolean; error?: string }> => {
@@ -279,6 +298,8 @@ const normalizeShipment = (s: any): Shipment => {
   const restoreShipment = async (trackingNumber: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const restored = await api.restoreShipment(trackingNumber);
+      // Reply lost on the way (see apiFetch): the full reload it triggers brings it back.
+      if (!restored || !(restored as any).trackingNumber) return { success: true };
       const normalized = normalizeShipment(restored);
       setShipments(prev => prev.some(s => s.trackingNumber.toUpperCase() === trackingNumber.toUpperCase())
         ? prev.map(s => s.trackingNumber.toUpperCase() === trackingNumber.toUpperCase() ? normalized : s)
@@ -605,7 +626,7 @@ const normalizeShipment = (s: any): Shipment => {
       statusMessage: 'Shipment registered in verified linehaul network.',
       health: 'ON_TRACK',
       healthExplanation: 'Consignment created from approved tariff rate quotation.',
-      progressPercent: 15,
+      progressPercent: 0,
       lastUpdated: 'Just now',
       createdAt: 'Today',
       service,
@@ -839,7 +860,7 @@ const normalizeShipment = (s: any): Shipment => {
       statusMessage: shipmentData.statusMessage || 'Shipment registered in verified linehaul network.',
       health: shipmentData.health || 'ON_TRACK',
       healthExplanation: shipmentData.healthExplanation || 'Consignment created on schedule with verified physical barcodes.',
-      progressPercent: (shipmentData as any)?.progressPercent || 15,
+      progressPercent: (shipmentData as any)?.progressPercent ?? 0,
       lastUpdated: 'Just now',
       createdAt: 'Today',
       service: shipmentData.service || 'Standard',
