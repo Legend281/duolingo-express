@@ -1280,7 +1280,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
                     <strong>
                       {originPlace}
                       <span className="gps-sub font-mono">
-                        ({originGeo.lat.toFixed(4)}, {originGeo.lng.toFixed(4)})
+                        ({routeGeom.origin.lat.toFixed(4)}, {routeGeom.origin.lng.toFixed(4)})
                       </span>
                     </strong>
                   </div>
@@ -1302,7 +1302,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
                     <strong>
                       {destPlace}
                       <span className="gps-sub font-mono">
-                        ({destGeo.lat.toFixed(4)}, {destGeo.lng.toFixed(4)})
+                        ({routeGeom.destination.lat.toFixed(4)}, {routeGeom.destination.lng.toFixed(4)})
                       </span>
                     </strong>
                   </div>

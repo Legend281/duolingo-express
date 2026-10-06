@@ -480,12 +480,21 @@
 .service-pill {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  max-width: 100%;
   padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
+  border-radius: 12px;
   font-size: 0.72rem;
   font-weight: 700;
+  line-height: 1.25;
   letter-spacing: 0.01em;
-  white-space: nowrap;
+  text-align: center;
+  /* Long tiers (e.g. "Priority Linehaul") wrap inside the pill instead of spilling into the route column */
+  white-space: normal;
+  /* Fallback look for any tier without its own colour below */
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
 }
 
 .service-pill.standard {
@@ -500,7 +509,8 @@
   border: 1px solid #fed7aa;
 }
 
-.service-pill.priority {
+.service-pill.priority,
+.service-pill.priority-linehaul {
   background: #eff6ff;
   color: #2563eb;
   border: 1px solid #bfdbfe;
@@ -660,7 +670,9 @@
   font-size: 0.72rem;
   color: #94a3b8;
   font-weight: 500;
-  white-space: nowrap;
+  /* "Oct 6, 2026 · 10:19 AM EDT" is wider than the column; wrap rather than run under the action buttons */
+  white-space: normal;
+  line-height: 1.35;
 }
 
 /* Col 7: ACTIONS CLUSTER */

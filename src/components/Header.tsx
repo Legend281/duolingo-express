@@ -4,21 +4,37 @@ import {
   Menu,
   X,
   ArrowRight,
-  Shield,
-  MapPin,
   Calculator,
-  Truck,
   Phone,
   Mail,
   Clock,
-  CheckCircle2,
-  ChevronRight,
-  Home,
-  Headphones,
-  FileText
+  CheckCircle2
 } from 'lucide-react';
 import { useAdminData } from '../context/AdminDataContext';
 import './Header.css';
+
+// Phone menu order mirrors the desktop nav, plus the pages that only live in the footer there.
+const MOBILE_LINKS: { page: string; label: string }[] = [
+  { page: 'home', label: 'Home' },
+  { page: 'about', label: 'About Us' },
+  { page: 'services', label: 'Services' },
+  { page: 'track', label: 'Track Shipment' },
+  { page: 'ship', label: 'Ship Now' },
+  { page: 'locations', label: 'Locations' },
+  { page: 'help', label: 'Help Center' },
+  { page: 'contact', label: 'Contact' },
+];
+
+// Turns a vanity number such as "(800) 555-DUO-EXP" into dialable digits (keypad letters,
+// US numbers capped at 11 digits as vanity numbers conventionally are).
+const KEYPAD: Record<string, string> = { A: '2', B: '2', C: '2', D: '3', E: '3', F: '3', G: '4', H: '4', I: '4', J: '5', K: '5', L: '5', M: '6', N: '6', O: '6', P: '7', Q: '7', R: '7', S: '7', T: '8', U: '8', V: '8', W: '9', X: '9', Y: '9', Z: '9' };
+const toDialNumber = (phone: string) => {
+  let digits = phone.toUpperCase().replace(/[A-Z]/g, (c) => KEYPAD[c]).replace(/[^0-9]/g, '');
+  if (digits.length === 10) digits = '1' + digits;
+  if (digits.length > 11 && digits.startsWith('1')) digits = digits.slice(0, 11);
+  else if (digits.length > 10 && !digits.startsWith('1')) digits = '1' + digits.slice(0, 10);
+  return '+' + digits;
+};
 
 interface HeaderProps {
   activePage?: string;
@@ -36,6 +52,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { settings } = useAdminData();
   const supportPhone = settings.supportPhone || '1-800-555-0199';
   const supportPhoneDigits = supportPhone.replace(/[^0-9+]/g, '');
+  const dialNumber = toDialNumber(supportPhone);
   const dispatchEmail = settings.dispatchEmail || 'dispatch@duolingoexpress.com';
   const dotNumber = settings.dotNumber || 'USDOT #3894210 · MC-892401';
 
@@ -74,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="topbar-divider" />
             <div className="topbar-item">
               <Clock size={13} className="text-emerald" />
-              <span>24/7 Continuous Highway Transit</span>
+              <span>24/7 Road & Air Freight Transit</span>
             </div>
           </div>
 
@@ -180,141 +197,68 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* 3. EXECUTIVE MOBILE DRAWER OVERLAY */}
+      {/* 3. MOBILE MENU — full-screen dark overlay (matches the footer) */}
       {mobileMenuOpen && (
-        <div className="dxp-drawer-backdrop" onClick={() => setMobileMenuOpen(false)}>
-          <div
-            className="dxp-mobile-drawer-sheet animate-slide-left"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Drawer Header with Logo and Close */}
-            <div className="drawer-header">
-              <div className="drawer-logo" onClick={() => handleNav('home')}>
-                <img src="/logo.png" alt="Duolingo Express" className="drawer-logo-img" />
-              </div>
-              <button
-                type="button"
-                className="drawer-close-btn"
-                onClick={() => setMobileMenuOpen(false)}
-                aria-label="Close menu"
-              >
-                <X size={20} />
+        <div className="dxp-menu-overlay" role="dialog" aria-modal="true" aria-label="Site menu">
+          <div className="menu-bg" aria-hidden="true" />
+
+          <div className="menu-top">
+            <button type="button" className="menu-logo-btn" onClick={() => handleNav('home')} aria-label="Duolingo Express home">
+              <img
+                src="/logo-for-footer-or-any-area-having-thesame-color-as-the-footer.png"
+                alt="Duolingo Express"
+                className="menu-logo"
+              />
+            </button>
+            <button
+              type="button"
+              className="menu-close-btn"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-label="Close menu"
+            >
+              <X size={22} />
+            </button>
+          </div>
+
+          <nav className="menu-links" aria-label="Main">
+            {MOBILE_LINKS.map((link, i) => {
+              const active = activePage === link.page;
+              return (
+                <button
+                  key={link.page}
+                  type="button"
+                  className={`menu-link ${active ? 'active' : ''}`}
+                  style={{ animationDelay: `${60 + i * 35}ms` }}
+                  onClick={() => handleNav(link.page)}
+                  aria-current={active ? 'page' : undefined}
+                >
+                  <span className="menu-link-num">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="menu-link-label">{link.label}</span>
+                  <ArrowRight size={18} className="menu-link-arrow" />
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="menu-bottom">
+            <div className="menu-cta-row">
+              <button type="button" className="menu-cta ghost" onClick={() => handleNav('track')}>
+                <Package size={17} />
+                <span>Track</span>
+              </button>
+              <button type="button" className="menu-cta primary" onClick={() => handleNav('quote')}>
+                <Calculator size={17} />
+                <span>Get a Quote</span>
               </button>
             </div>
-
-            {/* Quick Action Top Cards */}
-            <div className="drawer-quick-actions">
-              <button
-                type="button"
-                className="drawer-action-card track-card"
-                onClick={() => handleNav('track')}
-              >
-                <div className="action-icon-wrap orange">
-                  <Package size={20} />
-                </div>
-                <div className="action-text">
-                  <strong>Track a Shipment</strong>
-                  <small>Live highway telemetry radar</small>
-                </div>
-                <ChevronRight size={16} className="action-arrow" />
-              </button>
-
-              <button
-                type="button"
-                className="drawer-action-card quote-card"
-                onClick={() => handleNav('quote')}
-              >
-                <div className="action-icon-wrap navy">
-                  <Calculator size={20} />
-                </div>
-                <div className="action-text">
-                  <strong>Get Tariff Quote</strong>
-                  <small>Instant corridor rate calculation</small>
-                </div>
-                <ChevronRight size={16} className="action-arrow" />
-              </button>
-            </div>
-
-            {/* Navigation List */}
-            <div className="drawer-nav-section">
-              <span className="drawer-section-label">MAIN NAVIGATION</span>
-              <nav className="drawer-nav-list">
-                <button
-                  type="button"
-                  className={`drawer-link ${activePage === 'home' ? 'active' : ''}`}
-                  onClick={() => handleNav('home')}
-                >
-                  <Home size={18} className="link-icon" />
-                  <span>Home</span>
-                  <ChevronRight size={14} className="link-chevron" />
-                </button>
-
-                <button
-                  type="button"
-                  className={`drawer-link ${activePage === 'services' ? 'active' : ''}`}
-                  onClick={() => handleNav('services')}
-                >
-                  <Truck size={18} className="link-icon" />
-                  <span>Our Courier Services</span>
-                  <ChevronRight size={14} className="link-chevron" />
-                </button>
-
-                <button
-                  type="button"
-                  className={`drawer-link ${activePage === 'ship' ? 'active' : ''}`}
-                  onClick={() => handleNav('ship')}
-                >
-                  <Package size={18} className="link-icon" />
-                  <span>Ship a Consignment</span>
-                  <ChevronRight size={14} className="link-chevron" />
-                </button>
-
-                <button
-                  type="button"
-                  className={`drawer-link ${activePage === 'locations' ? 'active' : ''}`}
-                  onClick={() => handleNav('locations')}
-                >
-                  <MapPin size={18} className="link-icon" />
-                  <span>Facility & Gateway Network</span>
-                  <ChevronRight size={14} className="link-chevron" />
-                </button>
-
-                <button
-                  type="button"
-                  className={`drawer-link ${activePage === 'about' ? 'active' : ''}`}
-                  onClick={() => handleNav('about')}
-                >
-                  <Shield size={18} className="link-icon" />
-                  <span>About Duolingo Express</span>
-                  <ChevronRight size={14} className="link-chevron" />
-                </button>
-
-                <button
-                  type="button"
-                  className={`drawer-link ${activePage === 'contact' ? 'active' : ''}`}
-                  onClick={() => handleNav('contact')}
-                >
-                  <Headphones size={18} className="link-icon" />
-                  <span>24/7 Operations Desk</span>
-                  <ChevronRight size={14} className="link-chevron" />
-                </button>
-              </nav>
-            </div>
-
-            {/* 24/7 Dispatch Hotline Bottom Box */}
-            <div className="drawer-footer-hotline">
-              <div className="hotline-head">
-                <span className="live-status-dot" />
-                <span className="hotline-tag font-mono">24/7 OPERATIONS ACTIVE</span>
-              </div>
-              <a href={`tel:${supportPhoneDigits}`} className="hotline-phone-btn">
-                <Phone size={15} />
-                <span>Call Dispatch: {supportPhone}</span>
-              </a>
-              <div className="drawer-regulatory font-mono">
-                {dotNumber}
-              </div>
-            </div>
+            <a href={`tel:${dialNumber}`} className="menu-call">
+              <span className="menu-call-icon"><Phone size={16} /></span>
+              <span className="menu-call-text">
+                <small><span className="menu-live-dot" /> Dispatch open 24/7</small>
+                <strong>{supportPhone}</strong>
+              </span>
+            </a>
+            <div className="menu-reg">{dotNumber}</div>
           </div>
         </div>
       )}

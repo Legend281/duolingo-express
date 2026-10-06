@@ -97,7 +97,7 @@
 
 .dxp-quote-grid {
   display: grid;
-  grid-template-columns: 1.35fr 1fr;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   gap: 2.5rem;
   align-items: flex-start;
 }
@@ -165,14 +165,14 @@
 
 .form-row-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.25rem;
   margin-bottom: 1.25rem;
 }
 
 .form-row-3 {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
   margin-bottom: 1.25rem;
 }
@@ -201,7 +201,7 @@
 
 .dimensions-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.625rem;
 }
 
@@ -467,7 +467,7 @@
 
 .receipt-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.25rem;
 }
 
@@ -507,7 +507,7 @@
    ============================================================ */
 @media (max-width: 1024px) {
   .dxp-quote-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 2rem;
   }
 }
@@ -532,11 +532,11 @@
   }
   .form-row-2,
   .form-row-3 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0;
   }
   .dimensions-row {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.5rem;
   }
   .dxp-input, select.dxp-input {
@@ -552,7 +552,7 @@
     border-radius: var(--dxp-radius-xl);
   }
   .receipt-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .rec-item.span-full {
     grid-column: span 1;
@@ -579,6 +579,6 @@
     font-size: 1.875rem;
   }
   .dimensions-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }

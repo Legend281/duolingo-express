@@ -237,20 +237,24 @@ function MainAppContent() {
     // MIN_LOADING_MS regardless of how fast the underlying lookup actually was, then commits
     // the real state change. A slow lookup (the real API path) is unaffected — it already
     // takes longer than this floor, so the extra wait is 0.
-    const MIN_LOADING_MS = 900;
+    // Long enough for the loader's three-step sequence to play out.
+    const MIN_LOADING_MS = 1600;
     const searchStartedAt = Date.now();
     setIsTrackSearching(true);
+    // Fetch the result page's code while the loader is up, so it doesn't flash a blank page after.
+    const resultPageReady = import('./pages/TrackResultPage').catch(() => undefined);
     setTrackSearchQuery(query);
     // Without this, the loading screen renders wherever the page happened to already be
     // scrolled to (e.g. down at the search box on TrackPage) — on mobile especially, that cut
     // the truck icon and heading off above the fold, leaving only the progress bar visible.
     // Scroll to top immediately, not just after the result is ready.
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0 });
     const finishSearch = async (commit: () => void) => {
       const elapsed = Date.now() - searchStartedAt;
       if (elapsed < MIN_LOADING_MS) {
         await new Promise(resolve => setTimeout(resolve, MIN_LOADING_MS - elapsed));
       }
+      await resultPageReady;
       commit();
       setIsTrackSearching(false);
     };
@@ -362,6 +366,11 @@ function MainAppContent() {
     );
   }
 
+  // The tracking loader takes over the whole screen: no header, page or footer behind it.
+  if (isTrackSearching) {
+    return <TrackingLoadingScreen query={trackSearchQuery} />;
+  }
+
   return (
     <div className="dxp-app-shell">
       <Header
@@ -371,10 +380,6 @@ function MainAppContent() {
 
       <main className="dxp-main-view">
         <Suspense fallback={<PageLoading />}>
-        {isTrackSearching ? (
-          <TrackingLoadingScreen query={trackSearchQuery} />
-        ) : (
-          <>
         {currentPage === 'home' && (
           <HomePage
             onTrack={handleTrackShipment}
@@ -437,15 +442,10 @@ function MainAppContent() {
         {currentPage === 'locations' && (
           <LocationsPage onNavigate={handleNavigate} />
         )}
-          </>
-        )}
         </Suspense>
       </main>
 
-      <Footer
-        onNavigate={handleNavigate}
-        showTrustStrip={currentPage !== 'track-result'}
-      />
+      <Footer onNavigate={handleNavigate} onTrackShipment={handleTrackShipment} />
     </div>
   );
 }

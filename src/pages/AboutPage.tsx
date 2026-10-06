@@ -17,10 +17,20 @@ import {
   Headphones,
   Phone,
   FileCheck,
-  Compass
+  Compass,
+  Globe
 } from 'lucide-react';
 import { useAdminData } from '../context/AdminDataContext';
 import './AboutPage.css';
+
+const REACH_REGIONS: { name: string; detail: string; home?: boolean }[] = [
+  { name: 'United States', detail: 'Road & air · all 50 states', home: true },
+  { name: 'Canada & Mexico', detail: 'Air freight · customs cleared' },
+  { name: 'Europe & United Kingdom', detail: 'Air freight · customs cleared' },
+  { name: 'Africa', detail: 'Air freight · customs cleared' },
+  { name: 'Middle East & Asia', detail: 'Air freight · customs cleared' },
+  { name: 'Latin America & Caribbean', detail: 'Air freight · customs cleared' },
+];
 
 interface AboutPageProps {
   onNavigate: (page: string) => void;
@@ -39,15 +49,15 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
         <div className="dxp-container-wide about-hero-inner">
             <div className="about-hero-badge animate-fade-in">
               <span className="about-badge-dot" />
-              <span>{dotNumber} · AUTHORIZED U.S. MOTOR CARRIER</span>
+              <span>{dotNumber} · AUTHORIZED U.S. MOTOR CARRIER · INTERNATIONAL AIR FREIGHT</span>
             </div>
 
           <h1 className="about-hero-title animate-fade-in">
-            Pioneering Speed, Precision, & Integrity in <span className="about-highlight-orange">American Courier Logistics.</span>
+            Pioneering Speed, Precision, & Integrity in <span className="about-highlight-orange">Domestic & International Courier Logistics.</span>
           </h1>
 
           <p className="about-hero-lead animate-fade-in">
-            Duolingo Express was founded on a singular principle: commercial shippers deserve authentic, real-time visibility and guaranteed point-to-point courier execution across nationwide trade corridors.
+            Duolingo Express was founded on a singular principle: commercial shippers deserve authentic, real-time visibility and guaranteed point-to-point courier execution across the country and around the world.
           </p>
 
           <div className="about-hero-credentials animate-fade-in">
@@ -84,7 +94,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
             <div className="about-stat-card">
               <span className="stat-value font-mono">50+</span>
               <strong className="stat-title">Regional Distribution Hubs</strong>
-              <p className="stat-subtitle">Connecting primary metropolitan markets coast-to-coast.</p>
+              <p className="stat-subtitle">Connecting primary metropolitan markets coast-to-coast and overseas.</p>
             </div>
 
             <div className="about-stat-card">
@@ -135,7 +145,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
                   </div>
                   <div>
                     <h4>Point-to-Point Routing</h4>
-                    <p>Optimized highway corridors minimize unnecessary hub sorting, reducing damage and transit lag.</p>
+                    <p>Optimized road and air corridors minimize unnecessary hub sorting, reducing damage and transit lag.</p>
                   </div>
                 </div>
 
@@ -173,8 +183,8 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
                     <span className="live-pulse-dot" />
                     <span className="font-mono text-xs font-bold text-white">CENTRAL OPERATIONS CENTER</span>
                   </div>
-                  <h4>Continuous Nationwide Dispatch</h4>
-                  <p>Coordinating over 1,400 daily linehaul and express courier routes nationwide.</p>
+                  <h4>Continuous Global Dispatch</h4>
+                  <p>Coordinating over 1,400 daily linehaul, express courier and air freight routes, at home and abroad.</p>
                 </div>
               </div>
             </div>
@@ -236,7 +246,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
               </div>
               <h3>Auto & Vehicle Transport</h3>
               <p>
-                Specialized open and enclosed vehicle logistics for dealerships, corporate fleets, and private luxury automobile relocations across all 48 states.
+                Specialized open and enclosed vehicle logistics for dealerships, corporate fleets, and private luxury automobile relocations across all 48 contiguous states and to international destinations.
               </p>
               <ul className="division-specs">
                 <li><CheckCircle2 size={15} className="text-emerald" /> Enclosed Soft-Tie Luxury Carriers</li>
@@ -273,7 +283,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
             <span className="section-eyebrow">PROVENANCE & EVOLUTION</span>
             <h2>The Evolution of Duolingo Express</h2>
             <p className="section-desc-sub">
-              From regional point-to-point courier routes to an accredited nationwide linehaul distribution network.
+              From regional point-to-point courier routes to an accredited nationwide linehaul network with international reach.
             </p>
             <div className="section-header-line" />
           </div>
@@ -343,87 +353,52 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
       </section>
 
       {/* =========================================================================
-          6. REGULATORY COMPLIANCE & SAFETY STANDARDS
+          6. WHERE WE OPERATE — coverage regions + carrier credentials
           ========================================================================= */}
-      <section className="about-compliance-section">
-        <div className="dxp-container-wide">
-          <div className="compliance-banner">
-            <div className="compliance-text-block">
-              <span className="section-eyebrow light">VERIFIED CARRIER STANDARDS</span>
-              <h3>Committed to Absolute Regulatory Safety & Compliance</h3>
-              <p>
-                Every driver, vehicle, and terminal in the Duolingo Express network operates under stringent federal guidelines and commercial insurance protocols.
-              </p>
+      <section className="about-reach-section">
+        <div className="dxp-container-wide about-reach-grid">
+          <div className="about-reach-copy">
+            <span className="section-eyebrow">WHERE WE OPERATE</span>
+            <h2>From your loading dock to destinations worldwide.</h2>
+            <p className="about-reach-lead">
+              Road linehaul and express courier across all 50 states, with scheduled air freight linking our U.S. gateways to cities around the world. Export and import customs clearance are handled for you on every international consignment.
+            </p>
+
+            <div className="reach-region-grid">
+              {REACH_REGIONS.map((region) => (
+                <div key={region.name} className={`reach-region ${region.home ? 'home' : ''}`}>
+                  <span className="reach-region-icon">
+                    {region.home ? <Truck size={18} /> : <Globe size={18} />}
+                  </span>
+                  <div>
+                    <strong>{region.name}</strong>
+                    <span>{region.detail}</span>
+                  </div>
+                </div>
+              ))}
             </div>
+          </div>
 
-            <div className="compliance-badges-grid">
-              <div className="c-badge-item">
-                <ShieldCheck size={28} className="text-orange" />
-                <div>
-                  <strong>{dotNumber}</strong>
-                  <span>Active & Verified Carrier Authority</span>
-                </div>
-              </div>
-
-              <div className="c-badge-item">
-                <FileCheck size={28} className="text-emerald" />
-                <div>
-                  <strong>FMCSA #MC-948201</strong>
-                  <span>Interstate Operating License</span>
-                </div>
-              </div>
-
-              <div className="c-badge-item">
-                <Award size={28} className="text-sky" />
-                <div>
-                  <strong>$1,000,000 Cargo</strong>
-                  <span>Primary Commercial Insurance Policy</span>
-                </div>
-              </div>
-
-              <div className="c-badge-item">
-                <Users size={28} className="text-amber" />
-                <div>
-                  <strong>100% Background Check</strong>
-                  <span>Strict DOT Driver Screening</span>
-                </div>
-              </div>
+          <div className="about-reach-visual">
+            <img
+              src="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1200&auto=format&fit=crop&q=80"
+              alt="Aircraft wing above the clouds"
+              loading="lazy"
+            />
+            <div className="reach-visual-card">
+              <span className="reach-visual-tag"><Globe size={14} /> International air freight</span>
+              <strong>Customs handled at origin and destination</strong>
+              <p>Every overseas leg is tracked milestone by milestone, from export clearance to final delivery.</p>
             </div>
           </div>
         </div>
-      </section>
 
-      {/* =========================================================================
-          6. BOTTOM CALL TO ACTION
-          ========================================================================= */}
-      <section className="about-bottom-cta">
         <div className="dxp-container-wide">
-          <div className="about-cta-card">
-            <div className="about-cta-content">
-              <h2>Ready to Experience Reliable Courier Logistics?</h2>
-              <p>
-                Calculate instant commercial shipping rates or speak directly with our senior logistics coordination desk.
-              </p>
-            </div>
-
-            <div className="about-cta-action-row">
-              <button
-                type="button"
-                className="btn-corp-primary"
-                onClick={() => onNavigate('quote')}
-              >
-                <span>Request a Rate Quote</span>
-                <ArrowRight size={16} />
-              </button>
-
-              <button
-                type="button"
-                className="btn-corp-ghost"
-                onClick={() => onNavigate('track')}
-              >
-                <span>Track a Shipment</span>
-              </button>
-            </div>
+          <div className="reach-credentials" aria-label="Carrier credentials">
+            <div className="reach-cred"><ShieldCheck size={18} /><span><strong>{dotNumber}</strong> Active carrier authority</span></div>
+            <div className="reach-cred"><FileCheck size={18} /><span><strong>FMCSA #MC-948201</strong> Interstate operating license</span></div>
+            <div className="reach-cred"><Award size={18} /><span><strong>$1,000,000</strong> Cargo insurance</span></div>
+            <div className="reach-cred"><Users size={18} /><span><strong>100%</strong> DOT-screened drivers</span></div>
           </div>
         </div>
       </section>

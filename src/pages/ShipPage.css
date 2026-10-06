@@ -291,6 +291,36 @@
   color: var(--dxp-white);
 }
 
+/* Title over a small live summary (city, weight...) */
+.step-label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.step-label-group .step-title {
+  line-height: 1.25;
+}
+
+.step-label-group .step-sub {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--dxp-slate-500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-nav-item.active .step-sub {
+  color: #cbd5e1;
+}
+
+/* The step tabs already show progress on wide screens; the summary bar is phone-only */
+.mobile-step-summary-bar {
+  display: none;
+}
+
 /* Validation Error Alert */
 .form-validation-error {
   background: #fef2f2;

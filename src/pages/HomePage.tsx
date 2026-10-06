@@ -41,7 +41,6 @@ import { Barcode } from '../components/Barcode';
 // The map (and the Leaflet library behind it) loads on demand, so it isn't part of the site's
 // first download — the Home page is where most visitors land.
 const HomeNetworkMap = lazy(() => import('../components/HomeNetworkMap').then(m => ({ default: m.HomeNetworkMap })));
-import { CLIENT_LOGOS } from '../components/ClientLogos';
 import { useAdminData } from '../context/AdminDataContext';
 import './HomePage.css';
 
@@ -107,7 +106,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
       rating: 5
     },
     {
-      quote: "We ship high-value auto components and full vehicle transports nationwide. The digital Bill of Lading generation and 60 FPS live tracking give our customers total confidence from coast to coast.",
+      quote: "We ship high-value auto components and full vehicle transports nationwide and overseas. The digital Bill of Lading generation and 60 FPS live tracking give our customers total confidence from pickup to delivery, at home and abroad.",
       author: "Marcus Sterling",
       role: "Fleet Operations Manager, Sterling Automotive USA",
       company: "Sterling Auto Group",
@@ -122,8 +121,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
       a: 'No. Duolingo Express operates a public logistics ledger. Simply enter your unique tracking identifier into our public tracking engine to view verified facility checkpoints, transit progress, and dynamic ETA updates.'
     },
     {
-      q: 'How does live highway telemetry work without continuous driver GPS?',
-      a: 'For driver safety and commercial privacy, our simulation and routing engine calculates verified physical progress between certified FMCSA corridor waypoints, logging exact facility arrival and departure timestamps.'
+      q: 'How does live shipment tracking work without continuous driver GPS?',
+      a: 'For driver safety and commercial privacy, our simulation and routing engine calculates verified physical progress between certified road corridor waypoints and scheduled air freight legs, logging exact facility arrival and departure timestamps.'
     },
     {
       q: 'Can I track multi-piece packages or auto transports under one master waybill?',
@@ -137,17 +136,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
       q: 'Are documents such as the Bill of Lading (BOL) and Proof of Delivery (POD) available digitally?',
       a: 'Yes. Every tendered consignment automatically provisions an official digital Bill of Lading and Master Shipping Label. Upon delivery, the recipient’s physical signature is recorded on the official Proof of Delivery (POD).'
     }
-  ];
-
-  const partnerLogos = [
-    { name: 'FedEx Custom Critical', type: 'EXPRESS COURIER', icon: <Truck size={20} className="text-orange" /> },
-    { name: 'DHL Express Network', type: 'TIME-CRITICAL COURIER', icon: <Globe size={20} className="text-orange" /> },
-    { name: 'UPS Express Critical', type: 'INTERSTATE LINEHAUL', icon: <ShieldCheck size={20} className="text-orange" /> },
-    { name: 'Penske Commercial Logistics', type: 'DEDICATED FLEET', icon: <Warehouse size={20} className="text-orange" /> },
-    { name: 'ArcBest Expedited', type: 'EXPEDITED TRANSIT', icon: <Zap size={20} className="text-orange" /> },
-    { name: 'Old Dominion Express', type: 'DIRECT LINEHAUL', icon: <Truck size={20} className="text-orange" /> },
-    { name: 'Estes Express Lines', type: 'REGIONAL COURIER', icon: <Package size={20} className="text-orange" /> },
-    { name: 'Forward Logistics Complete', type: 'AIRPORT GATEWAY COURIER', icon: <Globe size={20} className="text-orange" /> }
   ];
 
   const handleCallbackSubmit = (e: React.FormEvent) => {
@@ -181,7 +169,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
           <div className="corp-hero-content animate-fade-in">
             <div className="corp-hero-badge">
               <span className="badge-pulse-dot" />
-              <span>{dotNumber} · NATIONWIDE COURIER NETWORK</span>
+              <span>{dotNumber} · NATIONWIDE & INTERNATIONAL COURIER NETWORK</span>
             </div>
 
             <h1 className="corp-hero-title">
@@ -190,7 +178,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
             </h1>
 
             <p className="corp-hero-subtitle">
-              Fast, certified express courier and scheduled commercial linehaul transit across major nationwide commercial trade corridors.
+              Fast, certified express courier and scheduled commercial linehaul transit across the United States and to destinations worldwide.
             </p>
 
             <div className="corp-hero-cta-row">
@@ -214,53 +202,38 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Clean & Elegant Hero Service Guarantee Showcase */}
-          <div className="corp-hero-service-showcase animate-scale-in">
-            <div className="hero-showcase-header">
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={18} className="text-orange" />
-                <span className="showcase-header-title font-mono">OFFICIAL SERVICE GUARANTEES</span>
-              </div>
-              <span className="hero-guarantee-badge font-mono">CERTIFIED</span>
-            </div>
-
-            <div className="hero-feature-rows">
-              <div className="hero-feat-item">
-                <div className="hero-feat-icon">
-                  <Clock size={20} className="text-orange" />
-                </div>
-                <div className="hero-feat-text">
-                  <strong>Guaranteed Transit Windows</strong>
-                  <p>Strict pickup and arrival timeframes with real-time milestone confirmations.</p>
-                </div>
-              </div>
-
-              <div className="hero-feat-item">
-                <div className="hero-feat-icon">
-                  <ShieldCheck size={20} className="text-emerald" />
-                </div>
-                <div className="hero-feat-text">
-                  <strong>Direct Chain of Custody</strong>
-                  <p>Hand-to-hand parcel scanning and instant signed Proof of Delivery (POD).</p>
-                </div>
-              </div>
-
-              <div className="hero-feat-item">
-                <div className="hero-feat-icon">
-                  <Headphones size={20} className="text-sky" />
-                </div>
-                <div className="hero-feat-text">
-                  <strong>Dedicated Human Support</strong>
-                  <p>Direct phone access to senior dispatch coordinators for every single consignment.</p>
-                </div>
+        {/* Service guarantees: a slim frosted strip along the bottom of the hero, so the photo stays visible */}
+        <div className="hero-guarantee-strip animate-fade-in">
+          <div className="dxp-container-wide">
+          <div className="hero-guarantee-inner">
+            <div className="hgs-item">
+              <span className="hgs-icon"><Clock size={18} /></span>
+              <div className="hgs-text">
+                <strong>Guaranteed Transit Windows</strong>
+                <span>Strict pickup &amp; arrival timeframes</span>
               </div>
             </div>
-
-            <div className="hero-showcase-bottom">
-              <Phone size={15} className="text-orange" />
-              <span>Priority Hotline: <strong>{supportPhone}</strong></span>
+            <div className="hgs-item">
+              <span className="hgs-icon"><ShieldCheck size={18} /></span>
+              <div className="hgs-text">
+                <strong>Direct Chain of Custody</strong>
+                <span>Hand-to-hand scans &amp; signed POD</span>
+              </div>
             </div>
+            <div className="hgs-item">
+              <span className="hgs-icon"><Headphones size={18} /></span>
+              <div className="hgs-text">
+                <strong>Dedicated Human Support</strong>
+                <span>Senior dispatch coordinators, 24/7</span>
+              </div>
+            </div>
+            <button type="button" className="hgs-hotline" onClick={() => onNavigate('contact')}>
+              <Phone size={15} />
+              <span>{supportPhone}</span>
+            </button>
+          </div>
           </div>
         </div>
       </section>
@@ -274,7 +247,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
             <span className="section-eyebrow">RELIABLE COURIER EXCELLENCE</span>
             <h2>Why commercial shippers choose Duolingo Express</h2>
             <p className="section-desc-sub">
-              Precision transit schedules, verifiable chain of custody, and dedicated driver dispatch across all major interstate corridors.
+              Precision transit schedules, verifiable chain of custody, and dedicated dispatch across major domestic corridors and international air freight lanes.
             </p>
             <div className="section-header-line" />
           </div>
@@ -325,7 +298,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
               </div>
               <h3>Real-Time Checkpoint Provenance</h3>
               <p>
-                Every barcode scan logs verified physical timestamps, hub sortation provenance, digital Bill of Lading records, and live highway telemetry.
+                Every barcode scan logs verified physical timestamps, hub sortation provenance, digital Bill of Lading records, and live in-transit telemetry.
               </p>
               <button
                 type="button"
@@ -419,9 +392,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
                 </div>
                 <div className="node-body">
                   <span className="node-eyebrow font-mono">STEP 03 · LINEHAUL</span>
-                  <h3>Interstate Highway Telemetry</h3>
+                  <h3>Road & Air Freight Telemetry</h3>
                   <p>
-                    Dedicated express linehaul departures with 60 FPS schedule-based position telemetry, automated waypoint alerts, and corridor milestone tracking.
+                    Dedicated express linehaul and air freight departures with 60 FPS schedule-based position telemetry, automated waypoint alerts, and corridor milestone tracking.
                   </p>
                   <div className="node-spec-pills">
                     <span className="spec-pill font-mono">60 FPS Telemetry</span>
@@ -459,7 +432,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
           <div className="how-it-works-action-strip">
             <div className="flex items-center gap-3">
               <Sparkles size={20} className="text-orange" />
-              <span>Ready to experience transparent nationwide express delivery?</span>
+              <span>Ready to experience transparent express delivery, nationwide and worldwide?</span>
             </div>
             <div className="flex gap-3">
               <button
@@ -523,7 +496,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
             <span className="section-eyebrow">ABOUT DUOLINGO EXPRESS</span>
             <h2>We believe modern shipping should be visible, fast, and effortlessly dependable.</h2>
             <p className="about-lead">
-              Duolingo Express provides nationwide interstate courier services and express parcel distribution across major U.S. commercial corridors.
+              Duolingo Express provides nationwide courier services, international air freight, and express parcel distribution across the United States and to destinations worldwide.
             </p>
             <p className="about-body">
               Built on certified carrier compliance and digital transparency, our operations eliminate the ambiguity of traditional shipping. Shippers and consignees receive physical facility checkpoint verification, high-density linear Code 128 barcodes, and continuous vehicle tracking from origin tender to final delivery.
@@ -606,7 +579,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
                   <span className="service-status-pill">SCHEDULED LINEHAUL</span>
                 </div>
                 <h3>Scheduled Regional Linehaul</h3>
-                <p>Direct interstate highway transport between sorting gateways with verified timestamps.</p>
+                <p>Direct road and air transport between sorting gateways with verified timestamps.</p>
                 <div className="service-micro-pills">
                   <span>• Dedicated Fleet</span>
                   <span>• Dock-to-Dock</span>
@@ -783,7 +756,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
                   <ul className="ind-feature-list">
                     <li><CheckCircle2 size={16} className="text-emerald" /> High-density Code 128 piece barcodes on every carton</li>
                     <li><CheckCircle2 size={16} className="text-emerald" /> Automated batch multi-consignment manifest integration</li>
-                    <li><CheckCircle2 size={16} className="text-emerald" /> Transparent 99.4% on-time interstate linehaul network</li>
+                    <li><CheckCircle2 size={16} className="text-emerald" /> Transparent 99.4% on-time domestic and international network</li>
                   </ul>
                   <button className="btn-corp-primary mt-4" onClick={() => onNavigate('quote')}>
                     Get E-Commerce Volume Rates
@@ -827,8 +800,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
         <div className="dxp-container-wide">
           <div className="hubs-map-header">
             <div>
-              <span className="section-eyebrow text-orange">NATIONWIDE INTERMODAL HUBS</span>
-              <h2>Active U.S. Trade Gateways & Sort Facilities</h2>
+              <span className="section-eyebrow text-orange">U.S. GATEWAYS TO THE WORLD</span>
+              <h2>Active U.S. International Gateways & Sort Facilities</h2>
             </div>
             <div className="hubs-selector-pills">
               {(['ORD', 'JFK', 'DFW', 'DEN', 'LAX'] as const).map((hubCode) => (
@@ -879,7 +852,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
               </div>
 
               <p className="hub-description-text">
-                Primary consolidation point connecting eastern manufacturing corridors with Midwest and Western interstate trade arteries. Equipped with automated high-speed linear laser sorting and climate-controlled cross-dock bays.
+                Primary consolidation point connecting eastern manufacturing corridors with Midwest and Western trade arteries and international air cargo lanes. Equipped with automated high-speed linear laser sorting and climate-controlled cross-dock bays.
               </p>
 
               <button
@@ -1112,26 +1085,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onTrack, onNavigate }) => {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================================
-          11. TRUSTED BY NATIONWIDE COMMERCIAL SHIPPERS (PURE LOGO MARQUEE)
-          ========================================================================= */}
-      <section className="corp-partners-strip">
-        <div className="dxp-container-wide">
-          <div className="partners-label">TRUSTED BY NATIONWIDE ENTERPRISES & COMMERCIAL SHIPPERS</div>
-          <div className="partners-marquee-container">
-            <div className="partners-marquee-fade left" />
-            <div className="partners-marquee-track">
-              {CLIENT_LOGOS.concat(CLIENT_LOGOS).map((client, idx) => (
-                <div key={idx} className="partner-marquee-card">
-                  <div className="partner-logo-svg-wrap">{client.svg}</div>
-                </div>
-              ))}
-            </div>
-            <div className="partners-marquee-fade right" />
           </div>
         </div>
       </section>

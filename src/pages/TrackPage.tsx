@@ -16,7 +16,6 @@ import {
   HelpCircle,
   X
 } from 'lucide-react';
-import { SupportModal } from '../components/SupportModal';
 import { PRIMARY_SHIPMENT, getShipmentByTrackingNumber } from '../data/mockShipments';
 import { Shipment } from '../types/shipment';
 import { api } from '../services/api';
@@ -36,8 +35,6 @@ export const TrackPage: React.FC<TrackPageProps> = ({ onTrack, onNavigate, notFo
   const [trackingNumber, setTrackingNumber] = useState('');
   const [multiInput, setMultiInput] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [supportModalOpen, setSupportModalOpen] = useState(false);
-  const [supportIssue, setSupportIssue] = useState('General Inquiry');
   const [copiedTracking, setCopiedTracking] = useState<string | null>(null);
 
   // Batch Multi-Tracking Drawer State
@@ -141,7 +138,7 @@ export const TrackPage: React.FC<TrackPageProps> = ({ onTrack, onNavigate, notFo
           <div className="track-hero-header">
             <div className="track-hero-pill animate-fade-in">
               <span className="track-pulse-dot" />
-              <span>NATIONWIDE COURIER & LINEHAUL TRACKING ENGINE</span>
+              <span>DOMESTIC & INTERNATIONAL TRACKING ENGINE</span>
             </div>
 
             <h1 className="track-hero-headline animate-fade-in">
@@ -342,64 +339,6 @@ export const TrackPage: React.FC<TrackPageProps> = ({ onTrack, onNavigate, notFo
       </section>
 
       {/* =========================================================================
-          4. 24/7 CENTRAL DISPATCH & CONTEXTUAL SUPPORT
-          ========================================================================= */}
-      <section className="track-support-section">
-        <div className="dxp-container-wide">
-          <div className="track-support-card">
-            <div className="support-card-content">
-              <span className="support-card-eyebrow font-mono">24/7 CENTRAL DISPATCH DESK</span>
-              <h2>Need Immediate Assistance with an Active Shipment?</h2>
-              <p>
-                Our experienced logistics coordinators are available around the clock to assist with address updates, delivery holds, or urgent linehaul status inquiries.
-              </p>
-              <div className="support-contact-strip">
-                <div className="support-phone-badge">
-                  <Phone size={16} className="text-orange" />
-                  <span className="font-mono font-bold">{supportPhone}</span>
-                  <small>(Toll-Free Dispatch)</small>
-                </div>
-                <div className="support-status-beacon">
-                  <span className="beacon-dot" />
-                  <span>Operations Center Active</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="support-card-actions">
-              <button
-                type="button"
-                className="btn-corp-primary"
-                onClick={() => onNavigate('contact')}
-              >
-                <span>Contact Operations Desk</span>
-                <ArrowRight size={16} />
-              </button>
-
-              <button
-                type="button"
-                className="btn-corp-ghost"
-                onClick={() => {
-                  setSupportIssue('Tracking Assistance');
-                  setSupportModalOpen(true);
-                }}
-              >
-                <span>Submit Inquiry Ticket</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Support Modal */}
-      <SupportModal
-        isOpen={supportModalOpen}
-        onClose={() => setSupportModalOpen(false)}
-        initialTrackingNumber={trackingNumber || ''}
-        defaultIssueType={supportIssue}
-      />
-
-      {/* =========================================================================
           5. BATCH MULTI-TRACKING MODAL / DRAWER
           ========================================================================= */}
       {batchModalOpen && (
@@ -448,7 +387,7 @@ export const TrackPage: React.FC<TrackPageProps> = ({ onTrack, onNavigate, notFo
                 </button>
               </div>
 
-              <span className="batch-audit-label">Verified Checkpoint Records · Contiguous U.S.</span>
+              <span className="batch-audit-label">Verified Checkpoint Records · Worldwide</span>
             </div>
 
             <div className="batch-modal-body">

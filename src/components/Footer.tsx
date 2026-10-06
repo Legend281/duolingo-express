@@ -1,31 +1,73 @@
 import React, { useState } from 'react';
 import {
-  ShieldCheck,
-  Clock,
-  Layers,
-  Globe,
-  Send,
-  Linkedin,
+  ArrowRight,
+  ChevronDown,
   Facebook,
-  Twitter,
+  Globe,
   Instagram,
+  Linkedin,
+  Mail,
+  Phone,
+  Search,
+  Send,
+  Twitter,
   Youtube,
-  ChevronRight,
-  Mail
 } from 'lucide-react';
 import './Footer.css';
 
 interface FooterProps {
   onNavigate?: (page: string, param?: string) => void;
-  showTrustStrip?: boolean;
+  /** Runs a tracking lookup straight from the footer search (same flow as the Track page). */
+  onTrackShipment?: (query: string) => void;
 }
+
+type LinkItem = { label: string; page: string; param?: string };
+
+const LINK_COLUMNS: { title: string; links: LinkItem[] }[] = [
+  {
+    title: 'Quick Links',
+    links: [
+      { label: 'Home', page: 'home' },
+      { label: 'Track Shipment', page: 'track' },
+      { label: 'Our Services', page: 'services' },
+      { label: 'Locations', page: 'locations' },
+      { label: 'About Us', page: 'about' },
+      { label: 'Contact Us', page: 'contact' },
+    ],
+  },
+  {
+    title: 'Our Services',
+    links: [
+      { label: 'Priority Express Courier', page: 'services' },
+      { label: 'Commercial Linehaul', page: 'services' },
+      { label: 'Auto & Vehicle Transport', page: 'services' },
+      { label: 'Time-Critical Secure Vault', page: 'services' },
+      { label: 'Ship a Consignment', page: 'ship' },
+      { label: 'Tariff Rate Calculator', page: 'quote' },
+    ],
+  },
+  {
+    title: 'Support',
+    links: [
+      { label: 'Help Center', page: 'help' },
+      { label: 'FAQs', page: 'help' },
+      { label: 'Shipping Terms', page: 'legal', param: 'shipping-terms' },
+      { label: 'Privacy Policy', page: 'legal', param: 'privacy' },
+      { label: 'Terms of Service', page: 'legal', param: 'terms' },
+      { label: 'Report an Issue', page: 'contact' },
+    ],
+  },
+];
 
 export const Footer: React.FC<FooterProps> = ({
   onNavigate = () => {},
-  showTrustStrip = true,
+  onTrackShipment,
 }) => {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const [trackQuery, setTrackQuery] = useState('');
+  // Phone only: link columns collapse into an accordion so the footer isn't three screens tall.
+  const [openColumn, setOpenColumn] = useState<string | null>(null);
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,294 +78,157 @@ export const Footer: React.FC<FooterProps> = ({
     }
   };
 
+  const handleTrack = (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = trackQuery.trim();
+    if (!query) {
+      onNavigate('track');
+      return;
+    }
+    if (onTrackShipment) onTrackShipment(query);
+    else onNavigate('track-result', query);
+    setTrackQuery('');
+  };
+
   return (
-    <footer className="dxp-pro-footer-wrapper">
-      {/* 1. TRUST FEATURE STRIP */}
-      {showTrustStrip && (
-        <div className="dxp-footer-trust-strip">
-          <div className="dxp-container-wide dxp-trust-grid">
-            <div className="dxp-trust-card">
-              <div className="dxp-trust-icon">
-                <ShieldCheck size={24} />
-              </div>
-              <div className="dxp-trust-info">
-                <h4>Verified Carrier Custody</h4>
-                <p>Armored and monitored chain-of-custody across all linehaul corridors.</p>
-              </div>
-            </div>
+    <footer className="dxp-site-footer">
+      <div className="ft-bg" aria-hidden="true" />
+      <div className="ft-overlay" aria-hidden="true" />
 
-            <div className="dxp-trust-card">
-              <div className="dxp-trust-icon">
-                <Clock size={24} />
-              </div>
-              <div className="dxp-trust-info">
-                <h4>Real-Time Highway Telemetry</h4>
-                <p>Continuous milestone scan updates and live highway transit tracking.</p>
-              </div>
-            </div>
+      <div className="ft-inner">
+        {/* 1. HEADLINE + TRACKING SEARCH */}
+        <section className="ft-hero">
+          <div className="ft-hero-copy">
+            <span className="ft-eyebrow">
+              <span className="ft-live-dot" />
+              Road & Air Freight · 24/7 Dispatch
+            </span>
+            <h2 className="ft-hero-title">
+              Ship it today. <span className="ft-accent">Track it anywhere.</span>
+            </h2>
+            <p className="ft-hero-sub">
+              From a single parcel to a full linehaul load, across all 50 states and to destinations worldwide.
+            </p>
+          </div>
 
-            <div className="dxp-trust-card">
-              <div className="dxp-trust-icon">
-                <Layers size={24} />
-              </div>
-              <div className="dxp-trust-info">
-                <h4>Piece-Level Barcodes</h4>
-                <p>Serialized Code 128 multi-piece tracking on every individual carton.</p>
-              </div>
+          <div className="ft-hero-actions">
+            <form className="ft-track-form" onSubmit={handleTrack}>
+              <Search size={18} className="ft-track-icon" aria-hidden="true" />
+              <input
+                type="text"
+                value={trackQuery}
+                onChange={(e) => setTrackQuery(e.target.value)}
+                placeholder="Enter a tracking number"
+                aria-label="Tracking number"
+                className="ft-track-input"
+              />
+              <button type="submit" className="ft-track-btn">
+                <span>Track</span>
+                <ArrowRight size={16} />
+              </button>
+            </form>
+            <div className="ft-hero-links">
+              <button type="button" onClick={() => onNavigate('quote')}>Get a rate quote</button>
+              <span aria-hidden="true">·</span>
+              <button type="button" onClick={() => onNavigate('ship')}>Book a pickup</button>
             </div>
+          </div>
+        </section>
 
-            <div className="dxp-trust-card">
-              <div className="dxp-trust-icon">
-                <Globe size={24} />
-              </div>
-              <div className="dxp-trust-info">
-                <h4>Nationwide Coverage</h4>
-                <p>Daily scheduled linehaul connections across all 50 states.</p>
+        {/* 2. LINKS */}
+        <div className="ft-grid">
+          <div className="ft-brand">
+            <button type="button" className="ft-logo-btn" onClick={() => onNavigate('home')} aria-label="Duolingo Express home">
+              <img
+                src="/logo-for-footer-or-any-area-having-thesame-color-as-the-footer.png"
+                alt="Duolingo Express"
+                className="ft-logo"
+              />
+            </button>
+            <p className="ft-brand-desc">
+              Reliable shipping. Real-time tracking. Nationwide and international delivery. Duolingo Express connects people, businesses, and opportunities across the country and around the world.
+            </p>
+            <div className="ft-contact">
+              <button type="button" onClick={() => onNavigate('contact')}><Phone size={15} /> (800) 555-DUO-EXP</button>
+              <a href="mailto:dispatch@duolingoexpress.com"><Mail size={15} /> dispatch@duolingoexpress.com</a>
+            </div>
+            <div className="ft-socials">
+              <a href="#facebook" aria-label="Facebook"><Facebook size={16} /></a>
+              <a href="#twitter" aria-label="Twitter / X"><Twitter size={16} /></a>
+              <a href="#instagram" aria-label="Instagram"><Instagram size={16} /></a>
+              <a href="#linkedin" aria-label="LinkedIn"><Linkedin size={16} /></a>
+              <a href="#youtube" aria-label="YouTube"><Youtube size={16} /></a>
+            </div>
+          </div>
+
+          {LINK_COLUMNS.map((col) => {
+            const open = openColumn === col.title;
+            return (
+              <nav key={col.title} className={`ft-col ${open ? 'open' : ''}`} aria-label={col.title}>
+                <button
+                  type="button"
+                  className="ft-col-title"
+                  aria-expanded={open}
+                  onClick={() => setOpenColumn(open ? null : col.title)}
+                >
+                  <span>{col.title}</span>
+                  <ChevronDown size={18} className="ft-col-chevron" />
+                </button>
+                <ul className="ft-col-list">
+                  {col.links.map((link) => (
+                    <li key={link.label}>
+                      <button type="button" onClick={() => onNavigate(link.page, link.param)}>
+                        {link.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            );
+          })}
+
+          <div className="ft-news">
+            <h4 className="ft-news-title">Stay Updated</h4>
+            <p className="ft-news-desc">
+              Subscribe to our newsletter for the latest updates, shipping tips and special offers.
+            </p>
+            <form onSubmit={handleSubscribe} className="ft-news-form">
+              <input
+                type="email"
+                placeholder="Your email address"
+                aria-label="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <button type="submit" aria-label="Subscribe">
+                <Send size={16} />
+              </button>
+            </form>
+            {subscribed && (
+              <p className="ft-news-msg">✓ Thank you for subscribing to operations updates.</p>
+            )}
+            <div className="ft-worldwide">
+              <Globe size={22} />
+              <div>
+                <strong>We Deliver Worldwide</strong>
+                <span>From local to global, Duolingo Express gets it there.</span>
               </div>
             </div>
           </div>
         </div>
-      )}
 
-      {/* 2. MAIN EXECUTIVE FOOTER */}
-      <div className="dxp-pro-footer-main">
-        {/* Subtle Map Watermark Background */}
-        <div className="footer-world-map-bg" />
-        
-        {/* Glowing Orange Corner Swoosh */}
-        <div className="footer-orange-swoosh" />
-
-        <div className="dxp-container-wide footer-content-relative">
-          <div className="dxp-pro-footer-grid">
-            {/* Column 1: Brand & Tagline */}
-            <div className="dxp-pro-brand-col">
-              <div className="dxp-pro-footer-logo" onClick={() => onNavigate('home')}>
-                <img
-                  src="/logo-for-footer-or-any-area-having-thesame-color-as-the-footer.png"
-                  alt="Duolingo Express"
-                  className="dxp-pro-footer-logo-img"
-                />
-              </div>
-
-              <p className="dxp-pro-brand-desc">
-                Reliable shipping. Real-time tracking. Nationwide delivery. Duolingo Express connects people, businesses, and opportunities across the country.
-              </p>
-
-              <div className="dxp-pro-socials">
-                <a href="#facebook" className="pro-social-btn" aria-label="Facebook"><Facebook size={15} /></a>
-                <a href="#twitter" className="pro-social-btn" aria-label="Twitter / X"><Twitter size={15} /></a>
-                <a href="#instagram" className="pro-social-btn" aria-label="Instagram"><Instagram size={15} /></a>
-                <a href="#linkedin" className="pro-social-btn" aria-label="LinkedIn"><Linkedin size={15} /></a>
-                <a href="#youtube" className="pro-social-btn" aria-label="YouTube"><Youtube size={15} /></a>
-              </div>
-
-              <div className="dxp-pro-faster-tagline font-mono">
-                <span>FASTER TOGETHER</span>
-                <div className="tagline-bar" />
-              </div>
-            </div>
-
-            {/* Column 2: Quick Links */}
-            <div className="dxp-pro-links-col">
-              <h4 className="dxp-pro-col-title">
-                Quick Links
-                <span className="title-orange-dash" />
-              </h4>
-              <ul className="dxp-pro-links-list">
-                <li>
-                  <button type="button" onClick={() => onNavigate('home')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Home</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('track')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Track Shipment</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('services')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Our Services</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('locations')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Locations</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('about')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>About Us</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('contact')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Contact Us</span>
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 3: Our Services */}
-            <div className="dxp-pro-links-col">
-              <h4 className="dxp-pro-col-title">
-                Our Services
-                <span className="title-orange-dash" />
-              </h4>
-              <ul className="dxp-pro-links-list">
-                <li>
-                  <button type="button" onClick={() => onNavigate('services')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Priority Express Courier</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('services')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Commercial Linehaul</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('services')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Auto & Vehicle Transport</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('services')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Time-Critical Secure Vault</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('ship')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Ship a Consignment</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('quote')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Tariff Rate Calculator</span>
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 4: Support */}
-            <div className="dxp-pro-links-col">
-              <h4 className="dxp-pro-col-title">
-                Support
-                <span className="title-orange-dash" />
-              </h4>
-              <ul className="dxp-pro-links-list">
-                <li>
-                  <button type="button" onClick={() => onNavigate('help')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Help Center</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('help')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>FAQs</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('legal', 'shipping-terms')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Shipping Terms</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('legal', 'privacy')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Privacy Policy</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('legal', 'terms')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Terms of Service</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={() => onNavigate('contact')}>
-                    <ChevronRight size={14} className="link-chevron" />
-                    <span>Report an Issue</span>
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 5: Stay Updated */}
-            <div className="dxp-pro-newsletter-col">
-              <h4 className="dxp-pro-col-title">
-                Stay Updated
-                <span className="title-orange-dash" />
-              </h4>
-              
-              <p className="dxp-pro-newsletter-desc">
-                Subscribe to our newsletter for the latest updates, shipping tips and special offers.
-              </p>
-
-              <form onSubmit={handleSubscribe} className="dxp-pro-subscribe-form">
-                <div className="pro-input-wrap">
-                  <Mail size={16} className="pro-mail-icon" />
-                  <input
-                    type="email"
-                    placeholder="Enter your email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pro-newsletter-input"
-                    required
-                  />
-                </div>
-                <button type="submit" className="pro-subscribe-btn">
-                  <span>Subscribe</span>
-                  <ChevronRight size={15} />
-                </button>
-              </form>
-
-              {subscribed && (
-                <p className="pro-subscribe-msg font-mono">✓ Thank you for subscribing to operations updates.</p>
-              )}
-
-              {/* Worldwide Network Callout */}
-              <div className="dxp-pro-global-pill">
-                <div className="global-pill-icon">
-                  <Globe size={26} className="text-orange" />
-                </div>
-                <div className="global-pill-text">
-                  <strong>We Deliver Worldwide</strong>
-                  <p>From local to global, Duolingo Express gets it there.</p>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          {/* 3. BOTTOM BAR */}
-          <div className="dxp-pro-footer-bottom">
-            <div className="pro-copy-text">
-              © 2026 Duolingo Express. All rights reserved.
-            </div>
-
-            <div className="pro-bottom-right-links">
-              <span className="pro-sep-bar">|</span>
-              <button type="button" onClick={() => onNavigate('ship')}>Ship</button>
-              <span className="pro-dot">•</span>
-              <button type="button" onClick={() => onNavigate('track')}>Track</button>
-              <span className="pro-dot">•</span>
-              <button type="button" onClick={() => onNavigate('services')}>Deliver</button>
-              <span className="pro-dot">•</span>
-              <span className="pro-slogan">A Better Tomorrow</span>
-            </div>
+        {/* 3. BOTTOM BAR */}
+        <div className="ft-bottom">
+          <span>© 2026 Duolingo Express. All rights reserved.</span>
+          <div className="ft-bottom-links">
+            <button type="button" onClick={() => onNavigate('ship')}>Ship</button>
+            <span className="ft-dot" aria-hidden="true" />
+            <button type="button" onClick={() => onNavigate('track')}>Track</button>
+            <span className="ft-dot" aria-hidden="true" />
+            <button type="button" onClick={() => onNavigate('services')}>Deliver</button>
+            <span className="ft-dot" aria-hidden="true" />
+            <strong>A Better Tomorrow</strong>
           </div>
         </div>
       </div>

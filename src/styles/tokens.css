@@ -30,6 +30,8 @@
   --dxp-orange-600: #ea580c;
   --dxp-orange-500: #f97316;
   --dxp-orange-400: #fb923c;
+  --dxp-orange-300: #fdba74;
+  --dxp-orange-200: #fed7aa;
   --dxp-orange-100: #ffedd5;
   --dxp-orange-50: #fff7ed;
 
@@ -66,6 +68,7 @@
   --dxp-radius-md: 10px;
   --dxp-radius-lg: 14px;
   --dxp-radius-xl: 20px;
+  --dxp-radius-2xl: 24px;
   --dxp-radius-full: 9999px;
 
   /* Shadows */

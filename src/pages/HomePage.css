@@ -40,8 +40,8 @@
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-columns: 1.25fr 1fr;
-  gap: 3.5rem;
+  /* Copy on the left; the right side is left open so the photo carries the hero */
+  grid-template-columns: minmax(0, 680px);
   align-items: center;
 }
 
@@ -175,114 +175,101 @@
   border-radius: 50%;
 }
 
-/* Clean & Elegant Hero Service Guarantee Showcase (Crisp White Card) */
-.corp-hero-service-showcase {
-  background: #ffffff;
-  border: 1px solid var(--dxp-slate-200);
-  border-radius: var(--dxp-radius-xl);
-  padding: 2.25rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+/* Service guarantees — slim frosted strip pinned to the bottom of the hero */
+.hero-guarantee-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1.75rem;
+  z-index: 2;
 }
 
-.hero-showcase-header {
+.hero-guarantee-inner {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  border-radius: 20px;
+  background: rgba(7, 17, 30, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.55);
+}
+
+.hgs-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--dxp-slate-100);
-  padding-bottom: 1rem;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.55rem 0.85rem;
+  border-radius: 14px;
+  transition: background 0.2s ease;
 }
 
-.showcase-header-title {
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: var(--dxp-navy-900);
-  letter-spacing: 0.05em;
+.hgs-item + .hgs-item {
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 14px 14px 0;
 }
 
-.hero-guarantee-badge {
-  font-size: 0.6875rem;
-  font-weight: 800;
-  color: #059669;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  padding: 0.25rem 0.625rem;
-  border-radius: var(--dxp-radius-sm);
-  letter-spacing: 0.06em;
+.hgs-item:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
-.hero-feature-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.hero-feat-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  background: #f8fafc;
-  border: 1px solid var(--dxp-slate-200);
-  border-radius: var(--dxp-radius-lg);
-  padding: 1rem 1.25rem;
-  transition: var(--dxp-transition);
-}
-
-.hero-feat-item:hover {
-  background: #ffffff;
-  border-color: var(--dxp-orange-400);
-  transform: translateX(4px);
-  box-shadow: 0 6px 16px rgba(234, 88, 12, 0.08);
-}
-
-.hero-feat-icon {
-  width: 40px;
-  height: 40px;
-  background: #ffffff;
-  border: 1px solid var(--dxp-slate-200);
-  border-radius: var(--dxp-radius-md);
-  display: flex;
+.hgs-icon {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  margin-top: 0.125rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  color: #fdba74;
+  background: rgba(249, 115, 22, 0.16);
+  border: 1px solid rgba(251, 146, 60, 0.3);
 }
 
-.hero-feat-text strong {
-  display: block;
-  font-size: 0.9375rem;
-  font-weight: 800;
-  color: var(--dxp-navy-900);
-  margin-bottom: 0.25rem;
-}
-
-.hero-feat-text p {
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  color: var(--dxp-slate-600);
-  margin: 0;
-}
-
-.hero-showcase-bottom {
+.hgs-text {
   display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  background: var(--dxp-orange-50);
-  border: 1px solid var(--dxp-orange-200);
-  border-radius: var(--dxp-radius-md);
-  padding: 0.875rem 1.125rem;
-  font-size: 0.8125rem;
-  color: var(--dxp-slate-700);
+  flex-direction: column;
+  min-width: 0;
 }
 
-.hero-showcase-bottom strong {
-  color: var(--dxp-orange-600);
+.hgs-text strong {
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.hgs-text span {
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.hgs-hotline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 46px;
+  padding: 0 1.1rem;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: #ffffff;
   font-family: var(--dxp-font-mono);
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 10px 24px -10px rgba(234, 88, 12, 0.8);
+  transition: transform 0.15s ease;
+}
+
+.hgs-hotline:hover {
+  transform: translateY(-1px);
 }
 
 /* ============================================================
@@ -1526,104 +1513,6 @@
 }
 
 /* ============================================================
-   11. PARTNERS STRIP (INFINITE MOVING MARQUEE TICKER)
-   ============================================================ */
-.corp-partners-strip {
-  padding: 4.5rem 0;
-  background-color: #f8fafc;
-  border-top: 1px solid var(--dxp-slate-200);
-  border-bottom: 1px solid var(--dxp-slate-200);
-  text-align: center;
-  overflow: hidden;
-}
-
-.partners-label {
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  color: var(--dxp-slate-500);
-  margin-bottom: 2.25rem;
-}
-
-.partners-marquee-container {
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-}
-
-.partners-marquee-fade {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 180px;
-  z-index: 3;
-  pointer-events: none;
-}
-
-.partners-marquee-fade.left {
-  left: 0;
-  background: linear-gradient(to right, #f8fafc, transparent);
-}
-
-.partners-marquee-fade.right {
-  right: 0;
-  background: linear-gradient(to left, #f8fafc, transparent);
-}
-
-.partners-marquee-track {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-  width: max-content;
-  animation: infiniteMarquee 40s linear infinite;
-}
-
-.partners-marquee-track:hover {
-  animation-play-state: paused;
-}
-
-@keyframes infiniteMarquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-.partner-marquee-card {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--dxp-white);
-  border: 1.5px solid var(--dxp-slate-200);
-  padding: 1.25rem 2.75rem;
-  border-radius: var(--dxp-radius-xl);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
-  white-space: nowrap;
-  user-select: none;
-  min-width: 220px;
-  height: 86px;
-  transition: var(--dxp-transition);
-}
-
-.partner-marquee-card:hover {
-  border-color: var(--dxp-orange-500);
-  transform: translateY(-4px);
-  box-shadow: 0 14px 28px rgba(234, 88, 12, 0.16);
-}
-
-.partner-logo-svg-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 48px;
-  transition: transform 0.3s ease;
-}
-
-.partner-marquee-card:hover .partner-logo-svg-wrap {
-  transform: scale(1.08);
-}
-
-/* ============================================================
    12. INSTANT DISPATCH CALLBACK BANNER
    ============================================================ */
 .corp-callback-banner {
@@ -1791,6 +1680,23 @@
     grid-template-columns: 1fr;
     gap: 2.5rem;
   }
+  .corp-hero-section {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    padding-bottom: 2.5rem;
+  }
+  .hero-guarantee-strip {
+    position: relative;
+    bottom: auto;
+    margin-top: 2.75rem;
+  }
+  .hero-guarantee-inner {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .hgs-hotline {
+    display: none;
+  }
   .corp-about-grid {
     grid-template-columns: 1fr;
     gap: 3.5rem;
@@ -1828,8 +1734,33 @@
 
 @media (max-width: 768px) {
   .corp-hero-section {
-    padding: 3.5rem 0 4.5rem 0;
+    padding: 3.5rem 0 1.5rem 0;
     min-height: auto;
+  }
+  /* Phone: three compact icon tiles, titles only */
+  .hero-guarantee-strip {
+    margin-top: 2rem;
+  }
+  .hero-guarantee-inner {
+    gap: 0;
+    padding: 0.4rem;
+    border-radius: 16px;
+  }
+  .hgs-item {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.4rem;
+    padding: 0.6rem 0.35rem;
+  }
+  .hgs-icon {
+    width: 34px;
+    height: 34px;
+  }
+  .hgs-text strong {
+    font-size: 0.72rem;
+  }
+  .hgs-text span {
+    display: none;
   }
   .corp-hero-title {
     font-size: 2.375rem;

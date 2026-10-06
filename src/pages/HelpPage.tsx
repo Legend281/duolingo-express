@@ -38,7 +38,6 @@ interface FaqItem {
 export const HelpPage: React.FC<HelpPageProps> = ({ onNavigate }) => {
   const { settings } = useAdminData();
   const supportPhone = settings.supportPhone || '1-800-555-0199';
-  const supportPhoneDigits = supportPhone.replace(/[^0-9+]/g, '');
   const dotNumber = settings.dotNumber || 'USDOT #3894210 · MC-892401';
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -49,7 +48,7 @@ export const HelpPage: React.FC<HelpPageProps> = ({ onNavigate }) => {
       id: 'trk-1',
       category: 'tracking',
       question: 'How do I locate and track an active consignment?',
-      answer: 'Enter your 16-character tracking identifier (e.g. DXP-2026-7K2M9QRX or DXP-7K2M9QRX) in the search bar on our Track page. You will immediately access verified checkpoint scan events, regional hub transfers, and live interstate telemetry.',
+      answer: 'Enter your 16-character tracking identifier (e.g. DXP-2026-7K2M9QRX or DXP-7K2M9QRX) in the search bar on our Track page. You will immediately access verified checkpoint scan events, regional hub transfers, and live road and air telemetry.',
       badge: 'Core Telemetry'
     },
     {
@@ -62,7 +61,7 @@ export const HelpPage: React.FC<HelpPageProps> = ({ onNavigate }) => {
     {
       id: 'trk-3',
       category: 'tracking',
-      question: 'How often does highway tracking telemetry update?',
+      question: 'How often does tracking telemetry update?',
       answer: 'Our long-haul transit network updates telemetry continuously as vehicles pass through weigh stations, regional toll points, and facility gateway checkpoints. In the tracking dashboard, you can monitor milestone progression in real time.',
       badge: 'Real-Time'
     },
@@ -109,10 +108,17 @@ export const HelpPage: React.FC<HelpPageProps> = ({ onNavigate }) => {
       badge: 'Weekend Dispatch'
     },
     {
+      id: 'dlv-4',
+      category: 'delivery',
+      question: 'Do you ship internationally? How does customs work?',
+      answer: 'Yes. Long-distance international consignments move by air freight; shorter cross-border routes (for example to Canada or Mexico) move by road. Every international shipment clears export customs in the origin country and import customs in the destination country, and both steps appear on your tracking timeline. Please include an accurate description and declared value so customs can clear your shipment without delay. Import duties and taxes are set by the destination country and are not included in our transport rates.',
+      badge: 'International'
+    },
+    {
       id: 'exc-1',
       category: 'exceptions',
-      question: 'What happens if severe weather or a highway corridor delay occurs?',
-      answer: 'If severe weather or interstate traffic causes a detour, our automated dispatch system immediately recalculates transit timelines and updates the ETA on your tracking timeline. The dispatch desk is notified automatically.',
+      question: 'What happens if severe weather, a customs hold, or a transit delay occurs?',
+      answer: 'If severe weather, traffic, a flight change, or a customs hold affects a shipment, our automated dispatch system immediately recalculates transit timelines and updates the ETA on your tracking timeline. The dispatch desk is notified automatically.',
       badge: 'Delays & Reroutes'
     },
     {
@@ -201,7 +207,7 @@ export const HelpPage: React.FC<HelpPageProps> = ({ onNavigate }) => {
           <div className="network-strip-inner">
             <div className="network-status-label">
               <span className="live-radar-dot" />
-              <strong>INTERSTATE LOGISTICS NETWORK STATUS:</strong>
+              <strong>GLOBAL LOGISTICS NETWORK STATUS:</strong>
             </div>
             <div className="network-nodes-grid">
               <div className="node-item">
@@ -233,7 +239,7 @@ export const HelpPage: React.FC<HelpPageProps> = ({ onNavigate }) => {
           <div className="help-pillar-card" onClick={() => onNavigate('track')}>
             <div className="pillar-icon icon-orange"><MapPin size={24} /></div>
             <h3>Track a Consignment</h3>
-            <p>Monitor live 60 FPS highway telemetry and verified scan milestones across all regional intake gateways.</p>
+            <p>Monitor live 60 FPS transit telemetry and verified scan milestones across all regional intake gateways.</p>
             <span className="pillar-action-link">Open Tracking Radar <ArrowRight size={15} /></span>
           </div>
 
@@ -357,34 +363,6 @@ export const HelpPage: React.FC<HelpPageProps> = ({ onNavigate }) => {
                 </div>
               ))
             )}
-          </div>
-        </section>
-
-        {/* =========================================================================
-            5. NEED IMMEDIATE ASSISTANCE CALLOUT
-            ========================================================================= */}
-        <section className="dxp-help-cta-box">
-          <div className="help-cta-content">
-            <div className="help-cta-badge font-mono">24/7 CENTRAL DISPATCH DESK</div>
-            <h2>Still need assistance with an active consignment?</h2>
-            <p>Our logistics coordinators and interstate dispatchers are on duty 24 hours a day, 7 days a week.</p>
-            <div className="help-cta-buttons">
-              <button
-                type="button"
-                className="btn-corp-primary"
-                onClick={() => onNavigate('contact')}
-              >
-                <Send size={16} />
-                <span>Submit Dispatch Ticket</span>
-              </button>
-              <a
-                href={`tel:${supportPhoneDigits}`}
-                className="btn-corp-ghost"
-              >
-                <Phone size={16} />
-                <span>Call {supportPhone}</span>
-              </a>
-            </div>
           </div>
         </section>
       </div>

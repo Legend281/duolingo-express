@@ -470,12 +470,12 @@ export const AllShipmentsView: React.FC<AllShipmentsViewProps> = ({
         <div className="table-overflow-wrapper">
           <table className="master-data-table">
             <colgroup>
-              <col style={{ width: '19%' }} />
-              <col style={{ width: '9%' }} />
               <col style={{ width: '17%' }} />
-              <col style={{ width: '15%' }} />
+              <col style={{ width: '9%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '14%' }} />
               <col style={{ width: '11%' }} />
-              <col style={{ width: '10%' }} />
+              <col style={{ width: '14%' }} />
               <col style={{ width: '19%' }} />
             </colgroup>
             <thead>

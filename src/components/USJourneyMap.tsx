@@ -341,6 +341,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
         map.fitBounds(bounds, {
           padding: [60, 60],
           maxZoom: 7,
+          animate: false,
         });
       }
     }
@@ -488,7 +489,14 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
   useEffect(() => {
     return () => {
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
+        const map = mapInstanceRef.current as L.Map & { _onZoomTransitionEnd?: () => void };
+        // Leaving the page mid-zoom (e.g. a zoom button, or navigating away right after the
+        // page opens) let Leaflet's zoom-transition handler fire on an already-removed map:
+        // "Cannot read properties of undefined (reading '_leaflet_pos')". Stop and disarm it first.
+        map.stop();
+        map._onZoomTransitionEnd = () => {};
+        map.off();
+        map.remove();
         mapInstanceRef.current = null;
         completedLineRef.current = null;
         remainingLineRef.current = null;

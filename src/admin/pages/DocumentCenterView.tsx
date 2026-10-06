@@ -497,7 +497,7 @@ export const DocumentCenterView: React.FC<DocumentCenterViewProps> = ({
             onClick={() => openGenerateModal()}
           >
             <Plus size={16} />
-            <span>+ Generate Document</span>
+            <span>Generate Document</span>
           </button>
         </div>
       </div>

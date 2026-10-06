@@ -64,7 +64,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate }) => {
       transitDays: 'Same-Day / Next-Day',
       maxWeight: 'Up to 150 lbs per piece',
       bestFor: 'Urgent medical diagnostics, legal contracts, emergency replacement parts, time-sensitive commercial tenders.',
-      linehaulMode: 'Dedicated Express Highway Shuttle & Priority Relay',
+      linehaulMode: 'Dedicated Express Road Shuttle & Priority Air Relay',
       features: [
         'Guaranteed morning arrival commitment window',
         'Direct hand-to-hand courier custody without intermediate hub delays',
@@ -184,7 +184,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate }) => {
       id: 'automotive',
       title: 'Automotive & Fleet Logistics',
       icon: <Car size={24} className="text-amber" />,
-      desc: 'Specialized vehicle transport for dealerships, corporate fleets, and private luxury automobile relocations across all 48 contiguous states.',
+      desc: 'Specialized vehicle transport for dealerships, corporate fleets, and private luxury automobile relocations across all 48 contiguous states and to international destinations.',
       capabilities: [
         'Enclosed soft-tie carriers for exotic and classic automobiles',
         'Multi-vehicle open carriers for dealership and corporate relocations',
@@ -225,7 +225,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate }) => {
             Precision Delivery Speeds for Every <span className="services-highlight-orange">Commercial Consignment.</span>
           </h1>
           <p className="services-hero-sub animate-fade-in">
-            From urgent next-morning express courier deliveries to scheduled interstate linehauls and specialized auto transport, Duolingo Express operates a transparent, verified domestic logistics network.
+            From urgent next-morning express courier deliveries to scheduled interstate linehauls and specialized auto transport, Duolingo Express operates a transparent, verified logistics network across the United States and to destinations worldwide.
           </p>
 
           <div className="services-hero-stats-row animate-fade-in">
@@ -234,8 +234,8 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate }) => {
               <span className="stat-lbl">On-Time Transit Velocity</span>
             </div>
             <div className="services-stat-pill">
-              <span className="stat-num font-mono">48 States</span>
-              <span className="stat-lbl">Contiguous U.S. Network</span>
+              <span className="stat-num font-mono">Worldwide</span>
+              <span className="stat-lbl">48-State Ground + Global Air Freight</span>
             </div>
             <div className="services-stat-pill">
               <span className="stat-num font-mono">Code 128</span>
@@ -255,7 +255,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate }) => {
       <section className="services-explorer-section">
         <div className="dxp-container-wide">
           <div className="section-center-header">
-            <span className="section-eyebrow">DOMESTIC TRANSPORTATION CAPABILITIES</span>
+            <span className="section-eyebrow">DOMESTIC & INTERNATIONAL CAPABILITIES</span>
             <h2>Select a Service Tier to Inspect Operational Specs</h2>
             <p className="section-desc-sub">
               Every service level is backed by strict delivery windows, piece-level Code 128 scans, and guaranteed linehaul capacity.
@@ -399,7 +399,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate }) => {
             <span className="section-eyebrow">TRANSPARENT SERVICE MATRIX</span>
             <h2>Compare Delivery Speeds & Capabilities</h2>
             <p className="section-desc-sub">
-              Direct comparison of domestic service parameters to help you select the optimal courier or linehaul option.
+              Direct comparison of service parameters to help you select the optimal courier or linehaul option.
             </p>
             <div className="section-header-line" />
           </div>
@@ -600,7 +600,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate }) => {
             <span className="section-eyebrow">HIGH-ASSURANCE CARGO PROTOCOLS</span>
             <h2>Specialized Cargo Handling & Security Add-Ons</h2>
             <p className="section-desc-sub">
-              Enhance any domestic courier or linehaul consignment with tailored chain-of-custody, timing, and dockside execution protocols.
+              Enhance any domestic or international consignment with tailored chain-of-custody, timing, and dockside execution protocols.
             </p>
             <div className="section-header-line" />
           </div>
@@ -711,45 +711,6 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate }) => {
               <span className="step-num font-mono">04</span>
               <h4>Verified Proof of Delivery</h4>
               <p>Final courier delivers with recipient signature capture and digital POD signoff.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================================
-          7. BOTTOM CALL TO ACTION
-          ========================================================================= */}
-      <section className="services-bottom-cta">
-        <div className="dxp-container-wide">
-          <div className="services-cta-card">
-            <div className="services-cta-content">
-              <div className="cta-telemetry-badge">
-                <span className="services-pulse-dot" />
-                <span>NATIONWIDE CARRIER DISPATCH ACTIVE</span>
-              </div>
-              <h2>Ready to Experience Reliable Courier Logistics?</h2>
-              <p>
-                Submit your cargo specifications for an instant guaranteed rate tariff or speak with our central logistics coordinator.
-              </p>
-            </div>
-
-            <div className="services-cta-actions">
-              <button
-                type="button"
-                className="btn-corp-primary"
-                onClick={() => onNavigate('quote')}
-              >
-                <span>Request a Rate Quote</span>
-                <ArrowRight size={16} />
-              </button>
-
-              <button
-                type="button"
-                className="btn-corp-ghost"
-                onClick={() => onNavigate('track')}
-              >
-                <span>Track a Shipment</span>
-              </button>
             </div>
           </div>
         </div>

@@ -588,133 +588,202 @@
 }
 
 /* ============================================================
-   6. REGULATORY COMPLIANCE & SAFETY STANDARDS
+   6. WHERE WE OPERATE (coverage regions + credentials)
    ============================================================ */
-.about-compliance-section {
-  padding: 5.5rem 0;
+.about-reach-section {
+  padding: 6rem 0 5rem;
+  background:
+    radial-gradient(ellipse 50% 60% at 0% 0%, rgba(249, 115, 22, 0.06), transparent 70%),
+    var(--dxp-white);
 }
 
-.compliance-banner {
-  background-image: 
-    linear-gradient(135deg, rgba(7, 17, 30, 0.72) 0%, rgba(11, 25, 44, 0.55) 100%),
-    url('https://images.unsplash.com/photo-1519003722824-194d4455a60c?w=1600&auto=format&fit=crop&q=85');
-  background-size: cover;
-  background-position: center;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--dxp-radius-2xl);
-  padding: 3.5rem;
-  color: var(--dxp-white);
+.about-reach-grid {
   display: grid;
-  grid-template-columns: 1fr 1.3fr;
-  gap: 3.5rem;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: clamp(2.5rem, 5vw, 5rem);
   align-items: center;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
 }
 
-.section-eyebrow.light {
-  color: #fb923c;
-}
-
-.compliance-text-block h3 {
-  font-size: 1.875rem;
+.about-reach-copy h2 {
+  font-family: var(--dxp-font-display);
+  font-size: clamp(1.9rem, 3.2vw, 2.75rem);
   font-weight: 800;
-  color: var(--dxp-white);
-  margin: 0.5rem 0 1rem;
-  line-height: 1.25;
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  color: var(--dxp-navy-900);
+  margin: 0.75rem 0 1rem;
 }
 
-.compliance-text-block p {
-  font-size: 0.9375rem;
-  color: #cbd5e1;
-  line-height: 1.6;
-  margin: 0;
+.about-reach-lead {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--dxp-slate-600);
+  margin: 0 0 2rem;
+  max-width: 36rem;
 }
 
-.compliance-badges-grid {
+.reach-region-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.reach-region {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid var(--dxp-slate-200);
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reach-region:hover {
+  border-color: var(--dxp-orange-300);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -14px rgba(234, 88, 12, 0.35);
+}
+
+.reach-region.home {
+  grid-column: 1 / -1;
+  background: var(--dxp-navy-900);
+  border-color: var(--dxp-navy-900);
+}
+
+.reach-region-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dxp-orange-600);
+  background: var(--dxp-orange-50);
+  border: 1px solid var(--dxp-orange-200);
+}
+
+.reach-region.home .reach-region-icon {
+  color: #ffffff;
+  background: var(--dxp-orange-500);
+  border-color: var(--dxp-orange-500);
+}
+
+.reach-region strong {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--dxp-navy-900);
+}
+
+.reach-region span:not(.reach-region-icon) {
+  font-size: 0.8125rem;
+  color: var(--dxp-slate-500);
+}
+
+.reach-region.home strong {
+  color: #ffffff;
+}
+
+.reach-region.home span:not(.reach-region-icon) {
+  color: #cbd5e1;
+}
+
+.about-reach-visual {
+  position: relative;
+  height: 100%;
+  min-height: 520px;
+  border-radius: var(--dxp-radius-2xl);
+  overflow: hidden;
+  box-shadow: 0 30px 60px -25px rgba(7, 17, 30, 0.45);
+}
+
+.about-reach-visual img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.about-reach-visual::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(5, 12, 23, 0.75) 100%);
+}
+
+.reach-visual-card {
+  position: absolute;
+  left: 1.25rem;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 1;
+  padding: 1.25rem 1.4rem;
+  border-radius: 18px;
+  background: rgba(7, 17, 30, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #ffffff;
+}
+
+.reach-visual-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fdba74;
+  margin-bottom: 0.4rem;
+}
+
+.reach-visual-card strong {
+  display: block;
+  font-family: var(--dxp-font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+
+.reach-visual-card p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #cbd5e1;
+}
+
+.reach-credentials {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 3.5rem;
+  border-top: 1px solid var(--dxp-slate-200);
+  padding-top: 1.75rem;
   gap: 1.25rem;
 }
 
-.c-badge-item {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--dxp-radius-xl);
-  padding: 1.25rem;
+.reach-cred {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  transition: var(--dxp-transition);
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.8125rem;
+  color: var(--dxp-slate-500);
+  line-height: 1.45;
 }
 
-.c-badge-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(234, 88, 12, 0.4);
-  transform: translateY(-2px);
-}
-
-.c-badge-item strong {
-  display: block;
-  font-size: 0.9375rem;
-  font-weight: 800;
-  color: var(--dxp-white);
-  margin-bottom: 0.2rem;
-}
-
-.c-badge-item span {
-  font-size: 0.75rem;
-  color: #94a3b8;
-}
-
-/* ============================================================
-   6. BOTTOM CALL TO ACTION
-   ============================================================ */
-.about-bottom-cta {
-  padding: 0 0 6rem 0;
-}
-
-.about-cta-card {
-  background: var(--dxp-white);
-  border: 1.5px solid var(--dxp-slate-200);
-  border-radius: var(--dxp-radius-2xl);
-  padding: 3.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 2.5rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
-}
-
-.about-cta-content h2 {
-  font-size: 1.875rem;
-  font-weight: 800;
-  color: var(--dxp-navy-900);
-  margin-bottom: 0.5rem;
-}
-
-.about-cta-content p {
-  font-size: 1rem;
-  color: var(--dxp-slate-600);
-  margin: 0;
-  max-width: 580px;
-}
-
-.about-cta-action-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+.reach-cred svg {
   flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--dxp-orange-600);
 }
 
-.about-cta-action-row .btn-corp-ghost {
-  background: var(--dxp-white);
+.reach-cred strong {
+  display: block;
+  font-size: 0.9rem;
   color: var(--dxp-navy-900);
-  border: 1.5px solid var(--dxp-slate-300);
-}
-
-.about-cta-action-row .btn-corp-ghost:hover {
-  background: var(--dxp-slate-100);
-  border-color: var(--dxp-slate-400);
 }
 
 /* ============================================================
@@ -743,15 +812,14 @@
   .timeline-connector-bar {
     display: none;
   }
-  .compliance-banner {
+  .about-reach-grid {
     grid-template-columns: 1fr;
-    gap: 2.5rem;
-    padding: 2.75rem;
   }
-  .about-cta-card {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 2.75rem;
+  .about-reach-visual {
+    min-height: 380px;
+  }
+  .reach-credentials {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -816,39 +884,19 @@
   .timeline-card {
     padding: 2rem 1.25rem 1.5rem;
   }
-  .about-compliance-section {
-    padding: 3.5rem 0;
+  .about-reach-section {
+    padding: 4rem 0 3.5rem;
   }
-  .compliance-banner {
-    padding: 2rem 1.5rem;
-    border-radius: var(--dxp-radius-xl);
-  }
-  .compliance-text-block h3 {
-    font-size: 1.5rem;
-  }
-  .compliance-badges-grid {
+  .reach-region-grid {
     grid-template-columns: 1fr;
-    gap: 0.875rem;
   }
-  .about-bottom-cta {
-    padding: 0 0 4rem 0;
+  .about-reach-visual {
+    min-height: 300px;
   }
-  .about-cta-card {
-    padding: 2rem 1.5rem;
-    border-radius: var(--dxp-radius-xl);
-  }
-  .about-cta-content h2 {
-    font-size: 1.5rem;
-  }
-  .about-cta-action-row {
-    flex-direction: column;
-    width: 100%;
-    gap: 0.75rem;
-  }
-  .about-cta-action-row button {
-    width: 100%;
-    justify-content: center;
-    padding: 0.875rem 1rem;
+  .reach-credentials {
+    grid-template-columns: 1fr;
+    margin-top: 2.5rem;
+    gap: 1rem;
   }
 }
 

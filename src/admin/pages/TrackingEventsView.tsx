@@ -573,7 +573,7 @@ export const TrackingEventsView: React.FC<TrackingEventsViewProps> = ({ onSelect
                 }}
               >
                 <Plus size={16} />
-                <span>+ Add Tracking Event</span>
+                <span>Add Tracking Event</span>
               </button>
             </div>
           </div>
