@@ -3,6 +3,7 @@ import {
   Package,
   Calendar,
   Truck,
+  Plane,
   Building2,
   MapPin,
   User,
@@ -49,7 +50,6 @@ import {
 import { Shipment, TrackingEvent, RouteCheckpoint, ShipmentStatus } from '../types/shipment';
 import { Barcode } from '../components/Barcode';
 import { USJourneyMap } from '../components/USJourneyMap';
-import { SupportModal } from '../components/SupportModal';
 import { calculateRouteGeometry } from '../services/routingEngine';
 import { simulationEngine } from '../services/simulationEngine';
 import { api } from '../services/api';
@@ -57,7 +57,6 @@ import { generateShipmentPlan, calculateDynamicTimeProgress, getServiceCommitmen
 import { resolveLocation, formatPlace } from '../services/geocodingService';
 import { etaTimestamp } from '../utils/dates';
 import { applyForwardOnlyShipmentUpdate } from '../utils/shipmentSync';
-import { useAdminData } from '../context/AdminDataContext';
 import './TrackResultPage.css';
 
 interface TrackResultPageProps {
@@ -71,9 +70,6 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   onTrackAnother,
   onNavigate,
 }) => {
-  const { settings } = useAdminData();
-  const supportPhone = settings.supportPhone || '1-800-555-0199';
-  const supportPhoneDigits = supportPhone.replace(/[^0-9+]/g, '');
 
   // Continuous real-time synchronized state
   const [liveShipment, setLiveShipment] = useState<Shipment>(shipment);
@@ -129,7 +125,6 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
   }, [shipment?.trackingNumber]);
 
   const [searchInput, setSearchInput] = useState('');
-  const [supportOpen, setSupportOpen] = useState(false);
   const [copiedNumber, setCopiedNumber] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showEarlierEvents, setShowEarlierEvents] = useState(false);
@@ -504,6 +499,7 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
     : (shipment as any)?.progressPercent !== undefined
     ? (shipment as any).progressPercent
     : timeProgress.progressPercent;
+  const heroProgress = Math.round(Math.max(0, Math.min(100, Number(progressPercent) || 0)));
 
   // Anchor the planned-milestone timeline to this shipment's real, already-stored estimated
   // delivery date (working backward by the service SLA window) instead of deriving forward
@@ -633,6 +629,67 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
     }, 2000);
   };
 
+  // Everything the waybill lists about the cargo, including the type-specific details
+  // (pet / pallet / container / freight / document) as plain label + value rows.
+  type CargoFact = { label: string; value: React.ReactNode; mono?: boolean; wide?: boolean };
+  const pallet = liveShipment?.palletDetails;
+  const container = liveShipment?.containerDetails;
+  const freight = liveShipment?.freightDetails;
+  const doc = liveShipment?.documentDetails;
+  const cargoFacts: CargoFact[] = [
+    { label: 'Cargo', value: cargoDescription, wide: true },
+    { label: 'Service', value: `${service} · ${formatCommitment(plan.serviceCommitmentHours)}` },
+    { label: 'Type', value: shipmentType },
+    { label: 'Weight', value: `${totalWeight.toLocaleString()} lbs` },
+    { label: 'Dimensions', value: `${dimensions.length} × ${dimensions.width} × ${dimensions.height} in` },
+    ...(isVehicle ? [{ label: 'Transport', value: transportType }] : []),
+    ...(!isVehicle && isPet && pet ? [
+      { label: 'Pet name', value: pet.name || '—' },
+      { label: 'Species / breed', value: [pet.species, pet.breed].filter(Boolean).join(' — ') || '—' },
+      { label: 'Crate', value: pet.crateType || '—' },
+      { label: 'Microchip', value: pet.microchipNumber || '—', mono: true },
+      { label: 'Vet clinic', value: pet.vetClinicName || '—', wide: true },
+    ] : []),
+    ...(!isVehicle && liveShipment?.shipmentType === 'Pallet' && pallet ? [
+      { label: 'Pallet standard', value: pallet.standard },
+      { label: 'Skids', value: String(pallet.count) },
+      { label: 'Weight per skid', value: `${pallet.weightPerSkidLbs} lbs` },
+      { label: 'Stackable', value: pallet.stackable ? 'Yes' : 'No — top tier only' },
+    ] : []),
+    ...(!isVehicle && liveShipment?.shipmentType === 'Container' && container ? [
+      { label: 'Container no.', value: container.containerNumber, mono: true },
+      { label: 'ISO size', value: container.isoSize },
+      { label: 'Bolt seal', value: container.boltSeal, mono: true },
+      { label: 'Terminal', value: container.terminal },
+    ] : []),
+    ...(!isVehicle && liveShipment?.shipmentType === 'Freight' && freight ? [
+      { label: 'Freight class', value: freight.freightClass },
+      { label: 'NMFC code', value: freight.nmfcCode, mono: true },
+      { label: 'Loading', value: freight.loadingMethod },
+      {
+        label: 'Liftgate',
+        value: freight.liftgatePickup && freight.liftgateDelivery ? 'Pickup & delivery'
+          : freight.liftgateDelivery ? 'Delivery only'
+          : freight.liftgatePickup ? 'Pickup only' : 'Not required',
+      },
+    ] : []),
+    ...(!isVehicle && liveShipment?.shipmentType === 'Document' && doc ? [
+      { label: 'Envelope', value: doc.envelopeType },
+      { label: 'Seal no.', value: doc.sealNumber, mono: true },
+      { label: 'Signature', value: doc.directSignOnly ? 'Direct signature only' : 'Standard signature' },
+      { label: 'Deadline', value: doc.urgentDeadline || '—' },
+    ] : []),
+  ];
+
+  // Handling flags the shipment was booked with; only the ones that apply are highlighted.
+  const handling = liveShipment?.handlingRequirements;
+  const handlingTags = [
+    { label: handling?.fragile ? 'Fragile' : 'Not fragile', on: !!handling?.fragile },
+    { label: handling?.signatureRequired ? 'Signature required' : 'No signature needed', on: !!handling?.signatureRequired },
+    ...(handling?.oversized ? [{ label: 'Oversized', on: true }] : []),
+    ...(isVehicle ? [{ label: 'No liftgate required', on: false }] : []),
+  ];
+
   return (
     <div className="dxp-redesign-tracking-page animate-fade-in">
       {/* =========================================================================
@@ -640,9 +697,12 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
           ========================================================================= */}
       <section className="dxp-cinematic-hero-section">
         <div className="dxp-hero-backdrop-img">
+          {/* Air legs show an airliner; road shipments a parcel warehouse */}
           <img
-            src="/images/tracking/truck_highway_hero.jpg"
-            alt="Duolingo Express Commercial Linehaul Highway Hauler"
+            src={routeGeom.mode === 'AIR'
+              ? 'https://images.unsplash.com/photo-1569154941061-e231b4725ef1?w=2000&auto=format&fit=crop&q=80'
+              : 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=2000&auto=format&fit=crop&q=80'}
+            alt=""
             className="hero-bg-photo"
           />
           <div className="dxp-hero-overlay" />
@@ -657,11 +717,8 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
               onClick={() => onNavigate('track')}
             >
               <ArrowLeft size={16} />
-              <span>Back to Shipments</span>
+              <span>Track another</span>
             </button>
-          </div>
-
-          <div className="hero-status-pill-wrap">
             <span className={`hero-live-status-pill ${isHold ? 'hold' : isDelayed ? 'delayed' : status === 'DELIVERED' ? 'delivered' : 'in-transit'}`}>
               <span className="hero-live-dot" />
               {statusDisplayLabel.toUpperCase()}
@@ -671,73 +728,31 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
           <h1 className="hero-tracking-number font-mono">{trackingNum}</h1>
           <h2 className="hero-cargo-title">{cargoDescription}</h2>
 
-          <div className="hero-route-strip">
-            <div className="hero-route-stop">
-              <MapPin size={16} className="text-blue" />
-              <span>{originPlace}</span>
+          {/* Journey card: origin -> moving vehicle on a progress line -> destination */}
+          <div className="hero-journey">
+            <div className="hj-stop">
+              <span className="hj-label">From</span>
+              <strong>{originPlace}</strong>
             </div>
-            <ArrowRight size={14} className="hero-route-arrow" />
-            <div className="hero-route-stop">
-              <MapPin size={16} className="text-blue" />
-              <span>{destPlace}</span>
+            <div className="hj-track" aria-label={`${heroProgress}% of the route complete`}>
+              <div className="hj-line">
+                <div className="hj-fill" style={{ width: `${heroProgress}%` }} />
+                <span className="hj-mover" style={{ left: `${heroProgress}%` }}>
+                  {routeGeom.mode === 'AIR' ? <Plane size={14} /> : <Package size={14} />}
+                </span>
+              </div>
+              <span className="hj-pct">{heroProgress}% complete</span>
             </div>
-          </div>
-
-          {/* Floating Frosted Dark Metrics Bar */}
-          <div className="hero-floating-metrics-bar">
-            <div className="hero-metric-cell">
-              <div className="hero-metric-icon amber">
-                <Zap size={18} />
-              </div>
-              <div className="hero-metric-text">
-                <span className="hero-metric-lbl">Service Level</span>
-                <strong className="hero-metric-val">{service} ({formatCommitment(plan.serviceCommitmentHours)})</strong>
-              </div>
-            </div>
-
-            <div className="hero-metric-sep" />
-
-            <div className="hero-metric-cell">
-              <div className="hero-metric-icon amber">
-                <Calendar size={18} />
-              </div>
-              <div className="hero-metric-text">
-                <span className="hero-metric-lbl">Est. Delivery</span>
-                <strong className="hero-metric-val">{estDeliveryDate} · {estDeliveryTime}</strong>
-              </div>
-            </div>
-
-            <div className="hero-metric-sep" />
-
-            <div className="hero-metric-cell">
-              <div className="hero-metric-icon amber">
-                <Truck size={18} />
-              </div>
-              <div className="hero-metric-text">
-                <span className="hero-metric-lbl">Distance</span>
-                <strong className="hero-metric-val">{routeGeom.distanceMiles.toLocaleString()} miles</strong>
-              </div>
-            </div>
-
-            <div className="hero-metric-sep" />
-
-            <div className="hero-metric-cell">
-              <div className={`hero-metric-icon ${hasRevisedSchedule ? 'amber' : 'emerald'}`}>
-                <Activity size={18} />
-              </div>
-              <div className="hero-metric-text">
-                <span className="hero-metric-lbl">Current Status</span>
-                <strong className={`hero-metric-val ${hasRevisedSchedule ? 'text-amber' : 'text-emerald'}`}>
-                  {statusDisplayLabel}
-                </strong>
-              </div>
+            <div className="hj-stop end">
+              <span className="hj-label">To</span>
+              <strong>{destPlace}</strong>
             </div>
           </div>
         </div>
       </section>
 
       {/* Main Content Body */}
-      <div className="dxp-track-container">
+      <div className="dxp-track-container trk-body">
         {/* Hold / Delay Advisory — surfaces the specific reason an admin recorded via
             Operations Control, instead of leaving a customer to guess why their shipment
             stopped moving or when it'll actually arrive. */}
@@ -768,182 +783,39 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
         )}
 
         {/* =========================================================================
-            1. WHITE CONSIGNMENT SUMMARY CARD (3 COLUMNS + CORRIDOR RAIL)
+            1. STATUS STATEMENT — the answer to "where is it?", set as type, not a card
             ========================================================================= */}
-        <section className="dxp-hero-summary-card">
-          <div className="hero-summary-grid">
-            {/* Column 1: Tracking Number & Barcode */}
-            <div className="hero-col-barcode">
-              <span className="hero-col-label">Tracking Number</span>
-              <div className="tracking-number-row">
-                <h3 className="tracking-number-val font-mono">{trackingNum}</h3>
-                <button
-                  type="button"
-                  className="copy-btn-inline"
-                  onClick={handleCopyTrackingNumber}
-                  title="Copy Tracking Number"
-                >
-                  {copiedNumber ? <Check size={16} className="text-emerald" /> : <Copy size={16} />}
-                </button>
-              </div>
-
-              {/* Code 128 Linear Barcode */}
-              <div className="hero-barcode-container">
-                <Barcode
-                  value={trackingNum}
-                  height={54}
-                  width={1.5}
-                  fontSize={11}
-                  displayValue={true}
-                />
-              </div>
-            </div>
-
-            {/* Column 2: Current Status & Details */}
-            <div className="hero-col-status">
-              <span className="hero-col-label">Current Status</span>
-              <div className="status-badge-wrap">
-                <span className={`status-pill-in-transit ${isHold ? 'hold' : (isDelayed || shipment.delayNotice?.hasDelay) ? 'delayed' : ''}`}>
-                  <span className="pill-dot-pulse" />
-                  {statusDisplayLabel.toUpperCase()}
-                </span>
-              </div>
-              <h2 className="status-hero-heading">
-                {statusHeroHeading}
-              </h2>
-              <p className="status-hero-sub">
-                {statusHeroSub}
-              </p>
-
-              <div className="last-recorded-checkpoint-box">
-                <span className="chk-label">LAST RECORDED CHECKPOINT</span>
-                <span className="chk-val">{currentLocationText} ({lastUpdated})</span>
-              </div>
-
-              {/* This used to unconditionally claim "On schedule" even while the shipment was
-                  actively on hold or delayed (with an ETA that had, in fact, just been pushed
-                  back) — misleading a customer checking exactly the shipment they'd most want
-                  an honest answer about. */}
-              {hasRevisedSchedule ? (
-                <div className="on-schedule-chip revised">
-                  <Clock size={14} />
-                  <span>Revised delivery estimate — see {isHold ? 'hold' : 'delay'} details above.</span>
-                </div>
-              ) : (
-                <div className="on-schedule-chip">
-                  <CheckCircle2 size={14} className="text-emerald" />
-                  <span>On schedule — Estimated delivery remains unchanged.</span>
-                </div>
-              )}
-            </div>
-
-            {/* Column 3: Estimated Delivery & Meta Specs */}
-            <div className="hero-col-eta-specs">
-              <span className="hero-col-label">ESTIMATED DELIVERY</span>
-              <div className="eta-highlight-box">
-                <div className="eta-date-row">
-                  <Calendar size={22} className="text-blue" />
-                  <div>
-                    <strong>{estDeliveryDate}</strong>
-                    <small>{estDeliveryTime}</small>
-                  </div>
-                </div>
-                {hasRevisedSchedule ? (
-                  <span className="on-schedule-pill revised">
-                    <Clock size={13} />
-                    <span>Revised</span>
-                  </span>
-                ) : (
-                  <span className="on-schedule-pill">
-                    <CheckCircle2 size={13} />
-                    <span>On Schedule</span>
-                  </span>
-                )}
-              </div>
-
-              {/* Meta Specs Table */}
-              <div className="hero-specs-mini-table">
-                <div className="spec-item-row">
-                  <span className="s-lbl">Service Level:</span>
-                  <span className="s-val">{service} ({formatCommitment(plan.serviceCommitmentHours)})</span>
-                </div>
-                <div className="spec-item-row">
-                  <span className="s-lbl">Shipment Type:</span>
-                  <span className="s-val">{shipmentType}</span>
-                </div>
-                {isVehicle && (
-                <div className="spec-item-row">
-                  <span className="s-lbl">Transport Type:</span>
-                  <span className="s-val">{transportType}</span>
-                </div>
-                )}
-                <div className="spec-item-row">
-                  <span className="s-lbl">Total Weight:</span>
-                  <span className="s-val">{totalWeight.toLocaleString()} lbs</span>
-                </div>
-              </div>
-            </div>
+        <section className="trk-status">
+          <div className="trk-status-main">
+            <span className="trk-eyebrow">
+              <span className={`trk-eyebrow-dot ${isHold ? 'hold' : isDelayed ? 'delayed' : status === 'DELIVERED' ? 'delivered' : ''}`} />
+              Latest update · {lastUpdated}
+            </span>
+            <h2 className="trk-status-title">{statusHeroHeading}</h2>
+            <p className="trk-status-sub">{statusHeroSub}</p>
+            <p className="trk-status-checkpoint">
+              <MapPin size={15} />
+              <span>Last checkpoint: <strong>{currentLocationText}</strong></span>
+            </p>
           </div>
 
-          {/* Dynamic Highway Corridor Transit Rail */}
-          <div className="hero-corridor-journey-strip">
-            <div className="corridor-point origin">
-              <div className="corridor-point-icon">
-                <Navigation size={16} />
-              </div>
-              <div className="corridor-point-text">
-                <span className="corridor-label">ORIGIN TERMINAL</span>
-                <strong className="corridor-city">{originPlace}</strong>
-                <small className="corridor-facility">{originFacility}</small>
-              </div>
-            </div>
-
-            <div className="corridor-track-wrapper">
-              <div className="corridor-meta-badges">
-                <span className="corridor-dist-badge">
-                  <span>{routeGeom.distanceMiles.toLocaleString()} {routeGeom.mode === 'AIR' ? 'Total Air Miles' : 'Total Highway Miles'}</span>
-                </span>
-                <span className="corridor-status-badge">
-                  {status === 'DELIVERED' ? (
-                    <span className="text-emerald font-bold">✓ 100% Completed</span>
-                  ) : (
-                    <span>● {progressPercent}% Completed</span>
-                  )}
-                </span>
-                <span className="corridor-sla-badge">
-                  <span>{statusDisplayLabel}</span>
-                </span>
-              </div>
-              <div className="corridor-progress-rail">
-                <div 
-                  className={`corridor-progress-fill ${status === 'DELIVERED' ? 'delivered' : ''}`}
-                  style={{ width: `${Math.min(Math.max(progressPercent, 5), 100)}%` }}
-                >
-                  <span className="corridor-hauler-indicator" title={`${progressPercent}% progress`}>
-                    📦
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="corridor-point destination">
-              <div className="corridor-point-icon dest">
-                <MapPin size={16} />
-              </div>
-              <div className="corridor-point-text">
-                <span className="corridor-label">FINAL DESTINATION</span>
-                <strong className="corridor-city">{destPlace}</strong>
-                <small className="corridor-facility">{destFacility}</small>
-              </div>
-            </div>
+          <div className="trk-eta">
+            <span className="trk-eta-label">{status === 'DELIVERED' ? 'Delivered' : 'Estimated delivery'}</span>
+            <strong className="trk-eta-date">{estDeliveryDate}</strong>
+            <span className="trk-eta-time">{estDeliveryTime}</span>
+            <span className={`trk-eta-chip ${hasRevisedSchedule ? 'revised' : ''}`}>
+              {hasRevisedSchedule ? <Clock size={13} /> : <CheckCircle2 size={13} />}
+              {hasRevisedSchedule ? 'Revised estimate' : 'On schedule'}
+            </span>
           </div>
         </section>
 
         {/* =========================================================================
-            2. FULL-WIDTH INTERACTIVE HIGHWAY ROUTE MAP
+            2. ROUTE MAP — full width, no extra chrome
             ========================================================================= */}
-        <section className="dxp-route-map-section">
+        <section className="trk-map">
           <USJourneyMap
+            bare
             checkpoints={routeCheckpoints}
             currentLocationText={currentLocationText}
             currentLat={currentLat}
@@ -954,564 +826,155 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
             progressPercent={progressPercent}
             shipmentStatus={status}
             delayNotice={liveShipment.delayNotice}
-            onScrollToTimeline={scrollToTimeline}
           />
+          <div className="trk-map-caption">
+            <span><strong>{routeGeom.distanceMiles.toLocaleString()} mi</strong> {routeGeom.mode === 'AIR' ? 'by air' : 'by road'}</span>
+            <span className="trk-map-sep" />
+            <span><strong>{heroProgress}%</strong> of the route complete</span>
+            <span className="trk-map-sep" />
+            <span>Position is estimated from the schedule</span>
+          </div>
         </section>
 
         {/* =========================================================================
-            3. TWO-COLUMN MAIN CONTENT (LEFT: TIMELINE | RIGHT: VEHICLE & DETAILS)
+            3. JOURNEY TIMELINE + WAYBILL
             ========================================================================= */}
-        <section className="dxp-main-content-grid">
-          {/* LEFT COLUMN: Clean Chronological Shipment Timeline */}
-          <div id="shipment-timeline-section" className="content-col-timeline">
-            <div className="timeline-card">
-              <div className="timeline-card-header">
-                <h3 className="card-section-title" style={{ margin: 0 }}>Shipment Timeline</h3>
-                <span className="timeline-count-tag font-mono">
-                  {referenceTimelineEvents.filter(e => e.statusType === 'confirmed' || e.statusType === 'current').length} of {referenceTimelineEvents.length} milestones
-                </span>
-              </div>
+        <section className="trk-split">
+          <div id="shipment-timeline-section" className="trk-journey">
+            <div className="trk-section-head">
+              <span className="trk-kicker">Journey</span>
+              <h3>Every milestone, start to finish</h3>
+              <p>
+                {referenceTimelineEvents.filter(e => e.statusType === 'confirmed' || e.statusType === 'current').length} of {referenceTimelineEvents.length} milestones reached
+              </p>
+            </div>
 
-              {/* 6 Formatted Events */}
-              <div className="timeline-items-list">
-                {referenceTimelineEvents.map((evt, idx) => {
-                  const isCurrent = evt.statusType === 'current';
-                  const isConfirmed = evt.statusType === 'confirmed';
-                  const isLast = idx === referenceTimelineEvents.length - 1;
-
-                  return (
-                    <div key={evt.id} className={`t-event-row ${isCurrent ? 'active-event' : ''}`}>
-                      <div className="t-icon-col">
-                        <div className={`t-icon-badge ${isCurrent ? 'current' : isConfirmed ? 'confirmed' : 'estimated'}`}>
-                          {isCurrent ? (
-                            <Truck size={14} className="text-white animate-pulse" />
-                          ) : isConfirmed ? (
-                            <Check size={14} />
-                          ) : (
-                            <span className="hollow-circle-dot" />
-                          )}
-                        </div>
-                        {!isLast && <div className={`t-line-connector ${isConfirmed ? 'solid' : 'dashed'}`} />}
-                      </div>
-
-                      <div className="t-content-col">
-                        <div className="t-event-head-row">
-                          <h4 className={`t-event-title ${isCurrent ? 'text-blue' : ''}`}>{evt.title}</h4>
-                          <span className={`t-tag ${evt.statusType}`}>
-                            {evt.statusType === 'confirmed' ? 'Confirmed' : evt.statusType === 'current' ? 'Current' : 'Estimated'}
-                          </span>
-                        </div>
-                        <div className="t-event-meta-sub">
-                          <span className="t-time-text">{evt.dateStr}</span>
-                          <span className="t-dot-sep">•</span>
-                          <span className="t-location-text">{evt.location}</span>
-                        </div>
-                      </div>
+            <ol className="trk-rail">
+              {referenceTimelineEvents.map((evt) => {
+                const state = evt.statusType === 'current' ? 'current' : evt.statusType === 'confirmed' ? 'done' : 'next';
+                const [datePart, timePart] = String(evt.dateStr).split(' · ');
+                return (
+                  <li key={evt.id} className={`trk-step ${state}`}>
+                    <div className="trk-step-when">
+                      <strong>{datePart}</strong>
+                      {timePart && <span>{timePart}</span>}
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="trk-step-node" aria-hidden="true">
+                      {state === 'current'
+                        ? (routeGeom.mode === 'AIR' && /flight|air/i.test(evt.title) ? <Plane size={14} /> : <Package size={14} />)
+                        : state === 'done' ? <Check size={13} strokeWidth={3} /> : null}
+                    </div>
+                    <div className="trk-step-what">
+                      <h4>{evt.title}</h4>
+                      <span className="trk-step-where">{evt.location}</span>
+                      <span className="trk-step-when-inline">{evt.dateStr}</span>
+                      {state === 'current' && <span className="trk-step-badge">Current</span>}
+                      {state === 'next' && <span className="trk-step-est">Estimated</span>}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
 
-              {/* View Full Timeline Button */}
+            {eventsList.length > 0 && (
               <button
                 type="button"
-                className="view-full-timeline-action-btn"
+                className="trk-scans-toggle"
                 onClick={() => setShowEarlierEvents(!showEarlierEvents)}
+                aria-expanded={showEarlierEvents}
               >
-                <span>{showEarlierEvents ? 'Collapse Additional Scans' : 'View Full Timeline'}</span>
-                <ChevronDown size={15} style={{ transform: showEarlierEvents ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+                <span>{showEarlierEvents ? 'Hide facility scans' : eventsList.length === 1 ? 'Show the facility scan' : `Show all ${eventsList.length} facility scans`}</span>
+                <ChevronDown size={16} style={{ transform: showEarlierEvents ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
               </button>
+            )}
 
-              {/* Expanded Facility Scan Logs */}
-              {showEarlierEvents && (
-                <div className="timeline-extended-logs animate-fade-in">
-                  <div className="extended-logs-header">
-                    <span className="font-mono text-xs text-slate-500 font-bold uppercase tracking-wider">Historical Checkpoint Scan Logs</span>
-                  </div>
-                  {eventsList.map((evt, idx) => (
-                    <div key={evt.id || idx} className="extended-scan-item">
-                      <div className="scan-time font-mono">{evt.displayDate} · {evt.displayTime}</div>
-                      <div className="scan-title">{evt.title} — {evt.city}, {evt.state}</div>
-                      <div className="scan-facility text-xs text-slate-500">{evt.facility}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            {showEarlierEvents && (
+              <ul className="trk-scans animate-fade-in">
+                {eventsList.map((evt, idx) => (
+                  <li key={evt.id || idx}>
+                    <span className="trk-scan-time">{evt.displayDate} · {evt.displayTime}</span>
+                    <span className="trk-scan-title">{evt.title} — {evt.city}{evt.state ? `, ${evt.state}` : ''}</span>
+                    {evt.facility && <span className="trk-scan-facility">{evt.facility}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
-          {/* RIGHT COLUMN: STRUCTURED CARGO DETAILS */}
-          <div className="content-col-details">
-            {/* Cargo-Type-Specific Specifications — shown for the non-Vehicle types that
-                have real, structured data of their own (Pets, Pallet, Container, Freight,
-                Document). Vehicle no longer gets a photo gallery here (removed per request —
-                no images on the public track result page), and Parcel/Multi-piece/
-                unrecognized types get no extra card either, since the generic "Shipment
-                Details" card below already covers everything relevant for them. */}
-            {!isVehicle && isPet && pet && (
-              <div className="shipment-details-spec-card">
-                <h3 className="card-section-title">Live Animal Details</h3>
-                <div className="shipment-details-two-col-grid">
-                  <div className="detail-cell">
-                    <PawPrint size={18} className="dtl-icon text-slate-500" />
-                    <div className="dtl-cell-content">
-                      <small>Pet Name</small>
-                      <strong>{pet.name || '—'}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <Heart size={18} className="dtl-icon text-blue" />
-                    <div className="dtl-cell-content">
-                      <small>Species / Breed</small>
-                      <strong>{[pet.species, pet.breed].filter(Boolean).join(' — ') || '—'}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <Scale size={18} className="dtl-icon text-slate-500" />
-                    <div className="dtl-cell-content">
-                      <small>Weight</small>
-                      <strong>{pet.weightLbs ? `${pet.weightLbs} lbs` : '—'}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <Box size={18} className="dtl-icon text-blue" />
-                    <div className="dtl-cell-content">
-                      <small>Crate Type</small>
-                      <strong>{pet.crateType || '—'}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <FileText size={18} className="dtl-icon text-slate-500" />
-                    <div className="dtl-cell-content">
-                      <small>Microchip Number</small>
-                      <strong className="font-mono">{pet.microchipNumber || '—'}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <Stethoscope size={18} className="dtl-icon text-blue" />
-                    <div className="dtl-cell-content">
-                      <small>Vet Clinic</small>
-                      <strong>{pet.vetClinicName || '—'}</strong>
-                    </div>
-                  </div>
+          {/* Waybill ticket: one object holding the ID, the parties and the cargo facts */}
+          <aside className="trk-waybill-wrap">
+            <div className="trk-waybill">
+              <div className="wb-top">
+                <div className="wb-brand-row">
+                  <span className="wb-kicker">Waybill</span>
+                  <span className={`wb-status ${isHold ? 'hold' : isDelayed ? 'delayed' : ''}`}>{statusDisplayLabel}</span>
+                </div>
+                <div className="wb-number-row">
+                  <strong className="wb-number">{trackingNum}</strong>
+                  <button
+                    type="button"
+                    className="wb-copy"
+                    onClick={handleCopyTrackingNumber}
+                    aria-label="Copy tracking number"
+                    title="Copy tracking number"
+                  >
+                    {copiedNumber ? <Check size={15} /> : <Copy size={15} />}
+                  </button>
+                </div>
+                <div className="wb-barcode">
+                  <Barcode value={trackingNum} height={46} width={1.4} fontSize={10} displayValue={false} />
                 </div>
               </div>
-            )}
 
-            {!isVehicle && liveShipment?.shipmentType === 'Pallet' && liveShipment?.palletDetails && (
-              <div className="shipment-details-spec-card">
-                <h3 className="card-section-title">Pallet Specifications</h3>
-                <div className="shipment-details-two-col-grid">
-                  <div className="detail-cell">
-                    <Layers size={18} className="dtl-icon text-slate-500" />
-                    <div className="dtl-cell-content">
-                      <small>Pallet Standard</small>
-                      <strong>{liveShipment.palletDetails.standard}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <Box size={18} className="dtl-icon text-blue" />
-                    <div className="dtl-cell-content">
-                      <small>Skid Count</small>
-                      <strong>{liveShipment.palletDetails.count}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <Scale size={18} className="dtl-icon text-slate-500" />
-                    <div className="dtl-cell-content">
-                      <small>Weight Per Skid</small>
-                      <strong>{liveShipment.palletDetails.weightPerSkidLbs} lbs</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <ShieldCheck size={18} className="dtl-icon text-emerald" />
-                    <div className="dtl-cell-content">
-                      <small>Stackable</small>
-                      <strong>{liveShipment.palletDetails.stackable ? 'Yes' : 'No — Top-Tier Only'}</strong>
-                    </div>
-                  </div>
+              <div className="wb-perf" aria-hidden="true" />
+
+              <div className="wb-parties">
+                <div className="wb-party">
+                  <span className="wb-label">From</span>
+                  <strong>{senderName}</strong>
+                  {senderCompany && <span>{senderCompany}</span>}
+                  <span>{originPlace}{originZip ? ` ${originZip}` : ''}</span>
+                  {senderPhone && <a href={`tel:${senderPhone.replace(/[^0-9+]/g, '')}`}>{senderPhone}</a>}
+                  {senderEmail && <a href={`mailto:${senderEmail}`}>{senderEmail}</a>}
+                </div>
+                <div className="wb-party-arrow" aria-hidden="true"><ArrowRight size={16} /></div>
+                <div className="wb-party">
+                  <span className="wb-label">To</span>
+                  <strong>{recipientName}</strong>
+                  {recipientCompany && <span>{recipientCompany}</span>}
+                  <span>{destPlace}{destZip ? ` ${destZip}` : ''}</span>
+                  {recipientPhone && <a href={`tel:${recipientPhone.replace(/[^0-9+]/g, '')}`}>{recipientPhone}</a>}
+                  {recipientEmail && <a href={`mailto:${recipientEmail}`}>{recipientEmail}</a>}
                 </div>
               </div>
-            )}
 
-            {!isVehicle && liveShipment?.shipmentType === 'Container' && liveShipment?.containerDetails && (
-              <div className="shipment-details-spec-card">
-                <h3 className="card-section-title">Intermodal Container Details</h3>
-                <div className="shipment-details-two-col-grid">
-                  <div className="detail-cell">
-                    <Container size={18} className="dtl-icon text-slate-500" />
-                    <div className="dtl-cell-content">
-                      <small>Container Number</small>
-                      <strong className="font-mono">{liveShipment.containerDetails.containerNumber}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <Box size={18} className="dtl-icon text-blue" />
-                    <div className="dtl-cell-content">
-                      <small>ISO Size</small>
-                      <strong>{liveShipment.containerDetails.isoSize}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <Lock size={18} className="dtl-icon text-slate-500" />
-                    <div className="dtl-cell-content">
-                      <small>Bolt Seal</small>
-                      <strong className="font-mono">{liveShipment.containerDetails.boltSeal}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <Building2 size={18} className="dtl-icon text-blue" />
-                    <div className="dtl-cell-content">
-                      <small>Terminal</small>
-                      <strong>{liveShipment.containerDetails.terminal}</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+              <div className="wb-perf" aria-hidden="true" />
 
-            {!isVehicle && liveShipment?.shipmentType === 'Freight' && liveShipment?.freightDetails && (
-              <div className="shipment-details-spec-card">
-                <h3 className="card-section-title">Heavy Freight & LTL Details</h3>
-                <div className="shipment-details-two-col-grid">
-                  <div className="detail-cell">
-                    <Truck size={18} className="dtl-icon text-slate-500" />
-                    <div className="dtl-cell-content">
-                      <small>Freight Class</small>
-                      <strong>{liveShipment.freightDetails.freightClass}</strong>
-                    </div>
+              <dl className="wb-facts">
+                {cargoFacts.map((fact) => (
+                  <div key={fact.label} className={fact.wide ? 'wide' : ''}>
+                    <dt>{fact.label}</dt>
+                    <dd className={fact.mono ? 'mono' : ''}>{fact.value}</dd>
                   </div>
-                  <div className="detail-cell">
-                    <FileText size={18} className="dtl-icon text-blue" />
-                    <div className="dtl-cell-content">
-                      <small>NMFC Code</small>
-                      <strong className="font-mono">{liveShipment.freightDetails.nmfcCode}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <Box size={18} className="dtl-icon text-slate-500" />
-                    <div className="dtl-cell-content">
-                      <small>Loading Method</small>
-                      <strong>{liveShipment.freightDetails.loadingMethod}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <ShieldCheck size={18} className="dtl-icon text-emerald" />
-                    <div className="dtl-cell-content">
-                      <small>Liftgate</small>
-                      <strong>
-                        {liveShipment.freightDetails.liftgatePickup && liveShipment.freightDetails.liftgateDelivery
-                          ? 'Pickup & Delivery'
-                          : liveShipment.freightDetails.liftgateDelivery
-                            ? 'Delivery Only'
-                            : liveShipment.freightDetails.liftgatePickup
-                              ? 'Pickup Only'
-                              : 'Not Required'}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+                ))}
+              </dl>
 
-            {!isVehicle && liveShipment?.shipmentType === 'Document' && liveShipment?.documentDetails && (
-              <div className="shipment-details-spec-card">
-                <h3 className="card-section-title">Secure Document Details</h3>
-                <div className="shipment-details-two-col-grid">
-                  <div className="detail-cell">
-                    <FileText size={18} className="dtl-icon text-slate-500" />
-                    <div className="dtl-cell-content">
-                      <small>Envelope / Pouch Type</small>
-                      <strong>{liveShipment.documentDetails.envelopeType}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <Lock size={18} className="dtl-icon text-blue" />
-                    <div className="dtl-cell-content">
-                      <small>Seal Number</small>
-                      <strong className="font-mono">{liveShipment.documentDetails.sealNumber}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <ShieldCheck size={18} className="dtl-icon text-emerald" />
-                    <div className="dtl-cell-content">
-                      <small>Signature Requirement</small>
-                      <strong>{liveShipment.documentDetails.directSignOnly ? 'Direct Signature Only' : 'Standard Signature'}</strong>
-                    </div>
-                  </div>
-                  <div className="detail-cell">
-                    <Clock size={18} className="dtl-icon text-slate-500" />
-                    <div className="dtl-cell-content">
-                      <small>Delivery Deadline</small>
-                      <strong>{liveShipment.documentDetails.urgentDeadline || '—'}</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Card 2: Shipment Details (2-Column Icon Grid) */}
-            <div className="shipment-details-spec-card">
-              <h3 className="card-section-title">Shipment Details</h3>
-              <div className="shipment-details-two-col-grid">
-                {/* Row 1 */}
-                <div className="detail-cell">
-                  <FileText size={18} className="dtl-icon text-slate-500" />
-                  <div className="dtl-cell-content">
-                    <small>Tracking Number</small>
-                    <div className="tracking-with-copy">
-                      <strong className="font-mono">{trackingNum}</strong>
-                      <button
-                        type="button"
-                        onClick={handleCopyTrackingNumber}
-                        className="inline-copy-btn"
-                        title="Copy tracking number"
-                      >
-                        <Copy size={12} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="detail-cell">
-                  <MapPin size={18} className="dtl-icon text-blue" />
-                  <div className="dtl-cell-content">
-                    <small>Origin</small>
-                    <strong>
-                      {originPlace}
-                      <span className="gps-sub font-mono">
-                        ({routeGeom.origin.lat.toFixed(4)}, {routeGeom.origin.lng.toFixed(4)})
-                      </span>
-                    </strong>
-                  </div>
-                </div>
-
-                {/* Row 2 */}
-                <div className="detail-cell">
-                  <Car size={18} className="dtl-icon text-slate-500" />
-                  <div className="dtl-cell-content">
-                    <small>Cargo</small>
-                    <strong>{cargoDescription}</strong>
-                  </div>
-                </div>
-
-                <div className="detail-cell">
-                  <MapPin size={18} className="dtl-icon text-blue" />
-                  <div className="dtl-cell-content">
-                    <small>Destination</small>
-                    <strong>
-                      {destPlace}
-                      <span className="gps-sub font-mono">
-                        ({routeGeom.destination.lat.toFixed(4)}, {routeGeom.destination.lng.toFixed(4)})
-                      </span>
-                    </strong>
-                  </div>
-                </div>
-
-                {/* Row 3 */}
-                <div className="detail-cell">
-                  <Scale size={18} className="dtl-icon text-slate-500" />
-                  <div className="dtl-cell-content">
-                    <small>Weight</small>
-                    <strong>{totalWeight.toLocaleString()} lbs</strong>
-                  </div>
-                </div>
-
-                <div className="detail-cell">
-                  <Package size={18} className="dtl-icon text-blue" />
-                  <div className="dtl-cell-content">
-                    <small>Service Level</small>
-                    <strong>{service} ({formatCommitment(plan.serviceCommitmentHours)})</strong>
-                  </div>
-                </div>
-
-                {/* Row 4 */}
-                <div className="detail-cell">
-                  <Box size={18} className="dtl-icon text-slate-500" />
-                  <div className="dtl-cell-content">
-                    <small>Dimensions</small>
-                    <strong>{dimensions.length} × {dimensions.width} × {dimensions.height} in</strong>
-                  </div>
-                </div>
-
-                <div className="detail-cell">
-                  <ShieldCheck size={18} className="dtl-icon text-emerald" />
-                  <div className="dtl-cell-content">
-                    <small>Status</small>
-                    <strong className="status-highlight text-emerald">
-                      <span className="mini-green-pulse" />
-                      {statusDisplayLabel}
-                    </strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Shipment Parties (Side-by-side Sender and Recipient) */}
-            <div className="shipment-parties-card">
-              <h3 className="card-section-title">Shipment Parties</h3>
-              <div className="parties-two-col-layout">
-                {/* Sender */}
-                <div className="party-box sender-box">
-                  <div className="party-header-tag">
-                    <User size={15} className="text-blue" />
-                    <span>From (Sender)</span>
-                  </div>
-                  <h4 className="party-name">{senderName}</h4>
-                  {senderCompany && <p className="party-company">{senderCompany}</p>}
-                  {senderAddress && <p className="party-address">{senderAddress}</p>}
-                  <p className="party-city-state">{originPlace}{originZip ? ` ${originZip}` : ''}</p>
-                  {senderPhone && (
-                    <a href={`tel:${senderPhone.replace(/[^0-9+]/g, '')}`} className="party-phone-link font-mono">
-                      <Phone size={13} />
-                      <span>{senderPhone}</span>
-                    </a>
-                  )}
-                  {senderEmail && (
-                    <a href={`mailto:${senderEmail}`} className="party-email-link font-mono">
-                      <Mail size={13} />
-                      <span>{senderEmail}</span>
-                    </a>
-                  )}
-                </div>
-
-                {/* Recipient */}
-                <div className="party-box recipient-box">
-                  <div className="party-header-tag">
-                    <User size={15} className="text-blue" />
-                    <span>To (Recipient)</span>
-                  </div>
-                  <h4 className="party-name">{recipientName}</h4>
-                  {recipientCompany && <p className="party-company">{recipientCompany}</p>}
-                  {recipientAddress && <p className="party-address">{recipientAddress}</p>}
-                  <p className="party-city-state">{destPlace}{destZip ? ` ${destZip}` : ''}</p>
-                  {recipientPhone && (
-                    <a href={`tel:${recipientPhone.replace(/[^0-9+]/g, '')}`} className="party-phone-link font-mono">
-                      <Phone size={13} />
-                      <span>{recipientPhone}</span>
-                    </a>
-                  )}
-                  {recipientEmail && (
-                    <a href={`mailto:${recipientEmail}`} className="party-email-link font-mono">
-                      <Mail size={13} />
-                      <span>{recipientEmail}</span>
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Card 4: Special Handling — reads the real handlingRequirements this shipment
-                was created with. This used to be three literal JSX strings ("Fragile: No",
-                "Signature Required: Yes") that showed the same values for every shipment
-                regardless of what was actually set, and never surfaced `oversized` at all. */}
-            <div className="special-handling-card">
-              <h3 className="card-section-title">Special Handling</h3>
-              <div className="handling-items-row">
-                <div className="handling-pill">
-                  <span className="h-label">Fragile:</span>
-                  <strong className={`h-val ${liveShipment?.handlingRequirements?.fragile ? 'text-amber' : ''}`}>
-                    {liveShipment?.handlingRequirements?.fragile ? 'Yes' : 'No'}
-                  </strong>
-                </div>
-                <div className="handling-pill">
-                  <span className="h-label">Signature Required:</span>
-                  <strong className={`h-val ${liveShipment?.handlingRequirements?.signatureRequired ? 'text-emerald' : ''}`}>
-                    {liveShipment?.handlingRequirements?.signatureRequired ? 'Yes' : 'No'}
-                  </strong>
-                </div>
-                {liveShipment?.handlingRequirements?.oversized && (
-                  <div className="handling-pill">
-                    <span className="h-label">Oversized:</span>
-                    <strong className="h-val text-amber">Yes</strong>
-                  </div>
-                )}
-                {isVehicle && (
-                  <div className="handling-pill">
-                    <span className="h-label">Vehicle Handling:</span>
-                    <strong className="h-val">Standard No Liftgate Required</strong>
-                  </div>
-                )}
+              <div className="wb-handling">
+                {handlingTags.map((tag) => (
+                  <span key={tag.label} className={`wb-tag ${tag.on ? 'on' : ''}`}>{tag.label}</span>
+                ))}
               </div>
               {liveShipment?.handlingRequirements?.otherInstructions && (
-                <p className="text-xs text-slate-500" style={{ marginTop: '0.5rem' }}>{liveShipment.handlingRequirements.otherInstructions}</p>
+                <p className="wb-note">{liveShipment.handlingRequirements.otherInstructions}</p>
               )}
-            </div>
 
-            {/* Card 5: Carrier Operating Authority & Chain of Custody */}
-            <div className="carrier-authority-card">
-              <div className="authority-card-left">
-                <div className="authority-icon-box">
-                  <ShieldCheck size={20} className="text-emerald" />
-                </div>
-                <div>
-                  <h4 className="authority-title">Carrier Operating Authority & Chain of Custody</h4>
-                  <p className="authority-subtitle">Federal Motor Carrier Safety Administration (FMCSA) Certified Linehaul Carrier</p>
-                </div>
-              </div>
-              <div className="authority-card-right">
-                <span className="authority-verified-badge">
-                  <Check size={13} />
-                  <span>Secure & Verified</span>
-                </span>
+              <div className="wb-foot">
+                <ShieldCheck size={15} />
+                <span>FMCSA-certified carrier · chain of custody verified</span>
               </div>
             </div>
-          </div>
+          </aside>
         </section>
-
-        {/* =========================================================================
-            4. 24/7 OPERATIONS CONCIERGE & DRIVER DISPATCH BANNER
-            ========================================================================= */}
-        <section className="dxp-help-banner-card">
-          <div className="help-banner-left">
-            <div className="help-icon-bubble">
-              <Headphones size={22} />
-            </div>
-            <div>
-              <h3>24/7 Operations Concierge & Driver Dispatch</h3>
-              <p>Direct priority line for consignees, brokers, and destination receiving docks.</p>
-              <div className="dispatch-live-indicator">
-                <span className="dispatch-dot-pulse"></span>
-                <span>Dispatchers online · Average wait: &lt; 45 seconds</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="help-banner-actions">
-            <a href={`tel:${supportPhoneDigits}`} className="help-btn phone-btn orange-dispatch-btn">
-              <Phone size={15} />
-              <span>Call Dispatch {supportPhone}</span>
-            </a>
-            <button className="help-btn contact-btn" onClick={() => setSupportOpen(true)} type="button">
-              <Mail size={15} />
-              <span>Message Dispatch Desk</span>
-            </button>
-            <button className="help-btn report-btn" onClick={() => setSupportOpen(true)} type="button">
-              <AlertTriangle size={15} />
-              <span>Report Delivery Exception</span>
-            </button>
-          </div>
-        </section>
-
-        {/* =========================================================================
-            5. TRUST & VERIFICATION STRIP
-            ========================================================================= */}
-        <div className="dxp-bottom-trust-strip">
-          <div className="trust-item">
-            <ShieldCheck size={15} className="text-blue" />
-            <span>Secure Tracking</span>
-          </div>
-          <span className="trust-sep">·</span>
-          <div className="trust-item">
-            <CheckCircle2 size={15} className="text-blue" />
-            <span>Real Updates</span>
-          </div>
-          <span className="trust-sep">·</span>
-          <div className="trust-item">
-            <Truck size={15} className="text-blue" />
-            <span>Real Deliveries</span>
-          </div>
-        </div>
       </div>
 
       {/* =========================================================================
@@ -1571,13 +1034,6 @@ export const TrackResultPage: React.FC<TrackResultPageProps> = ({
         </div>
       )}
 
-      {/* Support Dialog */}
-      <SupportModal
-        isOpen={supportOpen}
-        onClose={() => setSupportOpen(false)}
-        initialTrackingNumber={trackingNum}
-        defaultIssueType="In Transit Status Inquiry"
-      />
     </div>
   );
 };

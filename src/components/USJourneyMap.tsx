@@ -3,7 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { RouteCheckpoint, ShipmentStatus } from '../types/shipment';
 import { calculateRouteGeometry, calculateEstimatedPosition, fetchLiveRoadRoute, findNearestPointOnPolyline, resolveTransportMode } from '../services/routingEngine';
-import { Layers, ZoomIn, ZoomOut, Compass, ChevronDown, AlertTriangle, ShieldAlert, Pause, Truck, Plane, ArrowRight } from 'lucide-react';
+import { Layers, ZoomIn, ZoomOut, Compass, ChevronDown, AlertTriangle, ShieldAlert, Pause, Package, Plane, ArrowRight } from 'lucide-react';
 import { formatPlace } from '../services/geocodingService';
 import './USJourneyMap.css';
 
@@ -39,6 +39,8 @@ interface USJourneyMapProps {
   onScrollToTimeline?: () => void;
   className?: string;
   showLegend?: boolean;
+  /** Map canvas only — no origin/destination header or status footer (the page shows those itself). */
+  bare?: boolean;
 }
 
 export const USJourneyMap: React.FC<USJourneyMapProps> = ({
@@ -55,6 +57,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
   onScrollToTimeline,
   className = '',
   showLegend = true,
+  bare = false,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -67,6 +70,43 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
   const fullPolylineRef = useRef<[number, number][]>([]);
   const isInitializedRef = useRef<boolean>(false);
   const lastFittedRouteRef = useRef<string>('');
+
+  // Pin labels are always visible, so close-together pins (e.g. a vehicle near its
+  // destination, or every pin on a zoomed-out world map) used to stack their labels on top
+  // of each other. After every zoom/move this re-places them by priority — current position,
+  // then destination, then origin: a label that would overlap one already placed flips
+  // above its pin, and if that still overlaps it hides (it reappears on hover).
+  const declutterLabels = () => {
+    const markers = [vehicleMarkerRef.current, destMarkerRef.current, originMarkerRef.current];
+    const pad = 4;
+    const badges = markers.map(m => m?.getElement()?.querySelector('.pin-badge')?.getBoundingClientRect() || null);
+    // The floating map buttons count as obstacles too, so no label ends up hidden behind them.
+    const wrapper = mapContainerRef.current?.parentElement;
+    const placedLabels: DOMRect[] = wrapper
+      ? [...wrapper.querySelectorAll('.zoom-btn-group, .layer-selector-group')].map(el => el.getBoundingClientRect())
+      : [];
+    // A label may sit against its own pin, but not over another pin or an already-placed label.
+    const overlaps = (r: DOMRect, ownIndex: number) =>
+      [...badges.filter((bx, i): bx is DOMRect => !!bx && i !== ownIndex), ...placedLabels].some(p =>
+        !(r.right < p.left - pad || r.left > p.right + pad || r.bottom < p.top - pad || r.top > p.bottom + pad));
+    markers.forEach((marker, i) => {
+      const callout = marker?.getElement()?.querySelector('.pin-info-callout') as HTMLElement | null;
+      if (!callout) return;
+      callout.classList.remove('callout-above', 'callout-hidden');
+      if (overlaps(callout.getBoundingClientRect(), i)) {
+        callout.classList.add('callout-above');
+        if (overlaps(callout.getBoundingClientRect(), i)) {
+          callout.classList.remove('callout-above');
+          callout.classList.add('callout-hidden');
+          return;
+        }
+      }
+      placedLabels.push(callout.getBoundingClientRect());
+    });
+  };
+  // Less padding on narrow maps so long routes are not zoomed out to a speck.
+  const fitPadding = (): [number, number] => (mapContainerRef.current && mapContainerRef.current.clientWidth < 560 ? [36, 36] : [60, 60]);
+  const scheduleDeclutter = () => window.requestAnimationFrame(declutterLabels);
 
   const [activeLayer, setActiveLayer] = useState<'voyager' | 'satellite' | 'dark'>('voyager');
 
@@ -215,6 +255,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
         scrollWheelZoom: false,
       });
       mapInstanceRef.current = map;
+      map.on('zoomend moveend resize', scheduleDeclutter);
 
       const layerConfig = tileLayers[activeLayer];
       tileLayerRef.current = L.tileLayer(layerConfig.url, {
@@ -339,7 +380,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
         isInitializedRef.current = true;
         const bounds = L.latLngBounds(fullPolyline);
         map.fitBounds(bounds, {
-          padding: [60, 60],
+          padding: fitPadding(),
           maxZoom: 7,
           animate: false,
         });
@@ -360,10 +401,11 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
         mapInstanceRef.current.invalidateSize({ animate: false });
         const bounds = L.latLngBounds(fullPolylineRef.current.length > 1 ? fullPolylineRef.current : fullPolyline);
         mapInstanceRef.current.fitBounds(bounds, {
-          padding: [60, 60],
+          padding: fitPadding(),
           maxZoom: 7,
           animate: false,
         });
+        scheduleDeclutter();
       }
     }, 150);
 
@@ -400,6 +442,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
       if (vehicleMarkerRef.current) {
         vehicleMarkerRef.current.setLatLng([newEst.lat, newEst.lng]);
       }
+      scheduleDeclutter();
     }).catch(() => {});
 
     return () => {
@@ -474,6 +517,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
       vehicleMarkerRef.current.setIcon(
         createCustomPin('pin-current', currentLocationText || 'In Linehaul Transit', roleText)
       );
+      scheduleDeclutter();
     }
   }, [
     progressPercent,
@@ -523,7 +567,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
         ? fullPolylineRef.current
         : [[originPt.lat, originPt.lng], [destPt.lat, destPt.lng]];
       const bounds = L.latLngBounds(points as [number, number][]);
-      mapInstanceRef.current.fitBounds(bounds, { padding: [60, 60], maxZoom: 7 });
+      mapInstanceRef.current.fitBounds(bounds, { padding: fitPadding(), maxZoom: 7 });
     }
   };
 
@@ -541,8 +585,9 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
     : formatPlace(destPt.name, destPt.state, destPt.country);
 
   return (
-    <div className={`dxp-journey-map-card ${className}`}>
+    <div className={`dxp-journey-map-card ${bare ? 'is-bare' : ''} ${className}`}>
       {/* 1. Gorgeous 3-Column Route Stages Header */}
+      {!bare && (
       <div className="map-route-stages-header">
         {/* Origin Node */}
         <div className="stage-node-box origin-box">
@@ -557,7 +602,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
         {/* Center Transit Corridor Pill */}
         <div className="stage-transit-center">
           <div className="transit-status-pill">
-            {isAir ? <Plane size={14} className="text-blue" /> : <Truck size={14} className="text-blue" />}
+            {isAir ? <Plane size={14} className="text-blue" /> : <Package size={14} className="text-blue" />}
             <span>
               {isHold ? 'TRANSIT PAUSED (HOLD)' : isDelayed ? 'TRANSIT DELAY ADVISORY' : isAir ? 'ESTIMATED AIR FREIGHT ROUTE' : 'ESTIMATED TRANSIT CORRIDOR'}
             </span>
@@ -581,6 +626,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
           <span className="stage-facility-sub">Consignee Destination</span>
         </div>
       </div>
+      )}
 
       {/* 2. Map Canvas Viewport Area */}
       <div className="map-viewport-wrapper">
@@ -589,31 +635,37 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
         {/* Floating Controls */}
         <div className="map-floating-controls">
           <div className="zoom-btn-group">
-            <button className="map-ctrl-btn" onClick={handleZoomIn} title="Zoom In">
+            <button type="button" className="map-ctrl-btn" onClick={handleZoomIn} title="Zoom in" aria-label="Zoom in">
               <ZoomIn size={16} />
             </button>
-            <button className="map-ctrl-btn" onClick={handleZoomOut} title="Zoom Out">
+            <button type="button" className="map-ctrl-btn" onClick={handleZoomOut} title="Zoom out" aria-label="Zoom out">
               <ZoomOut size={16} />
             </button>
-            <button className="map-ctrl-btn" onClick={handleRecenter} title="Recenter Complete Route">
+            <button type="button" className="map-ctrl-btn" onClick={handleRecenter} title="Show full route" aria-label="Show full route">
               <Compass size={16} />
             </button>
           </div>
+        </div>
 
-          <div className="layer-selector-group">
+        {/* Map style switcher sits bottom-left, away from the zoom buttons */}
+        <div className="map-layer-dock">
+          <div className="layer-selector-group" role="group" aria-label="Map style">
             <button
+              type="button"
               className={`layer-btn ${activeLayer === 'voyager' ? 'active' : ''}`}
               onClick={() => setActiveLayer('voyager')}
             >
               Daylight
             </button>
             <button
+              type="button"
               className={`layer-btn ${activeLayer === 'satellite' ? 'active' : ''}`}
               onClick={() => setActiveLayer('satellite')}
             >
               Satellite
             </button>
             <button
+              type="button"
               className={`layer-btn ${activeLayer === 'dark' ? 'active' : ''}`}
               onClick={() => setActiveLayer('dark')}
             >
@@ -651,6 +703,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
       </div>
 
       {/* 3. Route Status Footer Bar */}
+      {!bare && (
       <div className="map-footer-status-bar">
         <div className="footer-status-left">
           <Compass size={16} className="text-blue" />
@@ -665,6 +718,7 @@ export const USJourneyMap: React.FC<USJourneyMapProps> = ({
           </button>
         )}
       </div>
+      )}
     </div>
   );
 };
