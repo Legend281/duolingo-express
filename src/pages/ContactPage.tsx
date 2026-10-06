@@ -77,7 +77,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
   const faqs = [
     {
       q: "How do I track an active consignment across your sortation network?",
-      a: "Enter your tracking identifier (e.g. DXP-2026-7K2M9QRX) in the search bar on our Track page. You will immediately access live 60 FPS highway telemetry, verified checkpoint scan milestones, and real-time arrival estimates."
+      a: "Enter your tracking identifier (e.g. DXP-2026-7K2M9QRX) in the search bar on our Track page. You will immediately access live 60 FPS road and air telemetry, verified checkpoint scan milestones, and real-time arrival estimates."
     },
     {
       q: "What courier delivery options exist for commercial and residential tenders?",
@@ -96,7 +96,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
       a: "We offer specialized Auto & Vehicle Transport (enclosed and open-deck carrier relocation) as well as Time-Critical Secure Vault courier services with dual-custody armored transport and dedicated dispatch oversight."
     },
     {
-      q: "What happens if an unexpected weather or highway corridor delay occurs?",
+      q: "What happens if an unexpected weather, customs, or transit delay occurs?",
       a: "If an operational delay occurs, our automated telemetry system recalculates transit windows and logs an updated ETA in your live tracking ledger. You can also submit an urgent ticket here or contact our desk directly."
     }
   ];
@@ -119,7 +119,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
           </h1>
 
           <p className="contact-hero-lead animate-fade-in">
-            Speak directly with experienced U.S. linehaul dispatchers, courier routing specialists, and vehicle transport coordinators around the clock.
+            Speak directly with experienced domestic and international dispatchers, courier routing specialists, and vehicle transport coordinators around the clock.
           </p>
         </div>
       </section>
@@ -335,7 +335,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
               <div className="contact-channel-item">
                 <div className="channel-icon icon-sky"><MapPin size={22} /></div>
                 <div>
-                  <small>National Corporate Headquarters</small>
+                  <small>Corporate Headquarters</small>
                   <strong>{companyName}</strong>
                   <p>{headquartersAddress}</p>
                 </div>
@@ -344,7 +344,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
               <div className="emergency-box">
                 <div className="em-head">
                   <AlertTriangle size={18} className="text-amber" />
-                  <strong>Active Interstate Linehaul Emergency?</strong>
+                  <strong>Active In-Transit Emergency?</strong>
                 </div>
                 <p>For urgent in-transit delivery holds or urgent vehicle transports, contact our dedicated supervisor priority line at <strong>{supportPhone} (Ext 1)</strong>.</p>
               </div>

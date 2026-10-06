@@ -541,7 +541,7 @@ export const QuotePage: React.FC<QuotePageProps> = ({ onNavigate, initialService
                       className="dxp-input"
                     >
                       <option value="Priority Express Courier">Priority Express Courier (Time-Definite)</option>
-                      <option value="Scheduled Commercial Linehaul">Scheduled Commercial Linehaul (Interstate)</option>
+                      <option value="Scheduled Commercial Linehaul">Scheduled Commercial Linehaul (Domestic Road)</option>
                       <option value="Auto & Vehicle Transport">Auto & Vehicle Transport (Open/Enclosed)</option>
                       <option value="Time-Critical Secure Vault">Time-Critical Secure Vault (Armed Custody)</option>
                     </select>
@@ -668,7 +668,7 @@ export const QuotePage: React.FC<QuotePageProps> = ({ onNavigate, initialService
                   </div>
                   <div className="p-point">
                     <CheckCircle2 size={16} className="text-orange flex-shrink-0" />
-                    <span>Verified Interstate linehaul corridor scheduling</span>
+                    <span>Verified road and air freight scheduling</span>
                   </div>
                   <div className="p-point">
                     <CheckCircle2 size={16} className="text-orange flex-shrink-0" />

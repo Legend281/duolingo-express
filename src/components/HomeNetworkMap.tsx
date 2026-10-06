@@ -147,7 +147,7 @@ export const HomeNetworkMap: React.FC<HomeNetworkMapProps> = ({ activeHub, onSel
       <div ref={mapContainerRef} className="home-leaflet-map-container" />
       <div className="map-overlay-badge font-mono">
         <span className="live-dot" />
-        <span>50+ LIVE U.S. GATEWAYS CONNECTED</span>
+        <span>50+ LIVE U.S. GATEWAYS · GLOBAL AIR FREIGHT</span>
       </div>
     </div>
   );

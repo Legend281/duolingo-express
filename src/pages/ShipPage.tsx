@@ -1063,7 +1063,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
                       </div>
                       <div className="serv-transit">2 - 3 Business Days</div>
                       <div className="serv-rate-status font-mono">RATE PUBLISHED BY ADMIN</div>
-                      <small>Interstate highway relay & sortation network</small>
+                      <small>Road & air relay and sortation network</small>
                     </div>
 
                     <div
@@ -1250,7 +1250,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
           <div className="section-center-header">
             <span className="section-eyebrow">OPERATIONAL PROVENANCE</span>
             <h2>How Consignment Tender Works</h2>
-            <p className="section-desc-sub">From initial registration to hub ingestion, highway relay, and final direct recipient signature.</p>
+            <p className="section-desc-sub">From initial registration to hub ingestion, road or air relay, and final direct recipient signature.</p>
             <div className="section-header-line" />
           </div>
 
@@ -1269,7 +1269,7 @@ export const ShipPage: React.FC<ShipPageProps> = ({ onTrack, onNavigate }) => {
 
             <div className="p-step-card">
               <div className="step-badge">03</div>
-              <h4>Interstate Highway Relay</h4>
+              <h4>Road & Air Relay</h4>
               <p>Consignment travels across verified corridor sortation hubs with real-time waypoint checkpoint scans.</p>
             </div>
 

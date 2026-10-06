@@ -66,15 +66,15 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({ onNavigate }) => {
         <div className="dxp-container-wide locations-hero-inner">
           <div className="locations-hero-pill animate-fade-in">
             <span className="locations-pulse-dot" />
-            <span>{dotNumber} · NATIONAL GATEWAY NETWORK</span>
+            <span>{dotNumber} · U.S. GATEWAYS · GLOBAL REACH</span>
           </div>
 
           <h1 className="locations-hero-title animate-fade-in">
-            U.S. Regional Gateways & <span className="locations-highlight-orange">Sortation Hubs.</span>
+            U.S. International Gateways & <span className="locations-highlight-orange">Sortation Hubs.</span>
           </h1>
 
           <p className="locations-hero-lead animate-fade-in">
-            Explore our nationwide network of primary intake gateways, sorting centers, and monitored transfer bays connecting critical interstate courier corridors.
+            Explore our nationwide network of primary intake gateways, sorting centers, and monitored transfer bays connecting domestic courier corridors with international air freight lanes.
           </p>
         </div>
       </section>
@@ -85,9 +85,9 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({ onNavigate }) => {
       <div className="dxp-container-wide dxp-locations-content">
         <div className="locations-map-feature animate-fade-in">
           <div className="map-card-header">
-            <div className="map-badge-pill font-mono">NATIONAL INFRASTRUCTURE RADAR</div>
+            <div className="map-badge-pill font-mono">GATEWAY INFRASTRUCTURE RADAR</div>
             <h3>Primary Gateway Terminals & Scheduled Corridors</h3>
-            <p>Interactive overview of our fixed intake bays and connecting linehaul routes across the United States.</p>
+            <p>Interactive overview of our fixed intake bays and connecting linehaul routes across the United States, and the departure points for our international air freight.</p>
           </div>
           <FacilityNetworkMap />
         </div>

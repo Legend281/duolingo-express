@@ -110,7 +110,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({
               {activeDoc === 'accessibility' && 'Digital Accessibility Standards'}
             </h2>
             <div className="doc-meta-bar font-mono">
-              <span>Revision: August 2026</span>
+              <span>Revision: October 2026</span>
               <span>•</span>
               <span>Effective: Immediate</span>
               <span>•</span>
@@ -125,7 +125,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({
                 <section className="legal-section">
                   <h3>1. Scope of Privacy Protection</h3>
                   <p>
-                    Duolingo Express ("we," "our," or "the Platform") provides priority express courier, scheduled commercial linehaul, auto transport, and secure vault logistics across the United States. This Privacy Policy details how we collect, safeguard, and manage data across public tracking engines, booking portals, and customer support channels.
+                    Duolingo Express ("we," "our," or "the Platform") provides priority express courier, scheduled commercial linehaul, auto transport, secure vault logistics, and international air freight across the United States and to destinations worldwide. This Privacy Policy details how we collect, safeguard, and manage data across public tracking engines, booking portals, and customer support channels.
                   </p>
                 </section>
 
@@ -137,9 +137,16 @@ export const LegalPage: React.FC<LegalPageProps> = ({
                 </section>
 
                 <section className="legal-section">
-                  <h3>3. Data Retention & Operational Provenance</h3>
+                  <h3>3. International Shipments & Customs Data Sharing</h3>
                   <p>
-                    Shipment event records, verified scan timestamps, facility identifiers, and generated logistics documents are retained in append-only records for 7 years to comply with federal motor carrier and interstate express courier regulations.
+                    For any shipment that crosses a border, the shipper and consignee names and addresses, contact details, contents description, and declared value are shared with the customs authorities of the origin, destination, and any transit country, as required to clear the consignment. This information is shared only for customs clearance and regulatory compliance.
+                  </p>
+                </section>
+
+                <section className="legal-section">
+                  <h3>4. Data Retention & Operational Provenance</h3>
+                  <p>
+                    Shipment event records, verified scan timestamps, facility identifiers, and generated logistics documents are retained in append-only records for 7 years to comply with applicable motor carrier, express courier, and customs record-keeping regulations.
                   </p>
                 </section>
               </>
@@ -158,7 +165,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({
                 <section className="legal-section">
                   <h3>2. Service Availability & Network Coverage</h3>
                   <p>
-                    Services are rendered within established U.S. Interstate service regions and designated gateway corridors (New York JFK, Chicago ORD, Dallas DFW, and Los Angeles LAX). Scheduled departure times and estimated transit milestones are computed dynamically based on real-time operational conditions.
+                    Services are rendered within established U.S. service regions and to international destinations through designated gateway corridors (New York JFK, Chicago ORD, Dallas DFW, and Los Angeles LAX). Long-distance international consignments travel by air freight; shorter cross-border routes may travel by road. Scheduled departure times and estimated transit milestones are computed dynamically based on real-time operational conditions.
                   </p>
                 </section>
 
@@ -166,6 +173,13 @@ export const LegalPage: React.FC<LegalPageProps> = ({
                   <h3>3. Payment & Account Invoicing</h3>
                   <p>
                     Consignments tendered under commercial accounts are billed in accordance with agreed tariff schedules. Official Bills of Lading and payment invoices are certified and transmitted directly by our central dispatch and administration desk.
+                  </p>
+                </section>
+
+                <section className="legal-section">
+                  <h3>4. International Shipments & Customs</h3>
+                  <p>
+                    International consignments are subject to export and import customs clearance. The shipper is responsible for providing an accurate contents description, declared value, and any export or import documentation required by the origin and destination countries. Import duties, taxes, and customs fees assessed by the destination country are not included in our transport tariffs and, unless otherwise agreed in writing, are payable by the consignee. Transit commitments for international consignments exclude time spent in customs inspection or hold.
                   </p>
                 </section>
               </>
@@ -184,14 +198,14 @@ export const LegalPage: React.FC<LegalPageProps> = ({
                 <section className="legal-section">
                   <h3>2. Dimensional Weight & Scale Rating</h3>
                   <p>
-                    Tariffs are assessed based on the greater of actual certified scale weight or dimensional cubic weight (Length × Width × Height in inches divided by 139 for express domestic courier transit).
+                    Tariffs are assessed based on the greater of actual certified scale weight or dimensional cubic weight (Length × Width × Height in inches divided by 139 for express courier transit, domestic and international).
                   </p>
                 </section>
 
                 <section className="legal-section">
                   <h3>3. Fuel Surcharge & Accessorial Services</h3>
                   <p>
-                    Fuel surcharges are adjusted bi-weekly in direct index alignment with U.S. Department of Energy national diesel averages. Accessorial services such as Adult Signature Confirmation, Saturday Expedited Delivery, or Armored Dual-Custody are itemized transparently.
+                    Ground fuel surcharges are adjusted bi-weekly in direct index alignment with U.S. Department of Energy national diesel averages; air freight fuel surcharges are itemized on each international quote. Accessorial services such as Adult Signature Confirmation, Saturday Expedited Delivery, or Armored Dual-Custody are itemized transparently.
                   </p>
                 </section>
               </>
@@ -203,7 +217,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({
                 <section className="legal-section">
                   <h3>1. Tender and Acceptance of Goods</h3>
                   <p>
-                    Duolingo Express accepts commercial parcels, cartons, motor vehicles, and secure vault consignments subject to compliance with packaging standards, safety regulations, and legal transit requirements.
+                    Duolingo Express accepts commercial parcels, cartons, motor vehicles, and secure vault consignments subject to compliance with packaging standards, safety regulations, and legal transit requirements, including the export and import regulations of every country a consignment passes through.
                   </p>
                 </section>
 
