@@ -77,6 +77,16 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+// API replies must never be cached or rewritten by an edge/CDN in front of this app: on the
+// production admin host, replies were arriving with their body missing (see apiFetch in
+// src/services/api.ts). ETags are dropped for the same reason — an edge treating a reply as
+// revalidatable is one way a body gets swapped for an empty one.
+app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+  res.set('Cache-Control', 'no-store, no-transform');
+  next();
+});
+app.set('etag', false);
+
 if (ADMIN_PROXY_TARGET) {
   // Admin-subdomain deployment: forward every /api request to the real app untouched, cookies
   // included. Mounted before any body-parser so the raw request stream reaches the upstream
@@ -92,6 +102,12 @@ if (ADMIN_PROXY_TARGET) {
     target: ADMIN_PROXY_TARGET,
     changeOrigin: true,
     pathRewrite: (path) => `/api${path}`,
+    on: {
+      proxyRes: (proxyRes) => {
+        delete proxyRes.headers['etag'];
+        proxyRes.headers['cache-control'] = 'no-store, no-transform';
+      },
+    },
   }));
 } else {
   // Raised from Express's 100kb default so a base64-encoded signature/stamp image upload
